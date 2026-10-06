@@ -82,8 +82,7 @@ Check actual contrast in rendered components; do not assume every pairing is acc
 ### Internal panel
 - Sidebar/navigation collapses on mobile.
 - Dashboard uses real database values only.
-- **Petugas dashboard:** assigned complaints only.
-- **Operator dashboard:** operational complaint management.
+- **Operator dashboard:** operational complaint management (review, category, assignment, status, notes, responses).
 - **Admin dashboard:** monitoring only; no management actions.
 - **Super Admin dashboard:** full management navigation.
 - Complaint list has filter/search, clear status badges, pagination, and responsive table-to-card transformation on narrow screens.

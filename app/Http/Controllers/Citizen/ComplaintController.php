@@ -22,12 +22,30 @@ class ComplaintController extends Controller
 {
     /**
      * Show form to create a new complaint.
+     *
+     * The citizen selects a CATEGORY only (never a Dinas/Unit). The mapped
+     * Dinas/Unit are shown as read-only info (authoritative `category_dinas_unit`
+     * mapping); the legacy `dinas_name` label is only a fallback for display
+     * (Prompt 6 §12/§18/§19).
      */
     public function create(): View
     {
-        $categories = ComplaintCategory::active()->get();
+        $categories = ComplaintCategory::active()->with('dinasUnits')->get();
 
-        return view('citizen.complaint.create', compact('categories'));
+        // Explicit, JS-friendly payload (no reliance on Eloquent relation keys).
+        $categoriesForJs = $categories->map(fn (ComplaintCategory $cat) => [
+            'id'           => $cat->id,
+            'name'         => $cat->name,
+            'description'  => $cat->description,
+            'dinas_name'   => $cat->dinas_name,
+            'mapped_dinas' => $cat->dinasUnits
+                ->where('is_active', true)
+                ->pluck('name')
+                ->values()
+                ->all(),
+        ])->values();
+
+        return view('citizen.complaint.create', compact('categories', 'categoriesForJs'));
     }
 
     /**
@@ -57,7 +75,9 @@ class ComplaintController extends Controller
                 'category_id' => $validated['category_id'],
                 'reporter_id' => $user->id,
                 'reporter_email' => $user->email,
-                'reporter_phone' => $user->phone ?? null,
+                // reporter_phone: no phone column on users; required identity fields are
+                // TODO: Define requirement. Snapshot stays null until decided.
+                'reporter_phone' => null,
                 'title' => $validated['title'],
                 'description' => $validated['description'],
                 'location_text' => $validated['location_text'] ?? null,

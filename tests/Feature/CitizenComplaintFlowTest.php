@@ -279,6 +279,8 @@ class CitizenComplaintFlowTest extends TestCase
 
         $updateResponse = $this->actingAs($this->citizen)->patch(route('citizen.profile.update'), [
             'name' => 'Nama Baru Masyarakat',
+            'phone_number' => $this->citizen->phone_number,
+            'address' => $this->citizen->address,
         ]);
 
         $updateResponse->assertRedirect();

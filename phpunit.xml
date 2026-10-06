@@ -23,12 +23,14 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
+        <!-- Non-secret test DB coordinates. Credentials are intentionally NOT
+             stored here: DB_USERNAME / DB_PASSWORD are read from the
+             environment (.env, which is git-ignored) so no secret is ever
+             committed to version control. See .env.example for the template. -->
         <env name="DB_CONNECTION" value="mysql"/>
         <env name="DB_HOST" value="127.0.0.1"/>
         <env name="DB_PORT" value="3307"/>
         <env name="DB_DATABASE" value="superbie_testing"/>
-        <env name="DB_USERNAME" value="ruthless"/>
-        <env name="DB_PASSWORD" value="Ruthless*77"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

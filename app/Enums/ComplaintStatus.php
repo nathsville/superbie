@@ -3,9 +3,16 @@
 namespace App\Enums;
 
 /**
- * Provisional complaint status values.
- * These must be confirmed with the service owner before production.
- * TODO: Define requirement — official statuses, transitions, and who may perform each.
+ * Official complaint status values — finalized per Prompt 3B business decision.
+ *
+ * 7 statuses, 11 allowed transitions, 1 terminal (closed).
+ * No reopen workflow. Reopening is not supported.
+ *
+ * Authority to change status:
+ *  - Operator: YES
+ *  - Super Admin: YES
+ *  - Admin: NO (monitoring only)
+ *  - Masyarakat: NO
  */
 enum ComplaintStatus: string
 {
@@ -17,10 +24,13 @@ enum ComplaintStatus: string
     case Rejected             = 'rejected';
     case Closed               = 'closed';
 
+    /**
+     * Official public-facing labels (Bahasa Indonesia).
+     */
     public function label(): string
     {
         return match ($this) {
-            self::Submitted             => 'Dikirim',
+            self::Submitted             => 'Diajukan',
             self::UnderReview           => 'Sedang Ditinjau',
             self::InProgress            => 'Sedang Diproses',
             self::WaitingForInformation => 'Menunggu Informasi',
@@ -57,18 +67,35 @@ enum ComplaintStatus: string
     }
 
     /**
-     * Allowed transitions per status.
-     * TODO: Define requirement — confirm official workflow before production.
+     * Official allowed transitions — 11 transitions total.
+     *
+     * submitted             → under_review
+     * under_review          → in_progress, waiting_for_information, rejected
+     * in_progress           → waiting_for_information, resolved, rejected
+     * waiting_for_information → in_progress, resolved
+     *   NOTE: waiting_for_information → rejected is FORBIDDEN
+     * resolved              → closed
+     * rejected              → closed
+     * closed                → [] (terminal — no transitions out)
+     *
+     * Explicitly forbidden (representative list):
+     *  - submitted → rejected
+     *  - waiting_for_information → rejected
+     *  - resolved → anything except closed
+     *  - rejected → anything except closed
+     *  - closed → anything
+     *
+     * No reopen workflow is supported.
      *
      * @return list<ComplaintStatus>
      */
     public function allowedTransitions(): array
     {
         return match ($this) {
-            self::Submitted             => [self::UnderReview, self::Rejected],
+            self::Submitted             => [self::UnderReview],
             self::UnderReview           => [self::InProgress, self::WaitingForInformation, self::Rejected],
             self::InProgress            => [self::WaitingForInformation, self::Resolved, self::Rejected],
-            self::WaitingForInformation => [self::InProgress, self::Resolved, self::Rejected],
+            self::WaitingForInformation => [self::InProgress, self::Resolved],
             self::Resolved              => [self::Closed],
             self::Rejected              => [self::Closed],
             self::Closed                => [],
@@ -78,5 +105,34 @@ enum ComplaintStatus: string
     public function canTransitionTo(self $next): bool
     {
         return in_array($next, $this->allowedTransitions(), true);
+    }
+
+    /**
+     * Whether this status is terminal (no transitions out).
+     */
+    public function isTerminal(): bool
+    {
+        return $this === self::Closed;
+    }
+
+    /**
+     * Whether a public response is required when transitioning TO this status.
+     *
+     * resolved: public response REQUIRED
+     * rejected: public response REQUIRED
+     */
+    public function requiresPublicResponse(): bool
+    {
+        return in_array($this, [self::Resolved, self::Rejected], true);
+    }
+
+    /**
+     * Whether a rejection reason is required when transitioning TO this status.
+     *
+     * rejected: rejection reason REQUIRED
+     */
+    public function requiresRejectionReason(): bool
+    {
+        return $this === self::Rejected;
     }
 }

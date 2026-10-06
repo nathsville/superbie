@@ -54,7 +54,7 @@
                 </div>
             </div>
             <p class="text-3xl font-bold text-[#0F172A]">{{ $belumDitugaskan }}</p>
-            <p class="text-sm text-[#475569] mt-1">perlu petugas</p>
+            <p class="text-sm text-[#475569] mt-1">perlu ditangani operator</p>
         </div>
 
         <div class="stat-card card-enter stagger-item" role="listitem">
@@ -128,7 +128,7 @@
                                 <p class="text-sm font-semibold text-[#0F172A] truncate group-hover:text-[#2563EB] ui-animated">{{ $laporan->title }}</p>
                                 <p class="text-xs text-[#475569] mt-0.5">
                                     {{ $laporan->category?->name ?? '—' }} •
-                                    Petugas: {{ $laporan->assignee?->name ?? 'Belum ditugaskan' }}
+                                    Operator: {{ $laporan->assignee?->name ?? 'Belum ditugaskan' }}
                                 </p>
                             </div>
                             <svg class="w-4 h-4 text-[#475569] shrink-0 mt-1 group-hover:translate-x-0.5 ui-animated" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">

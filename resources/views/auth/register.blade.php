@@ -64,6 +64,72 @@
                         @enderror
                     </div>
 
+                    {{-- NIK --}}
+                    <div>
+                        <label for="nik" class="block text-sm font-semibold text-[#0F172A] mb-1.5">
+                            NIK <span class="text-[#B91C1C]">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="nik"
+                            name="nik"
+                            value="{{ old('nik') }}"
+                            required
+                            inputmode="numeric"
+                            maxlength="16"
+                            autocomplete="off"
+                            aria-invalid="{{ $errors->has('nik') ? 'true' : 'false' }}"
+                            placeholder="16 digit sesuai KTP"
+                            class="w-full px-4 py-2.5 rounded-xl border {{ $errors->has('nik') ? 'border-[#B91C1C]' : 'border-[#E2E8F0]' }} text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ui-animated"
+                        >
+                        @error('nik')
+                            <p class="mt-1.5 text-xs text-[#B91C1C]">{{ $message }}</p>
+                        @enderror
+                        <p class="mt-1 text-[11px] text-[#94A3B8]">NIK tidak dapat diubah setelah akun dibuat.</p>
+                    </div>
+
+                    {{-- Phone --}}
+                    <div>
+                        <label for="phone_number" class="block text-sm font-semibold text-[#0F172A] mb-1.5">
+                            Nomor HP <span class="text-[#B91C1C]">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="phone_number"
+                            name="phone_number"
+                            value="{{ old('phone_number') }}"
+                            required
+                            inputmode="tel"
+                            autocomplete="tel"
+                            aria-invalid="{{ $errors->has('phone_number') ? 'true' : 'false' }}"
+                            placeholder="08xxxxxxxxxx atau +62xxxxxxxxxx"
+                            class="w-full px-4 py-2.5 rounded-xl border {{ $errors->has('phone_number') ? 'border-[#B91C1C]' : 'border-[#E2E8F0]' }} text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ui-animated"
+                        >
+                        @error('phone_number')
+                            <p class="mt-1.5 text-xs text-[#B91C1C]">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    {{-- Address --}}
+                    <div>
+                        <label for="address" class="block text-sm font-semibold text-[#0F172A] mb-1.5">
+                            Alamat <span class="text-[#B91C1C]">*</span>
+                        </label>
+                        <textarea
+                            id="address"
+                            name="address"
+                            required
+                            rows="3"
+                            autocomplete="street-address"
+                            aria-invalid="{{ $errors->has('address') ? 'true' : 'false' }}"
+                            placeholder="Alamat lengkap tempat tinggal"
+                            class="w-full px-4 py-2.5 rounded-xl border {{ $errors->has('address') ? 'border-[#B91C1C]' : 'border-[#E2E8F0]' }} text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ui-animated"
+                        >{{ old('address') }}</textarea>
+                        @error('address')
+                            <p class="mt-1.5 text-xs text-[#B91C1C]">{{ $message }}</p>
+                        @enderror
+                    </div>
+
                     {{-- Password --}}
                     <div>
                         <label for="password" class="block text-sm font-semibold text-[#0F172A] mb-1.5">

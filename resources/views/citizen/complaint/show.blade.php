@@ -71,7 +71,7 @@
                 <p class="text-xs text-[#64748B] mt-1">
                     Dikirim pada {{ $complaint->submitted_at?->translatedFormat('d F Y, H:i') ?? '—' }} WITA
                     @if ($complaint->category)
-                        • Kategori: <strong class="text-[#334155]">{{ $complaint->category->name }}</strong> ({{ $complaint->category->dinas_name }})
+                        • Kategori: <strong class="text-[#334155]">{{ $complaint->category->name }}</strong>@if ($complaint->category->dinas_name) ({{ $complaint->category->dinas_name }})@endif
                     @endif
                 </p>
             </div>
@@ -232,11 +232,12 @@
                                     <time class="block text-[11px] text-[#64748B] mt-0.5">
                                         {{ $history->created_at?->translatedFormat('d M Y, H:i') ?? '—' }} WITA
                                     </time>
-                                    @if ($history->note)
-                                        <p class="text-xs text-[#475569] mt-1 bg-[#F8FAFC] p-2 rounded-lg border border-[#E2E8F0]">
-                                            {{ $history->note }}
-                                        </p>
-                                    @endif
+                                    {{--
+                                        Internal status-history notes are operational and are NOT shown to citizens.
+                                        The official rejection reason / public explanation is delivered exclusively
+                                        through public responses (see the "Tanggapan Resmi" section above), which are
+                                        enforced server-side by ComplaintStatus::requiresPublicResponse().
+                                    --}}
                                 </li>
                             @endforeach
                         </ol>

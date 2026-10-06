@@ -31,8 +31,8 @@ return new class extends Migration
             $table->text('description');
             // location_text: human-readable only; GIS out of scope for MVP
             $table->string('location_text', 255)->nullable();
-            // Provisional statuses - confirm with service owner before production
-            // Allowed: submitted, under_review, in_progress, waiting_for_information, resolved, rejected, closed
+            // Official statuses (finalized per Prompt 3B) — see schema.md §6 and App\Enums\ComplaintStatus
+            // Values: submitted, under_review, in_progress, waiting_for_information, resolved, rejected, closed
             $table->string('status', 40)->default('submitted')->index();
             $table->timestamp('public_updated_at')->nullable();
             $table->timestamp('submitted_at')->useCurrent()->index();

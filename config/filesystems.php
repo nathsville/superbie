@@ -33,7 +33,10 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // `serve` disabled on purpose: this root is the PRIVATE complaint storage.
+            // Enabling serve would register a /storage/{path} route for private files.
+            // Complaint attachments are served exclusively via authorized controllers.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

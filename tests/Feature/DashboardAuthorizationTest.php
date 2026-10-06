@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\Complaint;
 use App\Models\ComplaintCategory;
+use App\Models\DinasUnit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -14,8 +15,8 @@ class DashboardAuthorizationTest extends TestCase
 
     private User $citizen1;
     private User $citizen2;
-    private User $petugas1;
-    private User $petugas2;
+    private User $operator1;
+    private User $operator2;
     private User $operator;
     private User $admin;
     private User $superAdmin;
@@ -27,9 +28,16 @@ class DashboardAuthorizationTest extends TestCase
 
         $this->citizen1   = User::factory()->create(['role' => 'masyarakat', 'is_active' => true]);
         $this->citizen2   = User::factory()->create(['role' => 'masyarakat', 'is_active' => true]);
-        $this->petugas1   = User::factory()->create(['role' => 'petugas', 'is_active' => true]);
-        $this->petugas2   = User::factory()->create(['role' => 'petugas', 'is_active' => true]);
-        $this->operator   = User::factory()->create(['role' => 'operator', 'is_active' => true]);
+
+        // Prompt 15 — operators are scoped to a Dinas/Unit.
+        $unit = DinasUnit::create([
+            'name' => 'Dinas Uji Dashboard', 'code' => 'UJI-DASH',
+            'is_active' => true, 'sort_order' => 1,
+        ]);
+
+        $this->operator1  = User::factory()->create(['role' => 'operator', 'is_active' => true, 'dinas_unit_id' => $unit->id]);
+        $this->operator2  = User::factory()->create(['role' => 'operator', 'is_active' => true, 'dinas_unit_id' => $unit->id]);
+        $this->operator   = User::factory()->create(['role' => 'operator', 'is_active' => true, 'dinas_unit_id' => $unit->id]);
         $this->admin      = User::factory()->create(['role' => 'admin', 'is_active' => true]);
         $this->superAdmin = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
 
@@ -47,7 +55,6 @@ class DashboardAuthorizationTest extends TestCase
     public function test_guest_is_redirected_to_login_when_accessing_dashboards(): void
     {
         $this->get('/laporan/dashboard')->assertRedirect('/login');
-        $this->get('/petugas/dashboard')->assertRedirect('/login');
         $this->get('/operator/dashboard')->assertRedirect('/login');
         $this->get('/admin/dashboard')->assertRedirect('/login');
         $this->get('/super-admin/dashboard')->assertRedirect('/login');
@@ -57,18 +64,16 @@ class DashboardAuthorizationTest extends TestCase
 
     public function test_citizen_cannot_access_staff_dashboards(): void
     {
-        $this->actingAs($this->citizen1)->get('/petugas/dashboard')->assertForbidden();
         $this->actingAs($this->citizen1)->get('/operator/dashboard')->assertForbidden();
         $this->actingAs($this->citizen1)->get('/admin/dashboard')->assertForbidden();
         $this->actingAs($this->citizen1)->get('/super-admin/dashboard')->assertForbidden();
     }
 
-    public function test_petugas_cannot_access_other_role_dashboards(): void
+    public function test_operator_cannot_access_other_role_dashboards(): void
     {
-        $this->actingAs($this->petugas1)->get('/laporan/dashboard')->assertForbidden();
-        $this->actingAs($this->petugas1)->get('/operator/dashboard')->assertForbidden();
-        $this->actingAs($this->petugas1)->get('/admin/dashboard')->assertForbidden();
-        $this->actingAs($this->petugas1)->get('/super-admin/dashboard')->assertForbidden();
+        $this->actingAs($this->operator1)->get('/laporan/dashboard')->assertForbidden();
+        $this->actingAs($this->operator1)->get('/admin/dashboard')->assertForbidden();
+        $this->actingAs($this->operator1)->get('/super-admin/dashboard')->assertForbidden();
     }
 
     public function test_admin_cannot_access_super_admin_dashboard(): void
@@ -123,43 +128,11 @@ class DashboardAuthorizationTest extends TestCase
         $response2->assertDontSee('Laporan Rahasia Citizen 1');
     }
 
-    // ─── 5. Petugas Data Isolation Tests ──────────────────────────────────────
+    // ─── 5. Operator dashboard access ──────────────────────────────────────────
 
-    public function test_petugas_only_sees_complaints_assigned_to_them(): void
+    public function test_operator_can_access_operational_dashboard(): void
     {
-        // Complaint assigned to Petugas 1
-        Complaint::create([
-            'reference_code' => 'LPW-PET-001',
-            'reporter_id'    => $this->citizen1->id,
-            'assigned_to'    => $this->petugas1->id,
-            'category_id'    => $this->category->id,
-            'title'          => 'Tugas Petugas 1',
-            'description'    => 'Deskripsi tugas 1',
-            'status'         => 'in_progress',
-        ]);
-
-        // Complaint assigned to Petugas 2
-        Complaint::create([
-            'reference_code' => 'LPW-PET-002',
-            'reporter_id'    => $this->citizen1->id,
-            'assigned_to'    => $this->petugas2->id,
-            'category_id'    => $this->category->id,
-            'title'          => 'Tugas Petugas 2',
-            'description'    => 'Deskripsi tugas 2',
-            'status'         => 'in_progress',
-        ]);
-
-        // Petugas 1 dashboard
-        $response1 = $this->actingAs($this->petugas1)->get('/petugas/dashboard');
-        $response1->assertOk();
-        $response1->assertSee('Tugas Petugas 1');
-        $response1->assertDontSee('Tugas Petugas 2');
-
-        // Petugas 2 dashboard
-        $response2 = $this->actingAs($this->petugas2)->get('/petugas/dashboard');
-        $response2->assertOk();
-        $response2->assertSee('Tugas Petugas 2');
-        $response2->assertDontSee('Tugas Petugas 1');
+        $this->actingAs($this->operator)->get('/operator/dashboard')->assertOk();
     }
 
     // ─── 6. Dashboard Redirect Test ───────────────────────────────────────────
@@ -167,7 +140,6 @@ class DashboardAuthorizationTest extends TestCase
     public function test_authenticated_users_are_redirected_to_their_correct_dashboard(): void
     {
         $this->actingAs($this->citizen1)->get('/dashboard')->assertRedirect('/laporan/dashboard');
-        $this->actingAs($this->petugas1)->get('/dashboard')->assertRedirect('/petugas/dashboard');
         $this->actingAs($this->operator)->get('/dashboard')->assertRedirect('/operator/dashboard');
         $this->actingAs($this->admin)->get('/dashboard')->assertRedirect('/admin/dashboard');
         $this->actingAs($this->superAdmin)->get('/dashboard')->assertRedirect('/super-admin/dashboard');

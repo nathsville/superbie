@@ -20,6 +20,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\EnsureUserIsActive::class,
         ]);
+
+        // Enable the framework's session-authentication guard middleware so that
+        // when a user changes their password, other (potentially stolen) sessions
+        // are invalidated on their next request. This registers the `auth.session`
+        // middleware (Illuminate\Session\Middleware\AuthenticateSession) on the web
+        // group and is the mechanism Auth::logoutOtherDevices() relies on.
+        $middleware->authenticateSessions();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

@@ -5,6 +5,7 @@ namespace App\Http\Requests\Auth;
 use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -44,6 +45,18 @@ class LoginRequest extends FormRequest
         RateLimiter::clear($this->throttleKey());
     }
 
+    /**
+     * Ensure the login request is not rate limited.
+     *
+     * SECURITY / abuse protection (FINAL). Login policy is UNCHANGED (D-5):
+     *   key = `email|ip`, threshold = 5 attempts, window = framework default
+     *   decay (60 seconds), hit on failure / clear on success, `Lockout` event.
+     *
+     * Prompt 20 (F-18-16) — the ONLY change: the exceeded state is now an HTTP
+     * 429 (Too Many Requests) instead of a 422 validation error, matching the
+     * framework's own `throttle:` middleware semantics. The `Retry-After` value
+     * is the native `RateLimiter::availableIn()` result (never hardcoded).
+     */
     public function ensureIsNotRateLimited(): void
     {
         if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
@@ -54,11 +67,13 @@ class LoginRequest extends FormRequest
 
         $seconds = RateLimiter::availableIn($this->throttleKey());
 
-        throw ValidationException::withMessages([
-            'email' => __('Terlalu banyak percobaan login. Coba lagi dalam :seconds detik.', [
+        throw new ThrottleRequestsException(
+            __('Terlalu banyak percobaan login. Coba lagi dalam :seconds detik.', [
                 'seconds' => $seconds,
             ]),
-        ]);
+            null,
+            ['Retry-After' => $seconds],
+        );
     }
 
     public function throttleKey(): string

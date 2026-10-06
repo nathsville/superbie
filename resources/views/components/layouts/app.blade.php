@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="{{ $description ?? 'SuperBie — Lapor Pak Wali: Platform pengaduan masyarakat Kota Parepare' }}">
     <title>{{ $title ?? 'SuperBie' }} — Lapor Pak Wali</title>
+    {{-- Server-derived, non-reversible cache identity (Prompt 26).
+         Namespaces the in-memory navigation cache by user + role + Dinas/Unit so
+         snapshots can never leak across users, roles, or units. Absent for
+         guests -> the client disables page caching entirely (safe fallback). --}}
+    @auth
+        <meta name="navigation-identity" content="{{ hash_hmac('sha256', auth()->id().'|'.auth()->user()->role.'|'.(auth()->user()->dinas_unit_id ?? 'null'), (string) config('app.key')) }}">
+    @endauth
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">

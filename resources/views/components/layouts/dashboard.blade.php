@@ -21,7 +21,10 @@
             </div>
 
             {{-- Navigation --}}
-            <nav class="flex-1 overflow-y-auto py-4 px-3" role="navigation">
+            {{-- id="primary-navigation": progressive navigation swaps this
+                 server-rendered menu so the active item always matches the
+                 server-derived state (Prompt 26). --}}
+            <nav id="primary-navigation" class="flex-1 overflow-y-auto py-4 px-3" role="navigation">
                 {{ $navigation }}
             </nav>
 
@@ -74,14 +77,14 @@
                     </svg>
                 </button>
 
-                <div class="flex-1">
+                <div class="flex-1" id="page-heading">
                     <h1 class="text-lg font-semibold text-[#0F172A]">{{ $header ?? 'Dashboard' }}</h1>
                     @isset($breadcrumb)
                         <p class="text-xs text-[#475569] mt-0.5">{{ $breadcrumb }}</p>
                     @endisset
                 </div>
 
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2" id="page-actions">
                     {{ $headerActions ?? '' }}
                 </div>
             </header>

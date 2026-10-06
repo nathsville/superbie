@@ -73,7 +73,7 @@
             x-data="{
                 submitting: false,
                 selectedCategoryId: '{{ old('category_id', '') }}',
-                categories: {{ Js::from($categories) }},
+                categories: {{ Js::from($categoriesForJs) }},
                 get currentCategory() {
                     return this.categories.find(c => c.id == this.selectedCategoryId);
                 }
@@ -100,7 +100,7 @@
                             <option value="">-- Pilih Kategori Pengaduan --</option>
                             @foreach ($categories as $cat)
                                 <option value="{{ $cat->id }}" @selected(old('category_id') == $cat->id)>
-                                    {{ $cat->name }} ({{ $cat->dinas_name }})
+                                    {{ $cat->name }}
                                 </option>
                             @endforeach
                         </select>
@@ -123,7 +123,8 @@
                         <div>
                             <p class="text-xs font-semibold text-[#0F172A]">
                                 Instansi Penanggung Jawab:
-                                <span class="text-[#2563EB]" x-text="currentCategory ? currentCategory.dinas_name : ''"></span>
+                                <span class="text-[#2563EB]"
+                                      x-text="currentCategory ? (currentCategory.mapped_dinas.length ? currentCategory.mapped_dinas.join(', ') : (currentCategory.dinas_name || '—')) : ''"></span>
                             </p>
                             <p class="text-xs text-[#475569] mt-0.5" x-text="currentCategory ? currentCategory.description : ''"></p>
                         </div>
@@ -220,11 +221,11 @@
                             id="attachments"
                             name="attachments[]"
                             multiple
-                            accept=".jpg,.jpeg,.png,.pdf"
+                            accept=".jpg,.jpeg,.png,.pdf,.mp4"
                             class="block w-full text-xs text-[#475569] file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-[#2563EB] file:text-white hover:file:bg-[#1D4ED8] file:cursor-pointer cursor-pointer"
                         >
                         <p class="text-xs text-[#64748B] mt-2.5">
-                            Format yang didukung: <strong>JPG, PNG, PDF</strong> (Maksimal 5 MB per berkas, maksimal 3 berkas).
+                            Format yang didukung: <strong>JPG, JPEG, PNG, PDF, MP4</strong> (Maksimal 20 MB per berkas, maksimal 10 berkas).
                         </p>
                     </div>
                     @error('attachments')

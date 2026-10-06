@@ -1,0 +1,109 @@
+name: CI
+
+# Minimal, secret-free continuous integration for SuperBie — Lapor Pak Wali.
+#
+# Scope: build + test ONLY. This workflow NEVER deploys, NEVER uses production
+# secrets, and NEVER targets a production database. The production deployment
+# target is not determinable from repository evidence (see
+# PRODUCTION_OPERATIONS.md — "DEPLOYMENT DECISION REQUIRED"), so no deployment
+# automation is defined here.
+#
+# Platform note: the repository is hosted on GitHub, so GitHub Actions is used.
+# CI is deployment-target independent (it only runs the test suite and the asset
+# build), which is why it can be defined even though the production target is
+# still undecided. The workflow is portable if the project is later moved.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+# Least privilege: this workflow only reads the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Tests & asset build
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: superbie_testing
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    # Ephemeral, throwaway CI database. Real environment variables take
+    # precedence over both .env and phpunit.xml <env>, so these coordinates win
+    # over the local-dev defaults (port 3307) shipped in those files.
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: superbie_testing
+      DB_USERNAME: root
+      DB_PASSWORD: root
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_mysql, fileinfo, gd, exif, zip
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare application environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Prepare test database
+        run: php artisan migrate --force
+
+      - name: Run test suite
+        run: php artisan test
+
+      # Informational only: surfaces advisories without blocking the build.
+      - name: Dependency audit (informational)
+        continue-on-error: true
+        run: |
+          composer audit || true
+          npm audit || true

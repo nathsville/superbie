@@ -60,12 +60,17 @@ return [
     |--------------------------------------------------------------------------
     |
     | Here you may specify the default timezone for your application, which
-    | will be used by the PHP date and date-time functions. The timezone
-    | is set to "UTC" by default as it is suitable for most use cases.
+    | will be used by the PHP date and date-time functions.
+    |
+    | FINAL (D-1): the authoritative application timezone is Asia/Makassar
+    | (WITA / UTC+8). This is the source of truth for business-rule calendar
+    | boundaries (daily report limit) and retention cutoffs. It may be
+    | overridden per environment via APP_TIMEZONE; the default reflects the
+    | locked decision so the app never silently falls back to UTC.
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', 'Asia/Makassar'),
 
     /*
     |--------------------------------------------------------------------------

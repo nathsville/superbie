@@ -13,13 +13,13 @@ This file is the single source of truth for database entities and application-le
 - Use foreign keys and transactions.
 - Store tracking credential as a secure hash; never store raw secret.
 - Password hash is managed by Laravel's password hashing.
-- Status values in this document are provisional until the service owner confirms the official workflow.
+- Status values in this document reflect the **official complaint lifecycle** finalized per Prompt 3B.
 
 ## 2. Entities
 
 | Entity | Purpose | Type |
 |---|---|---|
-| users | Masyarakat, petugas, operator, admin, dan super admin identities | Core/auth |
+| users | Masyarakat, operator, admin, dan super admin identities | Core/auth |
 | complaint_categories | Configurable complaint categories | Supporting |
 | complaints | Main public complaint record | Core/business |
 | complaint_attachments | Private file metadata | Supporting |
@@ -44,7 +44,7 @@ erDiagram
     COMPLAINTS ||--o{ COMPLAINT_NOTES : has
 ```
 
-`assigned_to` is nullable. `changed_by`/`authored_by` may be nullable only if system-generated events are supported; decide consistently in implementation. Masyarakat/pelapor adalah `users` dengan role `masyarakat`; `assigned_to` harus menunjuk akun internal yang berperan sebagai Petugas.
+`assigned_to` is nullable. `changed_by`/`authored_by` may be nullable only if system-generated events are supported; decide consistently in implementation. Masyarakat/pelapor adalah `users` dengan role `masyarakat`; `assigned_to` menunjuk akun internal penanggung jawab operasional (role `operator`) untuk assignment baru. Baris historis yang masih menunjuk akun peran lama (`petugas`) dipertahankan tanpa remap otomatis sampai ada keputusan bisnis khusus.
 
 ## 4. Table specifications
 
@@ -56,8 +56,12 @@ Purpose: authenticated masyarakat/pelapor and internal staff/admin accounts.
 | id | BIGINT UNSIGNED | No | auto | PK | Internal ID |
 | name | VARCHAR(120) | No | — | — | Display name |
 | email | VARCHAR(255) | No | — | UNIQUE | Normalized email |
+| nik | CHAR(16) | Yes | NULL | UNIQUE | NIK 16 digit; wajib bagi masyarakat; **immutable** setelah dibuat; nullable hanya untuk baris lama (Prompt 5B) |
+| phone_number | VARCHAR(20) | Yes | NULL | UNIQUE | Nomor HP; format lokal/internasional, dinormalisasi ke `08…`; wajib bagi masyarakat (Prompt 5B) |
+| address | TEXT | Yes | NULL | — | Alamat; free text tanpa batas bisnis; wajib bagi masyarakat (Prompt 5B) |
 | password | VARCHAR(255) | No | — | — | Laravel password hash |
-| role | VARCHAR(30) | No | `masyarakat` | CHECK/app validation | `masyarakat`, `petugas`, `operator`, `admin`, `super_admin` |
+| role | VARCHAR(30) | No | `masyarakat` | CHECK/app validation | `masyarakat`, `operator`, `admin`, `super_admin` (peran historis `petugas` hanya boleh muncul pada baris lama, bukan nilai baru) |
+| dinas_unit_id | BIGINT UNSIGNED | Yes | NULL | FK → dinas_units.id, ON DELETE SET NULL | Operator's Dinas/Unit membership (Prompt 15, BDR-1 = 1a: one Operator → exactly one unit). Only meaningful for `operator`; forced NULL for every other role — enforced at the **model layer** (`User::booted()` `saving` guard, Prompt 21) so no persistence path can bypass it. Assigned/changed **only by Super Admin** via User Management (D-2, Prompt 21). An Operator with NULL here is DENIED all complaints (no global fallback). Deactivation does NOT clear it. A used/removed Dinas/Unit never deletes the account (SET NULL) |
 | is_active | BOOLEAN | No | true | — | Inactive users cannot sign in |
 | email_verified_at | TIMESTAMP | Yes | NULL | — | Use only if email verification is enabled |
 | remember_token | VARCHAR(100) | Yes | NULL | — | Laravel remember-me |
@@ -75,13 +79,43 @@ Purpose: categories available for classifying complaints.
 | name | VARCHAR(100) | No | — | — | Display name |
 | slug | VARCHAR(120) | No | — | UNIQUE | Stable key |
 | description | VARCHAR(500) | Yes | NULL | — | Optional |
-| dinas_name | VARCHAR(150) | Yes | NULL | — | Dinas/unit tujuan berdasarkan kategori; daftar resmi TODO |
+| dinas_name | VARCHAR(150) | Yes | NULL | — | Legacy/convenience display label. **NOT a routing source of truth** (Prompt 6 §10). Authoritative Category ↔ Dinas/Unit routing uses the `category_dinas_unit` mapping below (Prompt 5B). |
 | is_active | BOOLEAN | No | true | INDEX with is_active where useful | Inactive category unavailable for new submissions |
 | sort_order | SMALLINT UNSIGNED | No | 0 | — | Presentation ordering |
 | created_at | TIMESTAMP | Yes | NULL | — | |
 | updated_at | TIMESTAMP | Yes | NULL | — | |
 
 Official category list: `TODO: Define requirement`. Seed only explicitly approved categories or clearly marked development fixtures.
+
+**Category management (FINAL, Prompt 6):** Super Admin manages categories via `super-admin/kategori` (index/create/store/edit/update/**activate/deactivate**/destroy). Only Super Admin may manage master data (server-side `role:super_admin` + Form Request `authorize()`). Categories are **active/inactive**: an inactive category is rejected server-side for new complaints (never merely hidden in the UI). A category that has **ever been used by a complaint** MUST NOT be hard-deleted — the model layer blocks it and the `DELETE` endpoint returns a redirect + error; Super Admin must **deactivate** it. Deactivating a category **never** alters existing complaints (`category_id`, status, destination, timeline, audit all unchanged). `slug` is a derived, unique, server-generated key (not accepted from request).
+
+### 4.2.1 `dinas_units`
+
+Purpose: official Dinas/Unit entities. **Many-to-many** with categories (FINAL, Prompt 5B).
+
+| Column | Type | Null | Default | Key/constraint | Notes |
+|---|---|---:|---|---|---|
+| id | BIGINT UNSIGNED | No | auto | PK | |
+| name | VARCHAR(150) | No | — | — | Dinas/Unit name |
+| code | VARCHAR(50) | Yes | NULL | UNIQUE | Optional stable code |
+| description | VARCHAR(500) | Yes | NULL | — | Optional |
+| is_active | BOOLEAN | No | true | INDEX | |
+| sort_order | SMALLINT UNSIGNED | No | 0 | — | |
+| created_at | TIMESTAMP | Yes | NULL | — | |
+| updated_at | TIMESTAMP | Yes | NULL | — | |
+
+### 4.2.2 `category_dinas_unit` (pivot)
+
+Purpose: many-to-many mapping Category ↔ Dinas/Unit, managed by Super Admin (`super-admin/kategori/{category}/mapping`, `SyncCategoryMappingRequest`). This pivot is the **current master mapping** — it is **NOT** the complaint's historical destination (that is `complaints.dinas_unit_id`).
+
+| Column | Type | Null | Key/constraint | Notes |
+|---|---|---:|---|---|
+| id | BIGINT UNSIGNED | No | PK | |
+| category_id | BIGINT UNSIGNED | No | FK → complaint_categories.id, ON DELETE CASCADE | |
+| dinas_unit_id | BIGINT UNSIGNED | No | FK → dinas_units.id, ON DELETE CASCADE | |
+| created_at / updated_at | TIMESTAMP | Yes | — | |
+
+UNIQUE(category_id, dinas_unit_id). Official Dinas/Unit list: `TODO: Define requirement` (not seeded).
 
 ### 4.3 `complaints`
 Purpose: main complaint data owned by an authenticated masyarakat/pelapor.
@@ -92,6 +126,7 @@ Purpose: main complaint data owned by an authenticated masyarakat/pelapor.
 | reference_code | VARCHAR(32) | No | — | UNIQUE | Random opaque public reference |
 | tracking_secret_hash | VARCHAR(255) | Yes | NULL | — | Hash of one-time-displayed secret; nullable only if alternate verification is approved |
 | category_id | BIGINT UNSIGNED | Yes | NULL | FK → complaint_categories.id | Nullable until category workflow is confirmed |
+| dinas_unit_id | BIGINT UNSIGNED | Yes | NULL | FK → dinas_units.id, ON DELETE SET NULL | ACTUAL Dinas/Unit destination chosen by Operator (Prompt 5C); stored (not dynamic) for historical stability; **NOT derived from `category_dinas_unit`**. Null only when not yet routed. A Dinas/Unit used here cannot be hard-deleted (Prompt 5C.1) |
 | assigned_to | BIGINT UNSIGNED | Yes | NULL | FK → users.id, ON DELETE SET NULL | Current assigned staff |
 | reporter_id | BIGINT UNSIGNED | No | — | FK → users.id, ON DELETE RESTRICT | Masyarakat/pelapor pemilik laporan |
 | reporter_email | VARCHAR(255) | Yes | NULL | — | Snapshot kontak bila dibutuhkan; hindari ekspos publik |
@@ -99,7 +134,7 @@ Purpose: main complaint data owned by an authenticated masyarakat/pelapor.
 | title | VARCHAR(180) | No | — | — | Short summary |
 | description | TEXT | No | — | — | Complaint details |
 | location_text | VARCHAR(255) | Yes | NULL | — | Human-readable location; structured coordinates are out of scope |
-| status | VARCHAR(40) | No | `submitted` | INDEX | Provisional status value |
+| status | VARCHAR(40) | No | `submitted` | INDEX | Official status. See §6 for values and transition matrix |
 | public_updated_at | TIMESTAMP | Yes | NULL | — | Last time public-facing status/response changed |
 | submitted_at | TIMESTAMP | No | current time | INDEX | Submission time |
 | resolved_at | TIMESTAMP | Yes | NULL | — | Set only for approved resolved state |
@@ -107,7 +142,8 @@ Purpose: main complaint data owned by an authenticated masyarakat/pelapor.
 | updated_at | TIMESTAMP | Yes | NULL | — | |
 
 Recommended FK behavior:
-- `category_id` → `complaint_categories.id`: `ON DELETE SET NULL` or `RESTRICT` depending on category-retention policy. Prefer deactivate rather than delete categories.
+- `category_id` → `complaint_categories.id`: `ON DELETE SET NULL` (defensive DB behavior only). **Application layer MUST prevent hard-delete of any Category that has ever been used by a complaint** (Prompt 6 §6) — Super Admin must **deactivate** it. Deleting a *used* Category is blocked at the model layer and via the `DELETE` endpoint; historical complaints always keep their stored `category_id`. Never cascade-delete complaints. Only **unused** Categories may be hard-deleted.
+- `dinas_unit_id` → `dinas_units.id`: `ON DELETE SET NULL` (defensive DB behavior only). **Application layer MUST prevent hard-delete of any Dinas/Unit that has ever been used by a complaint** (Prompt 5C.1) — Super Admin must **deactivate** it. Deleting a *used* Dinas/Unit is blocked at the model layer and via the `DELETE` endpoint; historical complaints always keep their stored destination. Never cascade-delete complaints. Only **unused** Dinas/Unit may be hard-deleted.
 - `assigned_to` → `users.id`: `ON DELETE SET NULL`.
 - Never expose `tracking_secret_hash` or personal contact fields in public responses.
 
@@ -188,21 +224,61 @@ Validate indexes against actual queries and `EXPLAIN`; do not add duplicate inde
 
 ## 6. Status and enums
 
-Provisional values only; confirm with service owner before production.
+Official status values (7 statuses, finalized per Prompt 3B):
 
-- `complaints.status`: `submitted`, `under_review`, `in_progress`, `waiting_for_information`, `resolved`, `rejected`, `closed`.
-- `users.role`: `masyarakat`, `petugas`, `operator`, `admin`, `super_admin`.
+| Code | Public Label | Notes |
+|---|---|---|
+| `submitted` | Diajukan | Initial status for all new complaints |
+| `under_review` | Sedang Ditinjau | Operator is reviewing the complaint |
+| `in_progress` | Sedang Diproses | Complaint is actively being worked on |
+| `waiting_for_information` | Menunggu Informasi | Operator needs additional information from Masyarakat |
+| `resolved` | Selesai | Issue has been handled; public response required |
+| `rejected` | Ditolak | Complaint rejected; rejection reason + public response required |
+| `closed` | Ditutup | Final. Terminal state — no transitions out. No reopen. |
+
+**Official Transition Matrix (11 allowed transitions):**
+
+| From | Allowed To |
+|---|---|
+| `submitted` | `under_review` |
+| `under_review` | `in_progress`, `waiting_for_information`, `rejected` |
+| `in_progress` | `waiting_for_information`, `resolved`, `rejected` |
+| `waiting_for_information` | `in_progress`, `resolved` |
+| `resolved` | `closed` |
+| `rejected` | `closed` |
+| `closed` | *(terminal — no transitions)* |
+
+**Explicitly forbidden transitions (representative):**
+- `submitted → rejected` (FORBIDDEN)
+- `waiting_for_information → rejected` (FORBIDDEN)
+- Any transition out of `closed` (FORBIDDEN)
+
+**Authority to change status:**
+- Operator: YES
+- Super Admin: YES
+- Admin: NO (monitoring only)
+- Masyarakat: NO
+
+**Additional rules:**
+- `rejected` requires: rejection reason (non-empty) + public response (non-empty)
+- `resolved` requires: public response (non-empty)
+- No reopen workflow. Once `closed`, the complaint is final.
+- All status mutations are atomic: status + history + audit in one transaction.
+
+- `users.role`: `masyarakat`, `operator`, `admin`, `super_admin`. Peran historis `petugas` tidak lagi dibuat untuk akun baru; baris lama yang masih bernilai `petugas` tidak diubah otomatis.
 - `complaint_notes.visibility`: `internal`, `public_response`.
 
 Prefer VARCHAR plus PHP backed enums/validation for portability and controlled application transitions. Add database CHECK constraints only if supported by the target MySQL version and aligned with migrations.
 
 ## 7. Relationships and deletion rules
 
-- Category has many complaints; do not hard-delete a category referenced by complaints without an approved migration/policy.
+- Category has many complaints; **do not hard-delete a category referenced by complaints** — the model layer blocks it and the `DELETE` endpoint rejects it (Prompt 6 §6). Deactivate instead; historical complaints keep their `category_id`.
 - User may be assigned many complaints; deleting/deactivating a user must not erase complaints. Prefer deactivation; FK can set assignment null.
+- Dinas/Unit has many users (Operators) via `users.dinas_unit_id`; removing a master Dinas/Unit sets that column to NULL (never cascade-delete the account). The account simply loses scope until reassigned (Prompt 15). **Assignment lifecycle (FINAL, D-2 / Prompt 21):** an Operator's `dinas_unit_id` is assigned/changed **only by Super Admin** through User Management; a non-`operator` role always persists NULL (model-layer guard); deactivation does not clear the assignment.
+- **Operator complaint visibility (FINAL, Prompt 15, BDR-1 = 1a, BDR-2 = 2c hybrid):** an Operator sees a Complaint iff `users.dinas_unit_id IS NOT NULL` AND (`complaints.dinas_unit_id = users.dinas_unit_id` OR (`complaints.dinas_unit_id IS NULL` AND the complaint's category is mapped to that unit via `category_dinas_unit`)). An Operator with no unit sees nothing (denied, no global fallback). Super Admin is GLOBAL and unscoped.
 - Complaint has many attachments, status histories, and notes.
-- Complaint deletion is not available in normal MVP UI. Retention/deletion/anonymization policy: `TODO: Define requirement`.
-- Audit records are not cascaded away with the entity they refer to.
+- Complaint deletion is not available in normal MVP UI. **Retention (FINAL, Prompt 5B.1):** a complaint is permanently deleted **5 years after `complaints.submitted_at`** by the backend command `complaints:purge-expired` (scheduler-driven). Deletion removes `complaints` plus child rows `complaint_status_histories`, `complaint_notes`, `complaint_attachments` (and their physical private files), and complaint-related `audit_logs` (`subject_type='complaint'`, matching `subject_id`). Users and master data (`complaint_categories`, `dinas_units`, `category_dinas_unit`) are **never** removed by retention. `submitted_at IS NULL` is never treated as expired (and the column is `NOT NULL` in practice).
+- Audit records are not cascaded away with the entity they refer to — **except** complaint-related audit logs, which the FINAL retention rule explicitly deletes together with their complaint (Prompt 5B.1). Unrelated audit logs are always preserved.
 
 ## 8. Validation contract
 
@@ -244,6 +320,7 @@ This is an illustrative shape, not a real record. Do not include reporter contac
 - Dashboard and history queries must be scoped to the authenticated `reporter_id`.
 - A daily complaint limit applies per masyarakat/pelapor account. Numeric value: `TODO: Define requirement`.
 - The limit must be enforced server-side and surfaced with a human-readable message.
+- **Complaint submission rate limit (FINAL, Prompt 17, security/abuse protection — NOT a business rule):** 5 submissions / 10 minutes / authenticated user → **HTTP 429** when exceeded. Enforced by the named Laravel rate limiter `complaint-submission` applied via `throttle:` middleware on the submission route only; scope key = authenticated user id (never the client IP); a submission with any number of attachments counts as **one** submission. This is **separate** from, and never replaces, the daily business limit. Source of truth: `config/business_rules.php` (`complaint_submission_rate_limit`, `complaint_submission_rate_window_minutes`).
 
 ## 11. Transaction requirements
 
@@ -264,9 +341,10 @@ This is an illustrative shape, not a real record. Do not include reporter contac
 
 - Confirm required identity fields for masyarakat/pelapor account.
 - Confirm official categories, dinas/unit mapping, and assignment model.
-- Confirm official status lifecycle and allowed transitions.
+- Confirm official status lifecycle and allowed transitions. **DONE — finalized per Prompt 3B.**
 - Confirm tracking verification and data visible publicly.
 - Confirm file types, max size/count, retention, malware scanning.
 - Confirm privacy/retention policy for PII, IP addresses, user agents, audit metadata.
 - Confirm whether notifications are required and which provider is approved.
-- Confirm whether permissions need finer granularity beyond petugas/operator/admin/super_admin.
+- Confirm whether permissions need finer granularity beyond operator/admin/super_admin.
+- Confirm how historical rows that still reference the legacy `petugas` role should be treated (retain, reassign, or archive) — no automatic remap is performed.

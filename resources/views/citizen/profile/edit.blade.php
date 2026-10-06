@@ -119,6 +119,60 @@
                     <p class="text-[11px] text-[#94A3B8] mt-1.5">Alamat email digunakan sebagai kredensial login utama dan tidak dapat diubah secara langsung.</p>
                 </div>
 
+                {{-- NIK (read-only, full display, immutable) --}}
+                <div>
+                    <label for="nik" class="block text-sm font-semibold text-[#0F172A] mb-1.5">
+                        NIK <span class="text-xs font-normal text-[#64748B]">(Identitas Akun)</span>
+                    </label>
+                    <input
+                        type="text"
+                        id="nik"
+                        value="{{ $user->nik }}"
+                        disabled
+                        class="w-full rounded-xl border border-[#E2E8F0] bg-[#F1F5F9] px-4 py-3 text-sm text-[#64748B] cursor-not-allowed select-none tracking-wider"
+                    >
+                    <p class="text-[11px] text-[#94A3B8] mt-1.5">NIK ditampilkan penuh dan tidak dapat diubah setelah akun dibuat.</p>
+                </div>
+
+                {{-- Phone (editable) --}}
+                <div>
+                    <label for="phone_number" class="block text-sm font-semibold text-[#0F172A] mb-1.5">
+                        Nomor HP <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                        type="text"
+                        id="phone_number"
+                        name="phone_number"
+                        value="{{ old('phone_number', $user->phone_number) }}"
+                        required
+                        inputmode="tel"
+                        autocomplete="tel"
+                        class="w-full rounded-xl border {{ $errors->has('phone_number') ? 'border-red-500 ring-1 ring-red-500' : 'border-[#CBD5E1]' }} bg-white px-4 py-3 text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition-all"
+                    >
+                    @error('phone_number')
+                        <p class="text-xs text-red-600 mt-1.5 font-medium">{{ $message }}</p>
+                    @enderror
+                    <p class="text-[11px] text-[#94A3B8] mt-1.5">Format lokal (08xxxxxxxxxx) atau internasional (+62xxxxxxxxxx).</p>
+                </div>
+
+                {{-- Address (editable, free text) --}}
+                <div>
+                    <label for="address" class="block text-sm font-semibold text-[#0F172A] mb-1.5">
+                        Alamat <span class="text-red-500">*</span>
+                    </label>
+                    <textarea
+                        id="address"
+                        name="address"
+                        required
+                        rows="3"
+                        autocomplete="street-address"
+                        class="w-full rounded-xl border {{ $errors->has('address') ? 'border-red-500 ring-1 ring-red-500' : 'border-[#CBD5E1]' }} bg-white px-4 py-3 text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition-all"
+                    >{{ old('address', $user->address) }}</textarea>
+                    @error('address')
+                        <p class="text-xs text-red-600 mt-1.5 font-medium">{{ $message }}</p>
+                    @enderror
+                </div>
+
                 <div class="pt-6 border-t border-[#E2E8F0]">
                     <h2 class="text-sm font-bold text-[#0F172A] uppercase tracking-wider mb-1">Keamanan & Kata Sandi</h2>
                     <p class="text-xs text-[#64748B]">Kosongkan bagian ini jika Anda tidak ingin mengubah kata sandi.</p>

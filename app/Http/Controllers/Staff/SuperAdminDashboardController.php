@@ -7,61 +7,25 @@ use App\Models\AuditLog;
 use App\Models\Complaint;
 use App\Models\User;
 use App\Enums\ComplaintStatus;
+use App\Services\DashboardCacheService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class SuperAdminDashboardController extends Controller
 {
-    public function index(Request $request): View
+    /**
+     * Super Admin dashboard — full system overview.
+     * Metrics are cached with instant refresh support.
+     */
+    public function index(Request $request, DashboardCacheService $cacheService): View
     {
         $user = $request->user();
+        $refresh = $request->boolean('refresh');
 
-        // Full system overview
-        $totalLaporan    = Complaint::count();
-        $totalPengguna   = User::count();
-        $laporanAktif    = Complaint::whereNotIn('status', ['resolved', 'rejected', 'closed'])->count();
-        $laporanSelesai  = Complaint::byStatus('resolved')->count();
-        $auditHariIni    = AuditLog::whereDate('created_at', today())->count();
-        $penggunaBaru    = User::whereDate('created_at', today())->count();
+        $data = $cacheService->getSuperAdminData($refresh);
 
-        // Role breakdown
-        $roleBreakdown = User::selectRaw('role, count(*) as total')
-            ->groupBy('role')
-            ->pluck('total', 'role')
-            ->toArray();
-
-        // Status breakdown
-        $statusBreakdown = [];
-        foreach (ComplaintStatus::cases() as $status) {
-            $statusBreakdown[$status->value] = [
-                'label' => $status->label(),
-                'badge' => $status->tailwindBadge(),
-                'count' => Complaint::byStatus($status->value)->count(),
-            ];
-        }
-
-        $laporanTerbaru = Complaint::with(['reporter', 'category', 'assignee'])
-            ->orderByDesc('submitted_at')
-            ->limit(10)
-            ->get();
-
-        $auditTerbaru = AuditLog::with('actor')
-            ->orderByDesc('created_at')
-            ->limit(5)
-            ->get();
-
-        return view('super-admin.dashboard', compact(
-            'user',
-            'totalLaporan',
-            'totalPengguna',
-            'laporanAktif',
-            'laporanSelesai',
-            'auditHariIni',
-            'penggunaBaru',
-            'roleBreakdown',
-            'statusBreakdown',
-            'laporanTerbaru',
-            'auditTerbaru',
-        ));
+        return view('super-admin.dashboard', array_merge([
+            'user' => $user,
+        ], $data));
     }
 }

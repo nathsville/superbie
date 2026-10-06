@@ -16,7 +16,6 @@ class DashboardRedirectController extends Controller
 
         return match ($user->role) {
             'masyarakat' => redirect()->route('citizen.dashboard'),
-            'petugas'    => redirect()->route('petugas.dashboard'),
             'operator'   => redirect()->route('operator.dashboard'),
             'admin'      => redirect()->route('admin.dashboard'),
             'super_admin' => redirect()->route('super-admin.dashboard'),

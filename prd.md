@@ -13,15 +13,15 @@
 
 ## 1. Ringkasan Produk
 
-**Lapor Pak Wali** adalah modul pengaduan masyarakat berbasis web yang memungkinkan masyarakat menyampaikan laporan/keluhan, memperoleh nomor pelacakan, dan melihat perkembangan penanganan sesuai informasi yang diizinkan. Petugas berwenang menggunakan panel internal untuk memeriksa, mengklasifikasikan, menugaskan, memperbarui status, dan memberi tanggapan terhadap laporan.
+**Lapor Pak Wali** adalah modul pengaduan masyarakat berbasis web yang memungkinkan masyarakat menyampaikan laporan/keluhan, memperoleh nomor pelacakan, dan melihat perkembangan penanganan sesuai informasi yang diizinkan. Operator berwenang menggunakan panel internal untuk memeriksa, mengklasifikasikan, menugaskan, memperbarui status, dan memberi tanggapan terhadap laporan.
 
 Modul ini merupakan bagian dari portal SuperBie yang direncanakan menghubungkan empat layanan: SIPHP, Parepare Weather Intelligence Dashboard, JDIH Kota Parepare, dan Command Center – Lapor Pak Wali. Pada MVP ini, hanya Lapor Pak Wali yang diimplementasikan. Tiga layanan lainnya tidak boleh dibuat sebagai fitur fungsional dalam fase ini.
 
 ### Tujuan utama
 1. Menyediakan satu alur digital yang mudah diakses untuk pengiriman pengaduan masyarakat.
 2. Memberikan tanda terima/nomor pelacakan agar pelapor dapat mengetahui perkembangan laporan.
-3. Membantu petugas mengelola, menindaklanjuti, dan mencatat perubahan status laporan secara tertib.
-4. Menyediakan jejak audit untuk aktivitas penting panel petugas.
+3. Membantu operator mengelola, menindaklanjuti, dan mencatat perubahan status laporan secara tertib.
+4. Menyediakan jejak audit untuk aktivitas penting panel internal.
 
 ### Problem statement
 Masyarakat membutuhkan kanal pengaduan yang jelas dan mudah digunakan, sementara pengelola membutuhkan pencatatan laporan yang konsisten, kemampuan menindaklanjuti, serta visibilitas status penanganan. Detail proses operasional resmi yang belum tersedia harus dikonfirmasi, bukan diasumsikan.
@@ -31,10 +31,11 @@ Masyarakat membutuhkan kanal pengaduan yang jelas dan mudah digunakan, sementara
 | Peran | Kebutuhan | Akses MVP |
 |---|---|---|
 | Masyarakat / Pelapor | Membuat akun, login, mengirim laporan, melihat dashboard dan riwayat laporan, melacak laporan | Panel masyarakat/pelapor terautentikasi |
-| Petugas | Melihat laporan yang ditugaskan, melihat detail, memperbarui status, menambah catatan internal, memberi respons publik, mengakses lampiran | Panel petugas |
-| Operator | Meninjau laporan, mengubah kategori, menugaskan laporan kepada petugas, memperbarui status, mencatat dan memberi respons | Panel operator |
+| Operator | Meninjau laporan, mengubah kategori, menugaskan laporan, memperbarui status, menambah catatan internal, memberi respons publik, mengakses lampiran | Panel operator |
 | Admin | Monitoring laporan dan audit log | Panel monitoring, tanpa akses pengelolaan |
 | Super Admin | Mengelola seluruh bagian website sesuai role/permission, termasuk laporan, akun, kategori, konfigurasi, audit dan keamanan | Akses penuh |
+
+> Catatan: peran operasional penanganan laporan dipegang oleh **Operator**. Peran historis `petugas` tidak lagi menjadi active role; baris data lama yang masih merujuk `petugas` dipertahankan apa adanya sampai ada keputusan bisnis khusus.
 
 **Catatan privasi:** kode pelacakan bukan pengganti autentikasi untuk data sensitif. Halaman publik hanya boleh menampilkan informasi minimum yang disetujui.
 
@@ -54,14 +55,15 @@ Masyarakat membutuhkan kanal pengaduan yang jelas dan mudah digunakan, sementara
 - Halaman tanda terima setelah pengaduan berhasil dikirim.
 - Pelacakan laporan menggunakan kode pelacakan dan verifikasi tambahan yang ditentukan kebijakan.
 - Login, logout, dan reset password untuk seluruh akun internal (reset melalui email hanya jika layanan email dikonfigurasi).
-- Dashboard panel Petugas, Operator, Admin, dan Super Admin sesuai hak akses.
+- Dashboard panel Operator, Admin, dan Super Admin sesuai hak akses.
 - Daftar pengaduan dengan pencarian, filter, pagination, dan pengurutan yang dibatasi sesuai peran.
 - Detail pengaduan internal.
 - Perubahan status dengan validasi transisi.
 - Catatan internal dan tanggapan publik, dibedakan secara tegas.
-- Penugasan laporan kepada Petugas.
+- Penugasan laporan kepada Operator.
 - Pengelolaan kategori laporan beserta dinas/unit terkait oleh Super Admin.
-- Pengelolaan akun masyarakat, Petugas, Operator, dan Admin oleh Super Admin.
+- Pengelolaan akun masyarakat, Operator, dan Admin oleh Super Admin.
+- **Penetapan Dinas/Unit Operator (FINAL, D-2 / Prompt 21):** satu Operator mewakili **tepat satu** Dinas/Unit. **Super Admin** menetapkan/mengubah Dinas/Unit Operator melalui User Management; Operator tidak dapat menetapkan Dinas/Unit sendiri maupun Operator lain. Ditegakkan di server (middleware `role:super_admin` + Form Request `authorize()` + guard model layer). Operator tanpa unit tetap valid namun tidak melihat laporan apa pun (tanpa fallback global). Deaktivasi tidak menghapus assignment. D-2 tidak menambahkan batasan lain.
 - Pengelolaan role dan permission oleh Super Admin.
 - Pengelolaan konfigurasi operasional oleh Super Admin.
 - Monitoring laporan dan audit log oleh Admin.
@@ -85,11 +87,10 @@ Masyarakat membutuhkan kanal pengaduan yang jelas dan mudah digunakan, sementara
 - **Assumption A-01:** masyarakat/pelapor wajib memiliki akun dan login sebelum membuat laporan.
 - **Assumption A-02:** setiap masyarakat/pelapor dapat melihat dashboard dan riwayat laporan miliknya sendiri.
 - **Assumption A-03:** terdapat batas jumlah laporan harian per akun masyarakat/pelapor; nilai batas: `TODO: Define requirement`.
-- **Assumption A-04:** pelacakan publik menampilkan status umum dan waktu pembaruan, bukan catatan internal, data petugas pribadi, atau informasi sensitif.
-- **Assumption A-05:** status awal adalah `submitted`; status lain harus mengikuti daftar dan transisi yang disetujui.
-- `TODO: Define requirement` — apakah laporan anonim diizinkan dan apakah nama/nomor telepon/email wajib.
-- `TODO: Define requirement` — daftar kategori resmi dan dinas/unit tujuan serta pemetaan kategori → dinas/unit.
+- **Assumption A-04:** pelacakan publik menampilkan status umum dan waktu pembaruan, bukan catatan internal, data internal pribadi, atau informasi sensitif.
+- **A-05 (OFFICIAL):** status awal adalah `submitted`; transisi harus mengikuti transition matrix resmi — lihat schema.md §6.
 - `TODO: Define requirement` — status resmi, SLA, eskalasi, dan penutupan laporan.
+  **Status resmi: DONE (finalized per Prompt 3B). SLA, eskalasi: masih pending.**
 - `TODO: Define requirement` — ukuran/jumlah/format lampiran dan retensi file.
 - `TODO: Define requirement` — verifikasi pelapor untuk tracking (misalnya kode + OTP atau data verifikasi lain).
 - `TODO: Define requirement` — mekanisme notifikasi dan template pesan.
@@ -142,30 +143,24 @@ Masyarakat membutuhkan kanal pengaduan yang jelas dan mudah digunakan, sementara
 4. Sistem menampilkan hanya data publik yang diizinkan.
 5. Jika tidak cocok, tampilkan pesan generik yang tidak membocorkan keberadaan laporan.
 
-### 6.4 Petugas menangani laporan
-1. Petugas login.
+### 6.4 Operator mengelola laporan
+1. Operator login.
 2. Sistem memeriksa session, status akun, dan permission.
-3. Petugas melihat daftar laporan yang dapat diakses.
-4. Petugas membuka detail, meninjau data/lampiran, lalu memperbarui kategori, penugasan, status, atau tanggapan jika diizinkan.
+3. Operator melihat daftar laporan yang dapat diakses.
+4. Operator membuka detail, meninjau data/lampiran, lalu mengubah kategori, menugaskan laporan, memperbarui status, menambah catatan internal, memberi respons publik, dan mengakses lampiran sesuai permission.
 5. Server memvalidasi transisi status dan menyimpan perubahan beserta riwayat/audit dalam transaksi.
 6. UI memperlihatkan hasil berhasil atau error yang dapat ditindaklanjuti.
 
-### 6.5 Operator mengelola laporan
-1. Operator login.
-2. Operator melihat daftar laporan yang dapat diakses.
-3. Operator meninjau detail laporan.
-4. Operator dapat mengubah kategori, menugaskan laporan kepada Petugas, memperbarui status, menambah catatan internal, memberi respons publik, dan mengakses lampiran sesuai permission.
-
-### 6.6 Admin melakukan monitoring
+### 6.5 Admin melakukan monitoring
 1. Admin login.
 2. Admin melihat dashboard monitoring.
 3. Admin memantau laporan dan audit log.
 4. Admin tidak memiliki akses pengelolaan selain monitoring.
 
-### 6.7 Super Admin mengelola website
+### 6.6 Super Admin mengelola website
 1. Super Admin login.
 2. Super Admin melihat dashboard penuh.
-3. Super Admin dapat mengelola laporan, akun masyarakat, Petugas, Operator, Admin, role/permission, kategori, konfigurasi operasional, audit log, dan keamanan.
+3. Super Admin dapat mengelola laporan, akun masyarakat, Operator, Admin, role/permission, kategori, konfigurasi operasional, audit log, dan keamanan.
 
 ## 7. Functional requirements
 
@@ -187,6 +182,10 @@ Masyarakat membutuhkan kanal pengaduan yang jelas dan mudah digunakan, sementara
 - Validasi seluruh field di server; frontend hanya membantu UX.
 - Tolak file berbahaya, tipe tidak diizinkan, ukuran berlebih, dan input tidak valid.
 - Terapkan rate limit dan perlindungan spam yang dapat dikonfigurasi.
+  - **Rate limit login (FINAL, Prompt 20):** kebijakan **TIDAK berubah** (D-5) — key `email|ip` (per akun, bukan IP saja), ambang 5 percobaan, jendela = decay default framework (60 detik), hit saat gagal / clear saat sukses, event `Lockout`. Prompt 20 hanya mengubah **semantik HTTP** kondisi terlampaui: kini **HTTP 429 (Too Many Requests)** dengan header `Retry-After` native, bukan lagi error validasi 422. Kredensial salah tetap error validasi (bukan 429).
+  - **Rate limit registrasi (DECISION REQUIRED):** tidak ada kebijakan (ambang, jendela, scope key, captcha/lockout) di repository → **tidak diimplementasikan**; dicatat sebagai `DECISION REQUIRED` (Prompt 20). Jangan mengarang nilai.
+  - **Rate limit lupa-password/reset (DECISION REQUIRED):** tidak ada kebijakan HTTP → **tidak diimplementasikan**; dicatat sebagai `DECISION REQUIRED` (Prompt 20). Hanya `throttle` broker per-email (60 detik, `config/auth.php`) yang berlaku. Jangan mengarang nilai.
+  - **Rate limit pengiriman laporan (FINAL, Prompt 17):** 5 pengiriman / 10 menit / pengguna terautentikasi → HTTP 429 saat terlampaui. Diterapkan di server oleh named rate limiter Laravel `complaint-submission` (scope key = user id, bukan IP), pada route pengiriman laporan saja. Ini adalah proteksi keamanan/anti-abuse dan **terpisah** dari batas laporan harian; satu pengiriman dengan berapa pun lampiran tetap dihitung **satu** pengiriman. Nilai berada di `config/business_rules.php`.
 - Simpan pengaduan dan metadata lampiran secara konsisten.
 - Acceptance criteria:
   - Given pelapor belum login, when mencoba membuat laporan, then diarahkan untuk login/registrasi.
@@ -202,8 +201,8 @@ Masyarakat membutuhkan kanal pengaduan yang jelas dan mudah digunakan, sementara
 - Detail laporan menampilkan informasi yang boleh dilihat pelapor.
 
 ### F-002B — Hak akses peran internal
-- Petugas hanya menangani laporan yang ditugaskan kepadanya.
-- Operator dapat melakukan pengelolaan operasional sesuai permission, termasuk perubahan kategori dan penugasan kepada Petugas.
+- Operator menangani pengelolaan operasional laporan sesuai permission, termasuk perubahan kategori dan penugasan.
+- **Operator ↔ Dinas/Unit (FINAL, D-2 / Prompt 21):** satu Operator mewakili tepat satu Dinas/Unit; **Super Admin** yang menetapkan/mengubahnya melalui User Management. Operator tidak dapat self-assign atau mengubah assignment Operator lain (ditegakkan server-side, bukan sekadar UI). Operator tanpa unit tidak melihat laporan apa pun (tanpa fallback global). Deaktivasi tidak menghapus assignment.
 - Admin hanya memiliki akses monitoring laporan dan audit log.
 - Super Admin memiliki akses penuh terhadap fungsi website yang tersedia.
 - Seluruh aksi tetap harus dilindungi authorization di server.
@@ -221,20 +220,25 @@ Masyarakat membutuhkan kanal pengaduan yang jelas dan mudah digunakan, sementara
 ### F-005 — Autentikasi seluruh akun
 - Gunakan Laravel authentication/session; password di-hash melalui mekanisme Laravel.
 - Login/logout harus dilindungi CSRF; rate limit login dan respons generik pada kredensial salah.
+  - Rate limit login (FINAL, Prompt 20): key `email|ip`, ambang 5, jendela 60 detik (default framework), hit saat gagal / clear saat sukses; kondisi terlampaui → **HTTP 429** dengan `Retry-After` native. Kredensial salah tetap error validasi (bukan 429). Kebijakan tidak berubah (D-5).
+  - Rate limit registrasi dan lupa-password: `DECISION REQUIRED` (belum ada kebijakan; tidak diimplementasikan).
 - Masyarakat/pelapor wajib login untuk membuat laporan dan mengakses dashboard/riwayat miliknya.
-- Akun internal Petugas, Operator, Admin, dan Super Admin menggunakan session authentication.
+- Akun internal Operator, Admin, dan Super Admin menggunakan session authentication.
 - Acceptance criteria: guest tidak dapat mengakses area terautentikasi; akun nonaktif tidak dapat login; logout menginvalidasi session.
 
 ### F-006/F-007 — Dashboard dan daftar laporan
 - Ringkasan dashboard dihitung dari database, tidak menggunakan angka dummy.
 - Daftar laporan menggunakan pagination server-side, filter allowlist, pencarian dibatasi, dan sorting allowlist.
 - Empty state, loading state, error state, dan retry harus tersedia.
-- Acceptance criteria: filter tidak dapat menambah kolom sort arbitrer; petugas hanya melihat/menindaklanjuti data sesuai permission.
+- Acceptance criteria: filter tidak dapat menambah kolom sort arbitrer; operator hanya melihat/menindaklanjuti data sesuai permission.
 
 ### F-008 — Status dan riwayat
 - Setiap perubahan status menghasilkan riwayat: status lama/baru, aktor, waktu, dan catatan jika diberikan.
 - Transisi status ditetapkan sebagai konfigurasi domain dan tidak boleh diubah hanya dari UI.
-- `TODO: Define requirement` — daftar status dan transisi resmi.
+- **DONE (Prompt 3B):** daftar status dan transisi resmi — lihat schema.md §6 dan `app/Enums/ComplaintStatus.php`.
+- `rejected` wajib menyertakan alasan penolakan (non-kosong) dan respons publik (non-kosong).
+- `resolved` wajib menyertakan respons publik (non-kosong).
+- Tidak ada reopen workflow. Setelah `closed`, complaint bersifat final.
 - Acceptance criteria: status ilegal ditolak di server; update dan riwayat tersimpan atomik; perubahan gagal tidak meninggalkan riwayat palsu.
 
 ### F-009 — Catatan internal dan tanggapan publik
@@ -250,10 +254,9 @@ Masyarakat membutuhkan kanal pengaduan yang jelas dan mudah digunakan, sementara
 - Acceptance criteria: file tidak diakses hanya dengan menebak URL; file tidak valid ditolak; nama file aman.
 
 ### F-011/F-012 — Pengaturan, akun, dan role
-- Super Admin dapat mengelola kategori dan dinas/unit terkait, akun masyarakat, Petugas, Operator, dan Admin, serta role/permission dan konfigurasi operasional.
+- Super Admin dapat mengelola kategori dan dinas/unit terkait, akun masyarakat, Operator, dan Admin, serta role/permission dan konfigurasi operasional.
 - Admin hanya dapat melakukan monitoring laporan dan audit log; tidak memiliki akses pengelolaan.
 - Operator mengelola laporan sesuai permission, termasuk kategori dan penugasan.
-- Petugas menangani laporan yang ditugaskan.
 - Masyarakat/pelapor hanya dapat mengelola akun dan laporan miliknya sendiri.
 - Tidak boleh ada self-escalation privilege.
 - Acceptance criteria: seluruh tindakan sensitif dicatat dalam audit log dan akses ditolak jika role/permission tidak sesuai.
@@ -263,17 +266,29 @@ Masyarakat membutuhkan kanal pengaduan yang jelas dan mudah digunakan, sementara
 - Jangan mencatat password, session ID, tracking secret, token, atau isi laporan sensitif secara berlebihan.
 - Audit log tidak boleh diedit melalui UI normal.
 
-## 8. Model status awal (perlu validasi pemilik layanan)
+## 8. Official complaint lifecycle (finalized per Prompt 3B)
 
-Status teknis sementara: `submitted`, `under_review`, `in_progress`, `waiting_for_information`, `resolved`, `rejected`, `closed`.
+Status resmi (7 status):
 
-**Penting:** ini adalah usulan teknis sementara, bukan klaim proses resmi. Konfirmasi daftar, arti, transisi, siapa yang berwenang, dan apakah `rejected`/`closed` diperlukan sebelum production. Simpan mapping label publik terpisah dari nilai internal.
+| Code | Label Publik | Keterangan |
+|---|---|---|
+| `submitted` | Diajukan | Status awal setiap laporan baru |
+| `under_review` | Sedang Ditinjau | Operator sedang menelaah laporan |
+| `in_progress` | Sedang Diproses | Laporan sedang ditangani |
+| `waiting_for_information` | Menunggu Informasi | Operator membutuhkan info tambahan dari Masyarakat |
+| `resolved` | Selesai | Masalah telah ditangani; respons publik wajib |
+| `rejected` | Ditolak | Laporan ditolak; alasan penolakan + respons publik wajib |
+| `closed` | Ditutup | Final. Terminal — tidak ada transisi keluar. Tidak ada reopen. |
+
+Transisi resmi: 11 transisi — lihat schema.md §6 untuk matrix lengkap.
+
+Kewenangan: Operator dan Super Admin (YA). Admin dan Masyarakat (TIDAK).
 
 ## 9. Non-functional requirements
 
 - **Security:** CSRF, authorization server-side, input validation, output escaping, rate limiting, secure session/cookie, private file storage, audit.
 - **Performance:** pagination server-side; hindari N+1; eager loading; index berdasarkan query nyata; optimasi aset build.
-- **Availability:** MVP monolith dengan backup terjadwal dan prosedur restore yang diuji.
+- **Availability:** MVP monolith dengan backup terjadwal dan prosedur restore yang diuji. **Status (Prompt 23): backup dan restore BELUM diimplementasikan** — hanya *capability* (perintah `mysqldump`/`mysql`) yang tersedia; kebijakan backup, **RPO/RTO**, dan prosedur restore adalah `DECISION REQUIRED`. Lihat `PRODUCTION_OPERATIONS.md` §7.
 - **Accessibility:** navigasi keyboard, label input, focus visible, semantic HTML, kontras memadai, pesan error terhubung ke field.
 - **Responsive:** mulai dari mobile, lalu tablet/desktop.
 - **Maintainability:** modular monolith; controller tipis; domain logic pada action/service yang relevan; test automated.
@@ -293,4 +308,4 @@ Gunakan metrik operasional yang dapat diukur setelah implementasi, bukan angka t
 `TODO: Define requirement` — target numerik, periode pengukuran, dan pemilik metrik.
 
 ## 11. Out-of-scope dan kriteria rilis
-Rilis MVP tidak dianggap selesai sebelum pengujian alur utama, authorization, upload, tracking privacy, status history, responsive, reduced-motion, backup/restore, dan dokumentasi setup lulus. Jangan mengklaim “production-ready” hanya karena aplikasi dapat dijalankan secara lokal.
+Rilis MVP tidak dianggap selesai sebelum pengujian alur utama, authorization, upload, tracking privacy, status history, responsive, reduced-motion, backup/restore, dan dokumentasi setup lulus. Jangan mengklaim “production-ready” hanya karena aplikasi dapat dijalankan secara lokal. **Catatan (Prompt 23):** backup/restore, CI, monitoring, dan target deployment **belum selesai** (lihat `PRODUCTION_OPERATIONS.md`); karena itu status proyek tetap **NOT PRODUCTION READY**.

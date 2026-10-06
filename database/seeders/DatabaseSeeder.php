@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Complaint;
 use App\Models\ComplaintCategory;
 use App\Models\ComplaintStatusHistory;
+use App\Models\DinasUnit;
 use App\Models\AuditLog;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -51,30 +52,15 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        $petugas1 = User::firstOrCreate(
-            ['email' => 'petugas1@superbie.local'],
-            [
-                'name'      => 'Petugas Lapangan A',
-                'password'  => Hash::make('password123'),
-                'role'      => 'petugas',
-                'is_active' => true,
-            ]
-        );
-
-        $petugas2 = User::firstOrCreate(
-            ['email' => 'petugas2@superbie.local'],
-            [
-                'name'      => 'Petugas Lapangan B',
-                'password'  => Hash::make('password123'),
-                'role'      => 'petugas',
-                'is_active' => true,
-            ]
-        );
-
         $citizen1 = User::firstOrCreate(
             ['email' => 'warga1@superbie.local'],
             [
                 'name'      => 'Ahmad Warga',
+                // Development fixture identity — NOT official/real data.
+                // Real NIK/phone are supplied by the community at registration.
+                'nik'          => '7373000000000001',
+                'phone_number' => '081100000001',
+                'address'      => 'Alamat contoh pengembangan, Parepare',
                 'password'  => Hash::make('password123'),
                 'role'      => 'masyarakat',
                 'is_active' => true,
@@ -85,6 +71,10 @@ class DatabaseSeeder extends Seeder
             ['email' => 'warga2@superbie.local'],
             [
                 'name'      => 'Siti Warga',
+                // Development fixture identity — NOT official/real data.
+                'nik'          => '7373000000000002',
+                'phone_number' => '081100000002',
+                'address'      => 'Alamat contoh pengembangan, Parepare',
                 'password'  => Hash::make('password123'),
                 'role'      => 'masyarakat',
                 'is_active' => true,
@@ -146,6 +136,63 @@ class DatabaseSeeder extends Seeder
             );
         }
 
+        // ─── 2b. Dinas/Unit samples + Category mapping (DEVELOPMENT SAMPLES) ────
+        // These are MINIMAL development/demo samples only — NOT an official
+        // government list. Super Admin manages the authoritative data via the
+        // dashboard (Prompt 5C). Names are illustrative.
+
+        $dinasSamples = [
+            ['name' => 'Dinas Pekerjaan Umum dan Penataan Ruang (PUPR)', 'code' => 'PUPR', 'sort_order' => 1],
+            ['name' => 'Dinas Perhubungan (Dishub)',                     'code' => 'DISHUB', 'sort_order' => 2],
+            ['name' => 'Dinas Lingkungan Hidup (DLH)',                   'code' => 'DLH', 'sort_order' => 3],
+            ['name' => 'Dinas Kependudukan dan Pencatatan Sipil',        'code' => 'DISDUKCAPIL', 'sort_order' => 4],
+        ];
+
+        $seededDinas = [];
+        foreach ($dinasSamples as $d) {
+            $seededDinas[$d['code']] = DinasUnit::firstOrCreate(
+                ['code' => $d['code']],
+                [
+                    'name'        => $d['name'],
+                    'code'        => $d['code'],
+                    'description' => null,
+                    'is_active'   => true,
+                    'sort_order'  => $d['sort_order'],
+                ]
+            );
+        }
+
+        // Category ↔ Dinas/Unit mapping (development samples, many-to-many).
+        // slug => [dinas codes]
+        $categoryMapping = [
+            'infrastruktur-jalan-jembatan' => ['PUPR'],
+            'penerangan-jalan-umum'        => ['DISHUB'],
+            'kebersihan-pengelolaan-sampah' => ['DLH'],
+            'saluran-air-drainase'         => ['PUPR'],
+            'pelayanan-publik-administrasi' => ['DISDUKCAPIL'],
+        ];
+
+        foreach ($seededCategories as $category) {
+            $codes = $categoryMapping[$category->slug] ?? [];
+            $ids = collect($codes)
+                ->map(fn ($code) => $seededDinas[$code]->id ?? null)
+                ->filter()
+                ->all();
+
+            if (! empty($ids)) {
+                $category->dinasUnits()->syncWithoutDetaching($ids);
+            }
+        }
+
+        // Assign the seeded Operator a Dinas/Unit scope (Prompt 15 — BDR-1 = 1a).
+        // An Operator MUST belong to exactly one unit; otherwise it is denied all
+        // complaints. This is a DEVELOPMENT FIXTURE assignment (deterministic by
+        // `code`), NOT a production business rule. Only set when still unassigned
+        // so re-seeding never overrides a deliberate Super Admin assignment.
+        if ($operator->dinas_unit_id === null && isset($seededDinas['PUPR'])) {
+            $operator->forceFill(['dinas_unit_id' => $seededDinas['PUPR']->id])->save();
+        }
+
         // ─── 3. Sample Complaints for Development ─────────────────────────────
 
         $sampleComplaints = [
@@ -153,7 +200,7 @@ class DatabaseSeeder extends Seeder
                 'reference_code' => 'LPW-' . strtoupper(Str::random(8)),
                 'reporter_id'    => $citizen1->id,
                 'category_id'    => $seededCategories[0]->id,
-                'assigned_to'    => $petugas1->id,
+                'assigned_to'    => $operator->id,
                 'title'          => 'Jalan berlubang di Jl. Bau Massepe',
                 'description'    => 'Terdapat lubang cukup besar di dekat pertigaan jalan yang membahayakan pengendara sepeda motor, terutama saat malam hari.',
                 'location_text'  => 'Jl. Bau Massepe, depan Toko Makmur',
@@ -164,7 +211,7 @@ class DatabaseSeeder extends Seeder
                 'reference_code' => 'LPW-' . strtoupper(Str::random(8)),
                 'reporter_id'    => $citizen1->id,
                 'category_id'    => $seededCategories[1]->id,
-                'assigned_to'    => $petugas2->id,
+                'assigned_to'    => $operator->id,
                 'title'          => 'Lampu jalan mati di Jl. Mattirotasi',
                 'description'    => 'Dua tiang lampu PJU padam sejak 4 hari yang lalu, membuat jalan gelap dan rawan kejahatan.',
                 'location_text'  => 'Jl. Mattirotasi No. 45',
@@ -175,7 +222,7 @@ class DatabaseSeeder extends Seeder
                 'reference_code' => 'LPW-' . strtoupper(Str::random(8)),
                 'reporter_id'    => $citizen1->id,
                 'category_id'    => $seededCategories[2]->id,
-                'assigned_to'    => $petugas1->id,
+                'assigned_to'    => $operator->id,
                 'title'          => 'Sampah menumpuk di TPS Pasar Lakessi',
                 'description'    => 'Kontainer sampah sudah penuh dan meluap ke badan jalan. Mohon segera diangkut.',
                 'location_text'  => 'Pasar Lakessi, pintu utara',
@@ -197,6 +244,18 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($sampleComplaints as $cData) {
+            // Derive the ACTUAL destination from the complaint's category mapping
+            // (development sample data only).
+            $destDinas = null;
+            $category = ComplaintCategory::find($cData['category_id']);
+            if ($category) {
+                $destDinas = $category->dinasUnits()->first();
+            }
+
+            if ($destDinas) {
+                $cData['dinas_unit_id'] = $destDinas->id;
+            }
+
             $complaint = Complaint::firstOrCreate(
                 ['reference_code' => $cData['reference_code']],
                 $cData
@@ -227,8 +286,8 @@ class DatabaseSeeder extends Seeder
                     'complaint_id' => $complaint->id,
                     'from_status'  => 'under_review',
                     'to_status'    => 'in_progress',
-                    'changed_by'   => $petugas1->id,
-                    'note'         => 'Petugas sedang menindaklanjuti ke lokasi.',
+                    'changed_by'   => $operator->id,
+                    'note'         => 'Operator sedang menindaklanjuti laporan.',
                     'created_at'   => $complaint->submitted_at->addHours(6),
                 ]);
             }

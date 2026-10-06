@@ -1,5 +1,27 @@
 @import 'tailwindcss';
 
+/* ─── Admin Dashboard Color Tokens (Tailwind v4 @theme) ─────────────────────
+   These make `bg-twilight`, `text-tealblue`, etc. available in compiled CSS.
+   Values mirror the legacy CDN tailwind.config used in admin/dashboard.blade.php. */
+@theme {
+  --color-twilight:   #03045E;
+  --color-tealblue:   #0077B6;
+  --color-turquoise:  #00B4D8;
+  --color-frosted:    #90E0EF;
+  --color-cyanlight:  #CAF0F8;
+  --color-neutralbg:  #F8FAFC;
+  --color-cardborder: #E2E8F0;
+
+  /* Custom box-shadows for admin dashboard */
+  --shadow-card:       0 4px 20px -2px rgba(3, 4, 94, 0.05), 0 2px 8px -1px rgba(3, 4, 94, 0.02);
+  --shadow-card-hover: 0 10px 25px -4px rgba(3, 4, 94, 0.08), 0 4px 12px -2px rgba(3, 4, 94, 0.03);
+  --shadow-float-pill: 0 12px 30px -4px rgba(3, 4, 94, 0.12);
+
+  /* Plus Jakarta Sans font family token */
+  --font-family-jakarta: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-family-jetbrains: 'JetBrains Mono', ui-monospace, monospace;
+}
+
 /* ─── Design Tokens (design.md §2) ─────────────────────────────────────────── */
 :root {
   --color-primary-700:   #1D4ED8;
@@ -25,6 +47,11 @@
   --ease-standard:  cubic-bezier(0.2, 0, 0, 1);
   --ease-enter:     cubic-bezier(0, 0, 0.2, 1);
   --ease-exit:      cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* ─── Alpine.js cloak — hide elements until Alpine initialises ────────────────── */
+[x-cloak] {
+  display: none !important;
 }
 
 /* ─── Global animation contract (design.md §5) ──────────────────────────────── */
@@ -121,9 +148,19 @@ h3 { font-size: 1.25rem; font-weight: 650; line-height: 1.3; }
 }
 
 .nav-link.active {
-  color: var(--color-primary-700);
-  background-color: var(--color-primary-100);
+  color: #FFFFFF;
+  background-color: var(--color-primary-700);
   font-weight: 600;
+  box-shadow: 0 4px 12px -2px rgba(29, 78, 216, 0.25);
+}
+
+.nav-link.active svg {
+  color: #FFFFFF;
+}
+
+.nav-link.active:hover {
+  color: #FFFFFF;
+  background-color: var(--color-primary-700);
 }
 
 /* ─── Stat card ──────────────────────────────────────────────────────────────── */
@@ -189,3 +226,60 @@ h3 { font-size: 1.25rem; font-weight: 650; line-height: 1.3; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #CBD5E1; }
+
+/* ─── Progressive navigation progress bar (Prompt 26) ───────────────────────── */
+/* Minimal, non-blocking, does not affect layout flow. */
+#sb-nav-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  height: 2px;
+  width: 0;
+  background: linear-gradient(90deg, #2563EB, #0F766E);
+  opacity: 0;
+  pointer-events: none;
+  transition: width 200ms var(--ease-enter), opacity 150ms var(--ease-standard);
+}
+
+#sb-nav-progress.is-active {
+  width: 85%;
+  opacity: 1;
+}
+
+#sb-nav-progress.is-done {
+  width: 100%;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #sb-nav-progress {
+    transition: opacity 0.01ms !important;
+  }
+}
+
+/* ─── Modern View Transitions (Cross-Document and Same-Document) ───────────── */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+
+  ::view-transition-old(root) {
+    animation: 160ms ease-out both view-fade-out;
+  }
+
+  ::view-transition-new(root) {
+    animation: 220ms ease-in both view-fade-in;
+  }
+
+  @keyframes view-fade-out {
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0; transform: scale(0.995); }
+  }
+
+  @keyframes view-fade-in {
+    from { opacity: 0; transform: scale(1.005); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+}
+

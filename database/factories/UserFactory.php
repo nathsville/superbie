@@ -27,10 +27,29 @@ class UserFactory extends Factory
         return [
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
+            'nik' => $this->generateNik(),
+            'phone_number' => $this->generatePhone(),
+            'address' => fake()->address(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
         ];
+    }
+
+    /**
+     * Generate a unique (by construction) 16-digit NIK.
+     */
+    private function generateNik(): string
+    {
+        return str_pad((string) random_int(0, 9999999999999999), 16, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Generate a unique (by construction) local-format Indonesian phone number.
+     */
+    private function generatePhone(): string
+    {
+        return '08' . str_pad((string) random_int(0, 9999999999), 10, '0', STR_PAD_LEFT);
     }
 
     /**

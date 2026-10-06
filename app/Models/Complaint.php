@@ -16,6 +16,7 @@ class Complaint extends Model
         'reference_code',
         'tracking_secret_hash',
         'category_id',
+        'dinas_unit_id',
         'assigned_to',
         'reporter_id',
         'reporter_email',
@@ -54,6 +55,16 @@ class Complaint extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(ComplaintCategory::class, 'category_id');
+    }
+
+    /**
+     * ACTUAL Dinas/Unit destination chosen by the Operator (Prompt 5C).
+     * Stored (not dynamic) so history is stable against mapping changes.
+     * May be null (not yet routed, or master data removed → set null).
+     */
+    public function dinasUnit(): BelongsTo
+    {
+        return $this->belongsTo(DinasUnit::class, 'dinas_unit_id');
     }
 
     public function attachments(): HasMany
@@ -100,5 +111,56 @@ class Complaint extends Model
     public function scopeByStatus($query, string $status)
     {
         return $query->where('status', $status);
+    }
+
+    /**
+     * Restrict the query to complaints VISIBLE to an Operator (Prompt 15 §4).
+     *
+     * FINAL, approved visibility rule (BDR-1 = 1a, BDR-2 = 2c hybrid):
+     *   An Operator sees a Complaint iff:
+     *     operator.dinas_unit_id IS NOT NULL
+     *     AND (
+     *          complaint.dinas_unit_id = operator.dinas_unit_id
+     *          OR (complaint.dinas_unit_id IS NULL
+     *              AND the complaint's category is mapped to operator.dinas_unit_id
+     *              via `category_dinas_unit`)
+     *     )
+     *
+     * An Operator WITHOUT a unit is DENIED everything — no global fallback.
+     */
+    public function scopeVisibleToOperator($query, User $operator)
+    {
+        $unitId = $operator->dinas_unit_id;
+
+        if ($unitId === null) {
+            // No unit → no scope at all (deny). Never a global fallback.
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function ($q) use ($unitId) {
+            $q->where('complaints.dinas_unit_id', $unitId)
+              ->orWhere(function ($q2) use ($unitId) {
+                  $q2->whereNull('complaints.dinas_unit_id')
+                     ->whereHas('category', function ($categoryQuery) use ($unitId) {
+                         $categoryQuery->whereHas('dinasUnits', function ($dinasQuery) use ($unitId) {
+                             $dinasQuery->where('dinas_units.id', $unitId);
+                         });
+                     });
+              });
+        });
+    }
+
+    /**
+     * Per-instance guard mirroring {@see scopeVisibleToOperator()} exactly.
+     *
+     * Reuses the scope so the list query and the per-record authorization can
+     * never diverge (single source of truth for the visibility rule).
+     */
+    public function isVisibleToOperator(User $operator): bool
+    {
+        return static::query()
+            ->whereKey($this->getKey())
+            ->visibleToOperator($operator)
+            ->exists();
     }
 }

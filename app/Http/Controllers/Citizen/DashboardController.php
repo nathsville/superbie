@@ -7,36 +7,25 @@ use App\Models\Complaint;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
+use App\Services\DashboardCacheService;
+
 class DashboardController extends Controller
 {
     /**
      * Citizen dashboard — shows summary of own complaints only.
      * Complaints from other users are NEVER included.
+     * Metrics are cached with instant refresh support.
      */
-    public function index(Request $request): View
+    public function index(Request $request, DashboardCacheService $cacheService): View
     {
         $user = $request->user();
+        $refresh = $request->boolean('refresh');
 
-        // All queries scoped to reporter_id = authenticated user
-        $totalLaporan    = Complaint::forReporter($user->id)->count();
-        $laporanProses   = Complaint::forReporter($user->id)->whereIn('status', ['submitted', 'under_review', 'in_progress', 'waiting_for_information'])->count();
-        $laporanSelesai  = Complaint::forReporter($user->id)->byStatus('resolved')->count();
-        $laporanDitolak  = Complaint::forReporter($user->id)->byStatus('rejected')->count();
+        $data = $cacheService->getCitizenData($user, $refresh);
 
-        $laporanTerbaru  = Complaint::forReporter($user->id)
-            ->with('category')
-            ->orderByDesc('submitted_at')
-            ->limit(5)
-            ->get();
-
-        return view('citizen.dashboard', compact(
-            'user',
-            'totalLaporan',
-            'laporanProses',
-            'laporanSelesai',
-            'laporanDitolak',
-            'laporanTerbaru',
-        ));
+        return view('citizen.dashboard', array_merge([
+            'user' => $user,
+        ], $data));
     }
 
     /**

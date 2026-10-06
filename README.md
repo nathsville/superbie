@@ -1,4 +1,4 @@
-# Paket Dokumentasi Vibe Coding — Lapor Pak Wali
+# Lapor Pak Wali
 
 Paket ini adalah fondasi dokumentasi untuk pengembangan tahap pertama **SuperBie – Lapor Pak Wali**, dengan fokus hanya pada fitur pengaduan masyarakat. Modul SIPHP, Parepare Weather Intelligence Dashboard, dan JDIH tidak dibangun pada fase ini; arsitektur boleh menyiapkan ruang ekspansi, tetapi jangan membuat fitur atau tabel modul tersebut sekarang.
 

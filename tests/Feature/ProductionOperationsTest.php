@@ -54,26 +54,31 @@ class ProductionOperationsTest extends TestCase
     }
 
     /**
-     * Scheduler inventory: exactly the retention purge is scheduled, daily at
-     * 02:00, and nothing runs more frequently than that. This guards the frozen
-     * retention rule (frequency must not drift) and detects any accidental
-     * high-frequency task.
+     * Scheduler inventory: the retention purge (daily 02:00) plus the WINDY
+     * weather sync (every 3 hours). This guards the frozen retention rule
+     * (frequency must not drift) and detects any accidental high-frequency task.
      */
-    public function test_retention_purge_is_the_only_scheduled_task_at_02_00(): void
+    public function test_scheduled_tasks_are_the_retention_purge_and_weather_sync(): void
     {
         $events = app(Schedule::class)->events();
 
         $this->assertCount(
-            1,
+            2,
             $events,
-            'Expected exactly one scheduled task (the retention purge). Add the new task to the operations docs and this inventory if that changes.'
+            'Expected exactly two scheduled tasks (retention purge + WINDY weather sync). Add the new task to the operations docs and this inventory if that changes.'
         );
 
-        $event = $events[0];
-        $command = is_string($event->command) ? $event->command : '';
+        $byCommand = collect($events)->keyBy(
+            fn ($event) => is_string($event->command) ? $event->command : ''
+        );
 
-        $this->assertStringContainsString('complaints:purge-expired', $command);
-        $this->assertSame('0 2 * * *', $event->expression);
+        $purge = $byCommand->first(fn ($event, $command) => str_contains($command, 'complaints:purge-expired'));
+        $this->assertNotNull($purge, 'The retention purge must remain scheduled.');
+        $this->assertSame('0 2 * * *', $purge->expression);
+
+        $weather = $byCommand->first(fn ($event, $command) => str_contains($command, 'weather:sync'));
+        $this->assertNotNull($weather, 'The WINDY weather sync must be scheduled (D-16).');
+        $this->assertSame('0 */3 * * *', $weather->expression);
     }
 
     /**

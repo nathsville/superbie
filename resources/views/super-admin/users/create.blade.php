@@ -11,7 +11,7 @@
     <x-slot:header>Tambah Pengguna</x-slot:header>
     <x-slot:breadcrumb>Kelola Pengguna</x-slot:breadcrumb>
 
-    <div class="max-w-2xl">
+    <div class="w-full max-w-full">
         @include('super-admin.users._form', ['user' => null])
     </div>
 </x-layouts.dashboard>

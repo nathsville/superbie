@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+
+<html lang="id">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>SuperBie — Actionable Admin Monitoring &amp; Decision Dashboard</title>
+    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <!-- Tailwind CSS v3 with Plugins -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- Tailwind Configuration with Mandated Palette -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    colors: {
+                        twilight: '#03045E',       // --deep-twilight
+                        tealblue: '#0077B6',       // --bright-teal-blue
+                        turquoise: '#00B4D8',      // --turquoise-surf
+                        frosted: '#90E0EF',        // --frosted-blue
+                        cyanlight: '#CAF0F8',      // --light-cyan
+                        neutralbg: '#F8FAFC',
+                        cardborder: '#E2E8F0',
+                    },
+                    boxShadow: {
+                        'card': '0 4px 20px -2px rgba(3, 4, 94, 0.05), 0 2px 8px -1px rgba(3, 4, 94, 0.02)',
+                        'card-hover': '0 10px 25px -4px rgba(3, 4, 94, 0.08), 0 4px 12px -2px rgba(3, 4, 94, 0.03)',
+                        'float-pill': '0 12px 30px -4px rgba(3, 4, 94, 0.12)',
+                    },
+                    borderRadius: {
+                        '2xl': '1rem',
+                        '3xl': '1.5rem',
+                        '4xl': '2rem',
+                    }
+                }
+            }
+        }
+    </script>
+    <style data-purpose="custom-elements">
+        body {
+            background-color: #F8FAFC;
+            color: #03045E;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #F1F5F9;
+            border-radius: 9999px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 9999px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94A3B8;
+        }
+    </style>
+</head>
+
+<body
+    class="font-sans antialiased min-h-screen bg-[#F8FAFC] p-3 sm:p-5 lg:p-6 flex justify-center items-start selection:bg-frosted selection:text-twilight">
+    <!-- BEGIN: MainDashboardContainer -->
+    <div class="w-full max-w-[1440px] flex flex-col md:flex-row gap-5 items-stretch min-h-[920px]">
+        <!-- BEGIN: LeftSidebarRail (Read-Only Admin) -->
+        <aside
+            class="w-full md:w-20 lg:w-20 bg-white border border-[#E2E8F0] rounded-[28px] p-3.5 flex md:flex-col items-center justify-between shadow-card shrink-0"
+            data-purpose="icon-rail">
+            <!-- Top Group: Logo & Primary Nav -->
+            <div class="flex md:flex-col items-center gap-6 w-full">
+                <!-- Civic Brand Mark -->
+                <a class="w-12 h-12 rounded-2xl bg-cyanlight/70 flex items-center justify-center text-tealblue hover:scale-105 transition-transform duration-200"
+                    href="#dashboard" title="SuperBie Command Center">
+                    <svg class="w-7 h-7 text-twilight" fill="none" stroke="currentColor" stroke-linecap="round"
+                        stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                    </svg>
+                </a>
+                <!-- Navigation Rail Icons -->
+                <nav aria-label="Main Navigation" class="flex md:flex-col items-center gap-2.5 w-full">
+                    <!-- Dashboard (Active) -->
+                    <a aria-current="page"
+                        class="w-12 h-12 rounded-2xl bg-twilight text-white flex items-center justify-center shadow-md shadow-twilight/20 transition-all duration-200"
+                        href="#dashboard" title="Dashboard Utama">
+                        <svg class="w-5 h-5" fill="currentColor" viewbox="0 0 24 24">
+                            <rect height="7" rx="1.5" width="7" x="3" y="3"></rect>
+                            <rect height="7" rx="1.5" width="7" x="14" y="3"></rect>
+                            <rect height="7" rx="1.5" width="7" x="14" y="14"></rect>
+                            <rect height="7" rx="1.5" width="7" x="3" y="14"></rect>
+                        </svg>
+                    </a>
+                    <!-- Monitoring Laporan -->
+                    <a class="w-12 h-12 rounded-2xl text-slate-400 hover:text-twilight hover:bg-slate-100/80 flex items-center justify-center transition-all duration-200"
+                        href="#monitoring" title="Monitoring Laporan">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-linecap="round"
+                            stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" x2="8" y1="13" y2="13"></line>
+                            <line x1="16" x2="8" y1="17" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                    </a>
+                    <!-- Audit Log -->
+                    <a class="w-12 h-12 rounded-2xl text-slate-400 hover:text-twilight hover:bg-slate-100/80 flex items-center justify-center transition-all duration-200"
+                        href="#audit" title="Audit Log &amp; Rekam Jejak">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-linecap="round"
+                            stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                            <path d="m9 12 2 2 4-4"></path>
+                        </svg>
+                    </a>
+                </nav>
+            </div>
+            <!-- Bottom Group: Settings & Profile (Read-Only) -->
+            <div class="flex md:flex-col items-center gap-3.5 w-full mt-4 md:mt-0">
+                <!-- Settings -->
+                <a class="w-11 h-11 rounded-xl text-slate-400 hover:text-twilight hover:bg-slate-100 flex items-center justify-center transition-colors"
+                    href="#settings" title="Pengaturan Portal (Read-Only)">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-linecap="round"
+                        stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                        </path>
+                    </svg>
+                </a>
+                <!-- Logout -->
+                <a class="w-11 h-11 rounded-xl text-rose-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors"
+                    href="#logout" title="Keluar">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-linecap="round"
+                        stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" x2="9" y1="12" y2="12"></line>
+                    </svg>
+                </a>
+                <!-- Small Avatar -->
+                <div class="relative pt-1 border-t border-slate-100 w-full flex justify-center">
+                    <img alt="Avatar Admin"
+                        class="w-10 h-10 rounded-full object-cover border-2 border-frosted shadow-sm"
+                        src="https://lh3.googleusercontent.com/aida/AEtjO1VoFzwdHi7AVE1sPBHcX4slP9kvfmYu0XyqxnguzG_1ElV9nEZfWAsiOam1V4EAhUuGVPme9u9iWGchejp5rc-4rCEbQoleZO7wiqe4mCRSSAdmpgtnQHd3VZqgN4bvk8IqZpGpVBR2jLOWUlZgp0sgirXrPqX8qekcmOxhbLDk79D2H_U-bDmMPmTRfwN90YBdsUnSf_xWGedZMAZE8Cd1EBjBB0qTf_W5x2AeW1vZ2JbvHB8TPy1K3A" />
+                    <span
+                        class="absolute bottom-0 right-3 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span>
+                </div>
+            </div>
+        </aside>
+        <!-- END: LeftSidebarRail -->
+        <!-- BEGIN: MainContentArea -->
+        <main class="flex-1 flex flex-col gap-5 overflow-hidden" data-purpose="primary-monitoring-view">
+            <!-- 1. TOP HEADER -->
+            <header class="flex flex-col md:flex-row md:items-center justify-between gap-4"
+                data-purpose="dashboard-header">
+                <div>
+                    <div class="flex items-center gap-2.5">
+                        <span
+                            class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold tracking-wide uppercase bg-twilight text-white">SuperBie</span>
+                        <h1 class="text-2xl lg:text-3xl font-extrabold tracking-tight text-twilight">Dashboard Admin
+                        </h1>
+                    </div>
+                    <p class="text-xs sm:text-sm font-medium text-slate-500 mt-1 flex items-center gap-2">
+                        <span
+                            class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200/60">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            Live Audit Stream
+                        </span>
+                        <span>Monitoring &amp; Pengawasan Operasional • Berorientasi Mitigasi Masalah &amp;
+                            Keputusan</span>
+                    </p>
+                </div>
+                <!-- Controls: Search, Alert & Admin Badge -->
+                <div class="flex items-center flex-wrap gap-3">
+                    <div class="relative w-full sm:w-64 md:w-64">
+                        <input
+                            class="w-full h-11 pl-10 pr-4 text-xs bg-white border border-[#E2E8F0] rounded-full focus:outline-none focus:ring-2 focus:ring-tealblue/40 focus:border-tealblue text-twilight placeholder:text-slate-400 shadow-sm"
+                            placeholder="Cari nomor tiket, dinas, wilayah..." type="text" />
+                        <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" fill="none" stroke="currentColor"
+                            stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" x2="16.65" y1="21"></line>
+                        </svg>
+                    </div>
+                    <!-- Alert Icon -->
+                    <button aria-label="Notifikasi Pengawasan"
+                        class="relative w-11 h-11 rounded-full bg-white border border-[#E2E8F0] hover:bg-slate-50 flex items-center justify-center text-slate-600 transition-colors shadow-sm"
+                        type="button">
+                        <svg class="w-5 h-5 text-twilight" fill="none" stroke="currentColor" stroke-linecap="round"
+                            stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                        <span
+                            class="absolute top-2 right-2 w-2.5 h-2.5 bg-rose-500 border-2 border-white rounded-full"></span>
+                    </button>
+                    <!-- Profile Pill (Read-Only Admin) -->
+                    <div
+                        class="flex items-center gap-3 bg-white border border-[#E2E8F0] pl-2 pr-4 py-1.5 rounded-full shadow-sm">
+                        <img alt="Foto Drs. M. Sanusi, M.Si"
+                            class="w-8 h-8 rounded-full object-cover ring-2 ring-frosted"
+                            src="https://lh3.googleusercontent.com/aida/AEtjO1VoFzwdHi7AVE1sPBHcX4slP9kvfmYu0XyqxnguzG_1ElV9nEZfWAsiOam1V4EAhUuGVPme9u9iWGchejp5rc-4rCEbQoleZO7wiqe4mCRSSAdmpgtnQHd3VZqgN4bvk8IqZpGpVBR2jLOWUlZgp0sgirXrPqX8qekcmOxhbLDk79D2H_U-bDmMPmTRfwN90YBdsUnSf_xWGedZMAZE8Cd1EBjBB0qTf_W5x2AeW1vZ2JbvHB8TPy1K3A" />
+                        <div class="text-left">
+                            <div class="text-xs font-bold text-twilight leading-tight">Drs. M. Sanusi, M.Si</div>
+                            <div class="text-[10px] font-semibold text-tealblue leading-none mt-0.5">Admin Pengawas
+                                (Read-Only)</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            <!-- 1. ENRICHED KPI METRIC CARDS -->
+            <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-purpose="kpi-cards">
+                <!-- KPI 1: Total Laporan (Area Sparkline + Pill Delta) -->
+                <article
+                    class="bg-white rounded-2xl sm:rounded-3xl p-4 lg:p-5 border border-[#E2E8F0] shadow-card flex items-center justify-between">
+                    <div>
+                        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Total
+                            Laporan</span>
+                        <div class="text-2xl lg:text-3xl font-extrabold text-twilight mt-1">14.820</div>
+                        <div class="flex items-center gap-1.5 mt-2">
+                            <span
+                                class="inline-flex items-center text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
+                                ↑ +12.4%
+                            </span>
+                            <span class="text-[11px] text-slate-400 font-medium">akumulatif thn ini</span>
+                        </div>
+                    </div>
+                    <div class="w-24 h-12 flex flex-col items-end justify-center">
+                        <svg class="w-full h-10 overflow-visible" viewbox="0 0 90 42">
+                            <defs>
+                                <lineargradient id="kpiSparkGrad" x1="0" x2="0" y1="0" y2="1">
+                                    <stop offset="0%" stop-color="#0077B6" stop-opacity="0.35"></stop>
+                                    <stop offset="100%" stop-color="#CAF0F8" stop-opacity="0.0"></stop>
+                                </lineargradient>
+                            </defs>
+                            <path d="M 0 35 Q 15 32, 28 20 T 55 24 T 88 8 L 88 42 L 0 42 Z" fill="url(#kpiSparkGrad)">
+                            </path>
+                            <path d="M 0 35 Q 15 32, 28 20 T 55 24 T 88 8" fill="none" stroke="#0077B6"
+                                stroke-linecap="round" stroke-width="2.5"></path>
+                            <circle cx="88" cy="8" fill="#0077B6" r="3.5" stroke="#FFFFFF" stroke-width="2"></circle>
+                        </svg>
+                        <span class="text-[9px] font-mono text-slate-400 mt-0.5">YTD Trend</span>
+                    </div>
+                </article>
+                <!-- KPI 2: Laporan Baru Hari Ini (Mini Column Histogram) -->
+                <article
+                    class="bg-white rounded-2xl sm:rounded-3xl p-4 lg:p-5 border border-[#E2E8F0] shadow-card flex items-center justify-between">
+                    <div>
+                        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Laporan Baru
+                            Hari Ini</span>
+                        <div class="text-2xl lg:text-3xl font-extrabold text-twilight mt-1">248</div>
+                        <div class="flex items-center gap-1.5 mt-2">
+                            <span
+                                class="inline-flex items-center text-[11px] font-bold text-tealblue bg-cyanlight/70 px-2 py-0.5 rounded-full border border-frosted">
+                                +8 hari ini
+                            </span>
+                            <span class="text-[11px] text-slate-400 font-medium">perlu verifikasi</span>
+                        </div>
+                    </div>
+                    <div class="w-24 h-12 flex flex-col items-center justify-end">
+                        <div class="flex items-end gap-1.5 h-9 w-full justify-end pr-1">
+                            <div class="w-2.5 h-3 bg-cyanlight rounded-t" title="06:00 - 18 aduan"></div>
+                            <div class="w-2.5 h-5 bg-frosted rounded-t" title="09:00 - 34 aduan"></div>
+                            <div class="w-2.5 h-8 bg-turquoise rounded-t" title="12:00 - 68 aduan"></div>
+                            <div class="w-2.5 h-6 bg-frosted rounded-t" title="15:00 - 45 aduan"></div>
+                            <div class="w-2.5 h-9 bg-tealblue rounded-t" title="18:00 - 83 aduan (Puncak)"></div>
+                        </div>
+                        <span class="text-[9px] font-mono text-slate-400 mt-1">distribusi jam</span>
+                    </div>
+                </article>
+                <!-- KPI 3: Backlog Aktif (Radial Capacity Speedometer / Progress Arc) -->
+                <article
+                    class="bg-white rounded-2xl sm:rounded-3xl p-4 lg:p-5 border border-[#E2E8F0] shadow-card flex items-center justify-between">
+                    <div>
+                        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Backlog
+                            Aktif</span>
+                        <div class="text-2xl lg:text-3xl font-extrabold text-twilight mt-1">186</div>
+                        <div class="flex items-center gap-1.5 mt-2">
+                            <span
+                                class="inline-flex items-center text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                Net ↓ 8.4%
+                            </span>
+                            <span class="text-[11px] text-slate-400 font-medium">terkendali</span>
+                        </div>
+                    </div>
+                    <div class="w-16 h-16 relative flex items-center justify-center">
+                        <svg class="w-16 h-16 -rotate-90" viewbox="0 0 64 64">
+                            <circle cx="32" cy="32" fill="none" r="26" stroke="#F1F5F9" stroke-width="6"></circle>
+                            <!-- Capacity used: ~37% of max safe buffer (500) -->
+                            <circle cx="32" cy="32" fill="none" r="26" stroke="#00B4D8" stroke-dasharray="163.36"
+                                stroke-dashoffset="102.9" stroke-linecap="round" stroke-width="6"></circle>
+                        </svg>
+                        <div class="absolute flex flex-col items-center justify-center text-center">
+                            <span class="text-[11px] font-bold text-twilight leading-none">37%</span>
+                            <span class="text-[8px] text-slate-400 leading-none mt-0.5">beban</span>
+                        </div>
+                    </div>
+                </article>
+                <!-- KPI 4: Selesai Tuntas (Circular Completion Donut Gauge 97.1%) -->
+                <article
+                    class="bg-tealblue text-white rounded-2xl sm:rounded-3xl p-4 lg:p-5 shadow-card flex items-center justify-between relative overflow-hidden">
+                    <div class="relative z-10">
+                        <span class="text-xs font-semibold text-cyanlight uppercase tracking-wider block">Selesai
+                            Tuntas</span>
+                        <div class="text-2xl lg:text-3xl font-extrabold text-white mt-1">14.386</div>
+                        <div class="flex items-center gap-1.5 mt-2">
+                            <span
+                                class="inline-flex items-center text-[11px] font-bold text-twilight bg-white px-2 py-0.5 rounded-full shadow-sm">
+                                ✓ 97.1% SPM
+                            </span>
+                            <span class="text-[11px] text-cyanlight font-medium">rasio kota</span>
+                        </div>
+                    </div>
+                    <div class="w-16 h-16 relative z-10 flex items-center justify-center shrink-0">
+                        <svg class="w-16 h-16 -rotate-90" viewbox="0 0 64 64">
+                            <circle cx="32" cy="32" fill="none" r="26" stroke="rgba(255,255,255,0.2)" stroke-width="6">
+                            </circle>
+                            <!-- 97.1% of circumference 163.36 is offset 4.74 -->
+                            <circle cx="32" cy="32" fill="none" r="26" stroke="#FFFFFF" stroke-dasharray="163.36"
+                                stroke-dashoffset="4.74" stroke-linecap="round" stroke-width="6"></circle>
+                        </svg>
+                        <div class="absolute flex flex-col items-center justify-center text-center">
+                            <span class="text-[11px] font-extrabold text-white leading-none">97%</span>
+                            <span class="text-[8px] text-cyanlight leading-none mt-0.5">tuntas</span>
+                        </div>
+                    </div>
+                    <div
+                        class="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-white/10 blur-xl pointer-events-none">
+                    </div>
+                </article>
+            </section>
+            <!-- 2. CARD UTAMA: "PERLU PERHATIAN (ADMIN ATTENTION)" - RADAR KRITIS -->
+            <section
+                class="bg-gradient-to-r from-white via-rose-50/20 to-amber-50/20 rounded-3xl p-4 sm:p-5 border-2 border-rose-200/70 shadow-card"
+                data-purpose="attention-banner">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <!-- Banner Title with Pulsing Alert Badge -->
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded-2xl bg-rose-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-rose-500/20">
+                            <svg class="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" stroke-width="2.5"
+                                viewbox="0 0 24 24">
+                                <path
+                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                    stroke-linecap="round" stroke-linejoin="round"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-base sm:text-lg font-bold text-twilight">Perlu Perhatian Admin Hari Ini
+                                </h2>
+                                <span
+                                    class="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-100 text-rose-700 border border-rose-200">12
+                                    Item Kritis</span>
+                            </div>
+                            <p class="text-xs text-slate-500">Deteksi anomali keterlambatan dan lonjakan kasus yang
+                                memerlukan telaah pengawas</p>
+                        </div>
+                    </div>
+                    <!-- 3 Quick Triage Badges -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 flex-1 lg:max-w-2xl">
+                        <!-- Item 1: SLA Terlambat -->
+                        <div
+                            class="p-2.5 rounded-xl bg-white border border-rose-200 flex items-center gap-2.5 shadow-sm">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0"></span>
+                            <div class="overflow-hidden">
+                                <div class="text-xs font-bold text-twilight truncate">7 Laporan Lewat SLA</div>
+                                <div class="text-[10px] text-slate-500 truncate">Dinas PUPR (5), Dishub (2)</div>
+                            </div>
+                        </div>
+                        <!-- Item 2: Aging > 14 Hari -->
+                        <div
+                            class="p-2.5 rounded-xl bg-white border border-amber-200 flex items-center gap-2.5 shadow-sm">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
+                            <div class="overflow-hidden">
+                                <div class="text-xs font-bold text-twilight truncate">3 Kasus Aging &gt; 14 Hari</div>
+                                <div class="text-[10px] text-slate-500 truncate">Gorong-gorong Kec. Sukun</div>
+                            </div>
+                        </div>
+                        <!-- Item 3: Anomali Wilayah -->
+                        <div
+                            class="p-2.5 rounded-xl bg-white border border-yellow-200 flex items-center gap-2.5 shadow-sm">
+                            <span class="w-2.5 h-2.5 rounded-full bg-yellow-500 shrink-0"></span>
+                            <div class="overflow-hidden">
+                                <div class="text-xs font-bold text-twilight truncate">2 Titik Lonjakan Aduan</div>
+                                <div class="text-[10px] text-slate-500 truncate">TPS Liar Klojen &amp; Genangan Air
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Action Button -->
+                    <a class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-twilight text-white text-xs font-bold hover:bg-tealblue transition-colors shadow-sm whitespace-nowrap self-start lg:self-center"
+                        href="#tabel-perhatian">
+                        Buka Filter Kasus Kritis →
+                    </a>
+                </div>
+            </section>
+            <!-- 3. INFLOW VS RESOLUTION RATE (DUAL-LINE / AREA CHART WITH GAP ANALYSIS) -->
+            <section class="bg-white rounded-3xl p-5 lg:p-6 border border-[#E2E8F0] shadow-card"
+                data-purpose="inflow-resolution-chart">
+                <div
+                    class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                    <div>
+                        <div class="flex items-center gap-3">
+                            <h2 class="text-lg lg:text-xl font-bold text-twilight">Tren Laporan: Inflow (Masuk) vs
+                                Resolution (Selesai Tuntas)</h2>
+                            <span
+                                class="text-xs font-bold text-tealblue bg-cyanlight/50 px-2.5 py-1 rounded-full border border-frosted">
+                                Evaluasi Kapasitas Penyerapan Kota
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1">Data historis volume pengaduan masyarakat vs kecepatan
+                            penuntasan per bulan disertai selisih serapan (Net Resolution Gap)</p>
+                    </div>
+                    <!-- Metric Badges in Top Right of Chart -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200/60 text-right">
+                            <div class="text-[10px] font-semibold text-slate-500">Net Backlog Bulanan</div>
+                            <div class="text-xs font-extrabold text-emerald-700">-62 Tiket (Selesai &gt; Masuk)</div>
+                        </div>
+                        <div class="px-3 py-1.5 rounded-xl bg-cyanlight/40 border border-frosted text-right">
+                            <div class="text-[10px] font-semibold text-slate-500">Backlog Trend</div>
+                            <div class="text-xs font-extrabold text-tealblue">↓ 8.4% Membaik</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Main Chart Canvas with Curves and Diverging Net Gap Bar Below -->
+                <div class="relative w-full mt-4 h-72 lg:h-80">
+                    <!-- Callout Spike Juli -->
+                    <div
+                        class="absolute left-[63%] sm:left-[66%] top-2 -translate-x-1/2 bg-twilight text-white text-[11px] py-1.5 px-3 rounded-xl shadow-float-pill pointer-events-none flex flex-col items-center z-20">
+                        <span class="font-bold text-cyanlight">Juli 2025 (Puncak Cuaca Ekstrem)</span>
+                        <span class="text-white text-xs font-extrabold">Inflow: 1.840 | Resolution: 1.795</span>
+                        <span class="text-[10px] text-amber-300 font-semibold">Gap Backlog: -45 Tiket</span>
+                        <div class="w-2 h-2 bg-twilight rotate-45 absolute -bottom-1"></div>
+                    </div>
+                    <svg class="w-full h-full overflow-visible" preserveaspectratio="none" viewbox="0 0 900 270">
+                        <defs>
+                            <lineargradient id="inflowGrad" x1="0" x2="0" y1="0" y2="1">
+                                <stop offset="0%" stop-color="#0077B6" stop-opacity="0.30"></stop>
+                                <stop offset="100%" stop-color="#CAF0F8" stop-opacity="0.02"></stop>
+                            </lineargradient>
+                            <lineargradient id="resolutionGrad" x1="0" x2="0" y1="0" y2="1">
+                                <stop offset="0%" stop-color="#00B4D8" stop-opacity="0.20"></stop>
+                                <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.0"></stop>
+                            </lineargradient>
+                        </defs>
+                        <!-- Upper Chart Background & Grid (0 - 180 px) -->
+                        <line stroke="#F1F5F9" stroke-dasharray="4 4" stroke-width="1.5" x1="40" x2="880" y1="25"
+                            y2="25"></line>
+                        <line stroke="#F1F5F9" stroke-dasharray="4 4" stroke-width="1.5" x1="40" x2="880" y1="65"
+                            y2="65"></line>
+                        <line stroke="#F1F5F9" stroke-dasharray="4 4" stroke-width="1.5" x1="40" x2="880" y1="105"
+                            y2="105"></line>
+                        <line stroke="#F1F5F9" stroke-dasharray="4 4" stroke-width="1.5" x1="40" x2="880" y1="145"
+                            y2="145"></line>
+                        <line stroke="#E2E8F0" stroke-width="1.5" x1="40" x2="880" y1="175" y2="175"></line>
+                        <!-- Y-Axis Labels Upper -->
+                        <text fill="#94A3B8" font-size="10" font-weight="600" text-anchor="end" x="32"
+                            y="29">2.000</text>
+                        <text fill="#94A3B8" font-size="10" font-weight="600" text-anchor="end" x="32"
+                            y="69">1.500</text>
+                        <text fill="#94A3B8" font-size="10" font-weight="600" text-anchor="end" x="32"
+                            y="109">1.000</text>
+                        <text fill="#94A3B8" font-size="10" font-weight="600" text-anchor="end" x="32"
+                            y="149">500</text>
+                        <!-- Inflow Area & Smooth Bezier Line -->
+                        <path
+                            d="M 50 135 C 100 130, 120 125, 150 120 C 190 115, 220 102, 250 96 C 285 92, 320 112, 350 108 C 390 104, 420 80, 450 76 C 490 70, 520 62, 550 58 C 590 54, 620 32, 650 32 C 690 32, 720 58, 750 56 C 790 54, 820 48, 850 46 L 850 175 L 50 175 Z"
+                            fill="url(#inflowGrad)"></path>
+                        <path
+                            d="M 50 135 C 100 130, 120 125, 150 120 C 190 115, 220 102, 250 96 C 285 92, 320 112, 350 108 C 390 104, 420 80, 450 76 C 490 70, 520 62, 550 58 C 590 54, 620 32, 650 32 C 690 32, 720 58, 750 56 C 790 54, 820 48, 850 46"
+                            fill="none" stroke="#0077B6" stroke-linecap="round" stroke-linejoin="round"
+                            stroke-width="3.2"></path>
+                        <!-- Resolution Smooth Line (Dashed Turquoise) -->
+                        <path
+                            d="M 50 145 C 100 138, 120 130, 150 128 C 190 124, 220 110, 250 102 C 285 96, 320 118, 350 114 C 390 110, 420 86, 450 82 C 490 76, 520 68, 550 64 C 590 58, 620 40, 650 36 C 690 38, 720 52, 750 48 C 790 46, 820 40, 850 38"
+                            fill="none" stroke="#00B4D8" stroke-dasharray="6 4" stroke-linecap="round"
+                            stroke-width="2.8"></path>
+                        <!-- Marker Spike Juli -->
+                        <line stroke="#0077B6" stroke-dasharray="3 3" stroke-width="1.5" x1="650" x2="650" y1="32"
+                            y2="175"></line>
+                        <circle cx="650" cy="32" fill="#0077B6" r="5.5" stroke="#FFFFFF" stroke-width="2.5"></circle>
+                        <circle cx="650" cy="36" fill="#00B4D8" r="4.5" stroke="#FFFFFF" stroke-width="2"></circle>
+                        <!-- Sub-Chart: Net Resolution Diverging Bar Section (y: 200 - 240) -->
+                        <!-- Baseline at y=220: Green bars point up (surplus resolution), Red bars point down (backlog deficit) -->
+                        <line stroke="#CBD5E1" stroke-width="1" x1="40" x2="880" y1="220" y2="220"></line>
+                        <text fill="#64748B" font-size="9" font-weight="700" x="40" y="194">NET RESOLUTION GAP (SERAPAN
+                            - INFLOW):</text>
+                        <text fill="#059669" font-size="9" font-weight="700" x="310" y="194">▲ Surplus</text>
+                        <text fill="#E11D48" font-size="9" font-weight="700" x="365" y="194">▼ Defisit</text>
+                        <!-- Jan: -10 (Red deficit) -->
+                        <rect fill="#F43F5E" height="8" rx="2" width="14" x="43" y="220"></rect>
+                        <!-- Feb: -8 (Red deficit) -->
+                        <rect fill="#F43F5E" height="6" rx="2" width="14" x="143" y="220"></rect>
+                        <!-- Mar: -6 (Red deficit) -->
+                        <rect fill="#F43F5E" height="5" rx="2" width="14" x="243" y="220"></rect>
+                        <!-- Apr: -6 (Red deficit) -->
+                        <rect fill="#F43F5E" height="5" rx="2" width="14" x="343" y="220"></rect>
+                        <!-- Mei: -6 (Red deficit) -->
+                        <rect fill="#F43F5E" height="5" rx="2" width="14" x="443" y="220"></rect>
+                        <!-- Jun: -6 (Red deficit) -->
+                        <rect fill="#F43F5E" height="5" rx="2" width="14" x="543" y="220"></rect>
+                        <!-- Jul: -45 (Deficit Spike) -->
+                        <rect fill="#E11D48" height="18" rx="2" width="14" x="643" y="220"></rect>
+                        <!-- Agu: +8 (Green surplus) -->
+                        <rect fill="#10B981" height="14" rx="2" width="14" x="743" y="206"></rect>
+                        <!-- Sep: +62 (Green surplus) -->
+                        <rect fill="#059669" height="24" rx="2" width="14" x="843" y="196"></rect>
+                        <!-- X-Axis Labels -->
+                        <text fill="#64748B" font-size="11" font-weight="600" text-anchor="middle" x="50"
+                            y="255">Jan</text>
+                        <text fill="#64748B" font-size="11" font-weight="600" text-anchor="middle" x="150"
+                            y="255">Feb</text>
+                        <text fill="#64748B" font-size="11" font-weight="600" text-anchor="middle" x="250"
+                            y="255">Mar</text>
+                        <text fill="#64748B" font-size="11" font-weight="600" text-anchor="middle" x="350"
+                            y="255">Apr</text>
+                        <text fill="#64748B" font-size="11" font-weight="600" text-anchor="middle" x="450"
+                            y="255">Mei</text>
+                        <text fill="#64748B" font-size="11" font-weight="600" text-anchor="middle" x="550"
+                            y="255">Jun</text>
+                        <text fill="#03045E" font-size="11" font-weight="800" text-anchor="middle" x="650" y="255">Jul
+                            (Spike)</text>
+                        <text fill="#64748B" font-size="11" font-weight="600" text-anchor="middle" x="750"
+                            y="255">Agu</text>
+                        <text fill="#059669" font-size="11" font-weight="800" text-anchor="middle" x="850" y="255">Sep
+                            (+62)</text>
+                    </svg>
+                </div>
+                <!-- Chart Legend & Absorption Insight -->
+                <div
+                    class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs mt-2">
+                    <div class="flex items-center gap-5 text-slate-600 font-semibold">
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-3.5 h-1.5 bg-tealblue rounded-full"></span>
+                            <span>Laporan Masuk (Inflow)</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span
+                                class="w-3.5 h-1.5 bg-turquoise border-b border-dashed border-turquoise rounded-full"></span>
+                            <span>Laporan Selesai (Resolution)</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 bg-emerald-500 rounded-sm"></span>
+                            <span>Surplus Selesai</span>
+                        </div>
+                    </div>
+                    <div class="text-slate-500 font-medium text-[11px]">
+                        Tingkat absorpsi penyelesaian kota saat ini: <strong
+                            class="text-emerald-700 font-bold">103.4%</strong> (Kapasitas melebihi inflow bulanan)
+                    </div>
+                </div>
+            </section>
+            <!-- 4. SLA RISK BREAKDOWN & AGING UMUR LAPORAN AKTIF (2-KOLOM) -->
+            <section class="grid grid-cols-1 lg:grid-cols-12 gap-5" data-purpose="sla-and-aging">
+                <!-- Kolom Kiri: SLA Risk & Waktu Tersisa -->
+                <article
+                    class="lg:col-span-6 bg-white rounded-3xl p-5 lg:p-6 border border-[#E2E8F0] shadow-card flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <div>
+                                <h2 class="text-base font-bold text-twilight">SLA Risk &amp; Waktu Tersisa</h2>
+                                <p class="text-xs text-slate-400">Distribusi kepatuhan Standar Pelayanan Minimal (SPM 48
+                                    Jam)</p>
+                            </div>
+                            <span
+                                class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                                98.5% On-Track
+                            </span>
+                        </div>
+                        <!-- Bullet Meter / Thermometer Bar with SPM Benchmark Marker -->
+                        <div class="mt-4 p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+                            <div class="flex justify-between items-center text-xs mb-1.5">
+                                <span class="font-bold text-twilight">Kepatuhan Target SPM Kota (Benchmark:
+                                    95.0%)</span>
+                                <span class="font-mono font-extrabold text-emerald-700">98.5% Tercapai</span>
+                            </div>
+                            <!-- Bullet Bar Container -->
+                            <div class="relative w-full h-5 bg-slate-200 rounded-full overflow-hidden flex">
+                                <div class="bg-emerald-500 h-full rounded-l-full" style="width: 98.5%"
+                                    title="Aman: 98.5%"></div>
+                                <div class="bg-yellow-400 h-full" style="width: 0.5%" title="Waspada: 0.5%"></div>
+                                <div class="bg-amber-500 h-full" style="width: 0.3%" title="Kritis: 0.3%"></div>
+                                <div class="bg-rose-500 h-full rounded-r-full" style="width: 0.7%"
+                                    title="Terlambat: 0.7%"></div>
+                                <!-- Target Line 95% -->
+                                <div class="absolute top-0 bottom-0 w-1 bg-twilight shadow" style="left: 95%"
+                                    title="Target Minimal SPM Kota (95%)"></div>
+                            </div>
+                            <div
+                                class="flex justify-between items-center text-[10px] text-slate-500 mt-1.5 font-medium">
+                                <span>0%</span>
+                                <span class="text-twilight font-bold">▲ Target Minimum (95%)</span>
+                                <span>100%</span>
+                            </div>
+                        </div>
+                        <!-- 4 Tier Segment Breakdown Cards with Micro-Gauges -->
+                        <div class="mt-4 space-y-2.5">
+                            <!-- Tier 1: Terlambat -->
+                            <div
+                                class="p-2.5 rounded-xl bg-rose-50/50 border border-rose-100 flex items-center justify-between text-xs">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="w-3 h-3 rounded-full bg-rose-500 shrink-0"></span>
+                                    <div>
+                                        <span class="font-bold text-rose-700">Terlambat (&gt; Batas Waktu)</span>
+                                        <div class="text-[10px] text-slate-500">Melewati toleransi SPM Kota</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <div class="w-16 bg-rose-100 h-1.5 rounded-full overflow-hidden">
+                                        <div class="bg-rose-500 h-full" style="width: 70%"></div>
+                                    </div>
+                                    <div class="text-right min-w-[50px]">
+                                        <span class="font-mono font-bold text-rose-700 text-sm">103</span>
+                                        <span class="text-[10px] text-slate-400 block">(0.7%)</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Tier 2: Kritis -->
+                            <div
+                                class="p-2.5 rounded-xl bg-amber-50/50 border border-amber-100 flex items-center justify-between text-xs">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="w-3 h-3 rounded-full bg-amber-500 shrink-0"></span>
+                                    <div>
+                                        <span class="font-bold text-amber-800">Kritis (&lt; 25% Waktu Sisa)</span>
+                                        <div class="text-[10px] text-slate-500">Mendekati batas respon teknis</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <div class="w-16 bg-amber-100 h-1.5 rounded-full overflow-hidden">
+                                        <div class="bg-amber-500 h-full" style="width: 30%"></div>
+                                    </div>
+                                    <div class="text-right min-w-[50px]">
+                                        <span class="font-mono font-bold text-amber-800 text-sm">42</span>
+                                        <span class="text-[10px] text-slate-400 block">(0.3%)</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Tier 3: Waspada -->
+                            <div
+                                class="p-2.5 rounded-xl bg-yellow-50/50 border border-yellow-100 flex items-center justify-between text-xs">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="w-3 h-3 rounded-full bg-yellow-500 shrink-0"></span>
+                                    <div>
+                                        <span class="font-bold text-yellow-800">Waspada (&lt; 50% Waktu Sisa)</span>
+                                        <div class="text-[10px] text-slate-500">Dalam rentang pengawasan preventif</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <div class="w-16 bg-yellow-100 h-1.5 rounded-full overflow-hidden">
+                                        <div class="bg-yellow-500 h-full" style="width: 50%"></div>
+                                    </div>
+                                    <div class="text-right min-w-[50px]">
+                                        <span class="font-mono font-bold text-yellow-800 text-sm">68</span>
+                                        <span class="text-[10px] text-slate-400 block">(0.5%)</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Tier 4: Aman -->
+                            <div
+                                class="p-2.5 rounded-xl bg-emerald-50/40 border border-emerald-100 flex items-center justify-between text-xs">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="w-3 h-3 rounded-full bg-emerald-500 shrink-0"></span>
+                                    <div>
+                                        <span class="font-bold text-emerald-800">Aman (On-Track Sesuai Jadwal)</span>
+                                        <div class="text-[10px] text-slate-500">Progress pengerjaan berjalan optimal
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <div class="w-16 bg-emerald-100 h-1.5 rounded-full overflow-hidden">
+                                        <div class="bg-emerald-500 h-full" style="width: 100%"></div>
+                                    </div>
+                                    <div class="text-right min-w-[50px]">
+                                        <span class="font-mono font-bold text-emerald-800 text-sm">14.607</span>
+                                        <span class="text-[10px] text-slate-400 block">(98.5%)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div
+                        class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                        <span>Peringatan Dini: <strong>145 Tiket</strong> berisiko eskalasi</span>
+                        <span class="text-tealblue font-semibold">Toleransi SPM Max: 48 Jam</span>
+                    </div>
+                </article>
+                <!-- Kolom Kanan: Aging / Umur Laporan Aktif (186 Backlog) -->
+                <article
+                    class="lg:col-span-6 bg-white rounded-3xl p-5 lg:p-6 border border-[#E2E8F0] shadow-card flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <div>
+                                <h2 class="text-base font-bold text-twilight">Aging / Umur Laporan Aktif</h2>
+                                <p class="text-xs text-slate-400">Distribusi 186 Backlog aktif berdasarkan rentang
+                                    durasi penanganan</p>
+                            </div>
+                            <span
+                                class="text-[11px] font-bold text-rose-600 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200">
+                                7 Kasus &gt;14 Hari
+                            </span>
+                        </div>
+                        <!-- Mini Waffle/Dot Matrix Preview of Backlog Categories (186 Tickets represented proportionally) -->
+                        <div class="mt-4 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                            <div
+                                class="flex justify-between items-center text-[11px] font-semibold text-slate-600 mb-2">
+                                <span>Waffle Matriks Proporsi Backlog (186 Tiket)</span>
+                                <span class="text-rose-600 font-bold">7 Kritis Tertahan Lama</span>
+                            </div>
+                            <div class="w-full flex h-3.5 rounded-md overflow-hidden gap-0.5 bg-slate-200 p-0.5">
+                                <div class="h-full bg-tealblue rounded-sm" style="width: 44.1%"
+                                    title="0-1 Hari: 82 tiket (44.1%)"></div>
+                                <div class="h-full bg-turquoise rounded-sm" style="width: 29.0%"
+                                    title="2-3 Hari: 54 tiket (29.0%)"></div>
+                                <div class="h-full bg-frosted rounded-sm" style="width: 16.7%"
+                                    title="4-7 Hari: 31 tiket (16.7%)"></div>
+                                <div class="h-full bg-amber-500 rounded-sm" style="width: 6.5%"
+                                    title="8-14 Hari: 12 tiket (6.5%)"></div>
+                                <div class="h-full bg-rose-600 rounded-sm animate-pulse" style="width: 3.7%"
+                                    title="&gt;14 Hari: 7 tiket (3.7%)"></div>
+                            </div>
+                        </div>
+                        <!-- Stepped Waterfall / Funnel Rows -->
+                        <div class="mt-4 space-y-2.5">
+                            <!-- 0-1 Hari -->
+                            <div class="p-2 rounded-xl bg-slate-50 hover:bg-slate-100/80 transition-colors">
+                                <div class="flex justify-between text-xs font-semibold mb-1 text-slate-700">
+                                    <span class="flex items-center gap-2">
+                                        <span class="w-2.5 h-2.5 rounded-sm bg-tealblue"></span>
+                                        0–1 Hari (Baru Masuk &amp; Verifikasi Lapangan)
+                                    </span>
+                                    <span class="font-mono font-bold text-twilight">82 <span
+                                            class="text-slate-400 font-normal">(44.1%)</span></span>
+                                </div>
+                                <div class="w-full bg-slate-200/70 h-2 rounded-full overflow-hidden">
+                                    <div class="bg-tealblue h-full rounded-full" style="width: 44.1%"></div>
+                                </div>
+                            </div>
+                            <!-- 2-3 Hari -->
+                            <div class="p-2 rounded-xl bg-slate-50 hover:bg-slate-100/80 transition-colors">
+                                <div class="flex justify-between text-xs font-semibold mb-1 text-slate-700">
+                                    <span class="flex items-center gap-2">
+                                        <span class="w-2.5 h-2.5 rounded-sm bg-turquoise"></span>
+                                        2–3 Hari (Sedang Ditangani OPD Teknis)
+                                    </span>
+                                    <span class="font-mono font-bold text-twilight">54 <span
+                                            class="text-slate-400 font-normal">(29.0%)</span></span>
+                                </div>
+                                <div class="w-full bg-slate-200/70 h-2 rounded-full overflow-hidden">
+                                    <div class="bg-turquoise h-full rounded-full" style="width: 29.0%"></div>
+                                </div>
+                            </div>
+                            <!-- 4-7 Hari -->
+                            <div class="p-2 rounded-xl bg-slate-50 hover:bg-slate-100/80 transition-colors">
+                                <div class="flex justify-between text-xs font-semibold mb-1 text-slate-700">
+                                    <span class="flex items-center gap-2">
+                                        <span
+                                            class="w-2.5 h-2.5 rounded-sm bg-frosted border border-tealblue/20"></span>
+                                        4–7 Hari (Pengerjaan Konstruksi / Fisik Lapangan)
+                                    </span>
+                                    <span class="font-mono font-bold text-twilight">31 <span
+                                            class="text-slate-400 font-normal">(16.7%)</span></span>
+                                </div>
+                                <div class="w-full bg-slate-200/70 h-2 rounded-full overflow-hidden">
+                                    <div class="bg-frosted h-full rounded-full" style="width: 16.7%"></div>
+                                </div>
+                            </div>
+                            <!-- 8-14 Hari -->
+                            <div class="p-2 rounded-xl bg-slate-50 hover:bg-slate-100/80 transition-colors">
+                                <div class="flex justify-between text-xs font-semibold mb-1 text-slate-700">
+                                    <span class="flex items-center gap-2">
+                                        <span class="w-2.5 h-2.5 rounded-sm bg-amber-500"></span>
+                                        8–14 Hari (Menunggu Material Khusus / Perizinan)
+                                    </span>
+                                    <span class="font-mono font-bold text-amber-700">12 <span
+                                            class="text-slate-400 font-normal">(6.5%)</span></span>
+                                </div>
+                                <div class="w-full bg-slate-200/70 h-2 rounded-full overflow-hidden">
+                                    <div class="bg-amber-500 h-full rounded-full" style="width: 6.5%"></div>
+                                </div>
+                            </div>
+                            <!-- >14 Hari Alert Striped -->
+                            <div class="p-2.5 rounded-xl bg-rose-50 border border-rose-200">
+                                <div class="flex justify-between text-xs font-bold mb-1 text-rose-700">
+                                    <span class="flex items-center gap-2">
+                                        <span class="w-2.5 h-2.5 rounded-sm bg-rose-600 animate-ping"></span>
+                                        &gt;14 Hari (Tertahan Lama - Butuh Atensi Walikota)
+                                    </span>
+                                    <span class="font-mono font-extrabold">7 Laporan (3.7%)</span>
+                                </div>
+                                <div class="w-full bg-rose-200/60 h-2.5 rounded-full overflow-hidden">
+                                    <div class="bg-rose-600 h-full rounded-full" style="width: 3.7%"></div>
+                                </div>
+                                <div
+                                    class="text-[10px] text-rose-600 mt-1.5 font-medium flex items-center justify-between">
+                                    <span>Kendala koordinasi lintas instansi (PUPR + Balai Jalan Provinsi)</span>
+                                    <span
+                                        class="font-bold uppercase tracking-wider text-[9px] bg-rose-100 px-1.5 py-0.5 rounded">High
+                                        Priority</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div
+                        class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                        <span>Rerata Umur Backlog: <strong>3.4 Hari</strong></span>
+                        <span class="text-tealblue font-semibold">Tersinkronisasi Realtime</span>
+                    </div>
+                </article>
+            </section>
+            <!-- 5. GEOGRAPHIC CHOROPLETH HEATMAP & ANOMALY DETECTION (2-KOLOM) -->
+            <section class="grid grid-cols-1 lg:grid-cols-12 gap-5" data-purpose="map-and-anomaly">
+                <!-- Kolom Kiri: Peta Sebaran Konsentrasi Masalah (Choropleth Heatmap) -->
+                <article
+                    class="lg:col-span-7 bg-white rounded-3xl p-5 lg:p-6 border border-[#E2E8F0] shadow-card flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <div>
+                                <h2 class="text-base font-bold text-twilight">Peta Sebaran Konsentrasi Masalah &amp;
+                                    Treemap Beban</h2>
+                                <p class="text-xs text-slate-400">Intensitas beban pengaduan spasial dan proporsi volume
+                                    per kecamatan administratif</p>
+                            </div>
+                            <!-- Density Legend -->
+                            <div class="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
+                                <span>Rendah</span>
+                                <span class="w-3 h-3 rounded bg-cyanlight" title="Rendah"></span>
+                                <span class="w-3 h-3 rounded bg-frosted" title="Sedang-Rendah"></span>
+                                <span class="w-3 h-3 rounded bg-tealblue" title="Sedang"></span>
+                                <span class="w-3 h-3 rounded bg-amber-500" title="Tinggi"></span>
+                                <span class="w-3 h-3 rounded bg-rose-500" title="Kritis"></span>
+                                <span>Tinggi</span>
+                            </div>
+                        </div>
+                        <!-- Dual Layout: Left Vector Choropleth, Right Treemap Volume Breakdown -->
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                            <!-- Map Vector (Malang City Styled Administrative Districts) -->
+                            <div
+                                class="md:col-span-7 relative h-56 flex items-center justify-center bg-slate-50 rounded-2xl border border-slate-100 p-2">
+                                <svg class="w-full h-full max-h-52" viewbox="0 0 340 220">
+                                    <!-- District 1: Lowokwaru (North-West, Red/High: 4.210) -->
+                                    <polygon class="cursor-pointer hover:opacity-100 transition-opacity" fill="#F43F5E"
+                                        fill-opacity="0.85" points="30,40 140,20 170,70 120,110 40,80" stroke="#FFFFFF"
+                                        stroke-width="2">
+                                        <title>Kec. Lowokwaru: 4.210 Laporan (Zona Merah / High Density)</title>
+                                    </polygon>
+                                    <text fill="#FFFFFF" font-size="11" font-weight="700" text-anchor="middle" x="85"
+                                        y="65">Lowokwaru</text>
+                                    <text fill="#FFFFFF" font-size="9" font-weight="600" text-anchor="middle" x="85"
+                                        y="78">4.210</text>
+                                    <!-- District 2: Blimbing (North-East, Light Blue/Low: 2.410) -->
+                                    <polygon class="cursor-pointer hover:opacity-100 transition-opacity" fill="#90E0EF"
+                                        fill-opacity="0.85" points="140,20 280,25 290,95 170,70" stroke="#FFFFFF"
+                                        stroke-width="2">
+                                        <title>Kec. Blimbing: 2.410 Laporan</title>
+                                    </polygon>
+                                    <text fill="#03045E" font-size="10" font-weight="700" text-anchor="middle" x="215"
+                                        y="55">Blimbing</text>
+                                    <text fill="#03045E" font-size="9" font-weight="600" text-anchor="middle" x="215"
+                                        y="68">2.410</text>
+                                    <!-- District 3: Klojen (Center/Downtown, Orange/Moderate-High: 3.450) -->
+                                    <polygon class="cursor-pointer hover:opacity-100 transition-opacity" fill="#F59E0B"
+                                        fill-opacity="0.9" points="120,110 170,70 210,120 160,150 110,135"
+                                        stroke="#FFFFFF" stroke-width="2">
+                                        <title>Kec. Klojen (Pusat Kota): 3.450 Laporan</title>
+                                    </polygon>
+                                    <text fill="#FFFFFF" font-size="10" font-weight="800" text-anchor="middle" x="155"
+                                        y="115">Klojen</text>
+                                    <text fill="#FFFFFF" font-size="9" font-weight="700" text-anchor="middle" x="155"
+                                        y="127">3.450</text>
+                                    <!-- District 4: Sukun (South-West, Teal Blue: 2.890) -->
+                                    <polygon class="cursor-pointer hover:opacity-100 transition-opacity" fill="#0077B6"
+                                        fill-opacity="0.85" points="40,80 120,110 110,135 150,200 40,190"
+                                        stroke="#FFFFFF" stroke-width="2">
+                                        <title>Kec. Sukun: 2.890 Laporan</title>
+                                    </polygon>
+                                    <text fill="#FFFFFF" font-size="11" font-weight="700" text-anchor="middle" x="95"
+                                        y="150">Sukun</text>
+                                    <text fill="#FFFFFF" font-size="9" font-weight="600" text-anchor="middle" x="95"
+                                        y="163">2.890</text>
+                                    <!-- District 5: Kedungkandang (South-East, Light Cyan: 1.860) -->
+                                    <polygon class="cursor-pointer hover:opacity-100 transition-opacity" fill="#CAF0F8"
+                                        fill-opacity="0.9" points="170,70 290,95 300,195 150,200 160,150 210,120"
+                                        stroke="#FFFFFF" stroke-width="2">
+                                        <title>Kec. Kedungkandang: 1.860 Laporan</title>
+                                    </polygon>
+                                    <text fill="#03045E" font-size="10" font-weight="700" text-anchor="middle" x="235"
+                                        y="145">Kedungkandang</text>
+                                    <text fill="#03045E" font-size="9" font-weight="600" text-anchor="middle" x="235"
+                                        y="158">1.860</text>
+                                </svg>
+                            </div>
+                            <!-- Mini Treemap Proportion Visualization -->
+                            <div class="md:col-span-5 flex flex-col gap-2 text-xs">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Treemap
+                                    Proporsi Laporan</span>
+                                <div
+                                    class="w-full h-24 grid grid-cols-12 gap-1 rounded-xl overflow-hidden p-1 bg-slate-100">
+                                    <!-- Lowokwaru: ~28.4% (col-span-4) -->
+                                    <div class="col-span-4 bg-rose-500 text-white rounded p-1.5 flex flex-col justify-between overflow-hidden shadow-sm"
+                                        title="Lowokwaru: 4.210 (28.4%)">
+                                        <span class="text-[10px] font-extrabold truncate">Lowokwaru</span>
+                                        <span class="text-[11px] font-mono font-bold">28.4%</span>
+                                    </div>
+                                    <!-- Klojen: ~23.3% (col-span-3) -->
+                                    <div class="col-span-3 bg-amber-500 text-white rounded p-1.5 flex flex-col justify-between overflow-hidden shadow-sm"
+                                        title="Klojen: 3.450 (23.3%)">
+                                        <span class="text-[10px] font-extrabold truncate">Klojen</span>
+                                        <span class="text-[11px] font-mono font-bold">23.3%</span>
+                                    </div>
+                                    <!-- Sukun: ~19.5% (col-span-3) -->
+                                    <div class="col-span-3 bg-tealblue text-white rounded p-1.5 flex flex-col justify-between overflow-hidden shadow-sm"
+                                        title="Sukun: 2.890 (19.5%)">
+                                        <span class="text-[10px] font-extrabold truncate">Sukun</span>
+                                        <span class="text-[11px] font-mono font-bold">19.5%</span>
+                                    </div>
+                                    <!-- Blimbing & Kedungkandang: stacked col-span-2 -->
+                                    <div class="col-span-2 flex flex-col gap-1">
+                                        <div class="flex-1 bg-frosted text-twilight rounded p-1 flex items-center justify-center font-mono font-bold text-[9px]"
+                                            title="Blimbing: 2.410 (16.2%)">
+                                            16.2%
+                                        </div>
+                                        <div class="flex-1 bg-cyanlight text-twilight rounded p-1 flex items-center justify-center font-mono font-bold text-[9px]"
+                                            title="Kedungkandang: 1.860 (12.6%)">
+                                            12.6%
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Quick Summary List -->
+                                <div class="space-y-1 mt-1 text-[11px]">
+                                    <div
+                                        class="flex justify-between items-center p-1.5 rounded-lg bg-rose-50 border border-rose-100">
+                                        <span class="font-bold text-rose-800">Kec. Lowokwaru (Zona Merah)</span>
+                                        <span class="font-mono font-bold text-rose-700">4.210 Tiket</span>
+                                    </div>
+                                    <div
+                                        class="flex justify-between items-center p-1.5 rounded-lg bg-amber-50 border border-amber-100">
+                                        <span class="font-bold text-amber-800">Kec. Klojen (Pusat Kota)</span>
+                                        <span class="font-mono font-bold text-amber-700">3.450 Tiket</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div
+                        class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                        <span>Wilayah Paling Kritis: <strong>Kec. Lowokwaru (28.4% beban kota)</strong></span>
+                        <span class="text-tealblue font-semibold">Total 5 Wilayah Terpantau</span>
+                    </div>
+                </article>
+                <!-- Kolom Kanan: Deteksi Lonjakan & Anomali (Automated Spike Alert) -->
+                <article
+                    class="lg:col-span-5 bg-white rounded-3xl p-5 lg:p-6 border border-[#E2E8F0] shadow-card flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
+                                <h2 class="text-base font-bold text-twilight">Deteksi Lonjakan &amp; Anomali</h2>
+                            </div>
+                            <span
+                                class="text-[10px] font-bold text-tealblue bg-cyanlight/70 px-2 py-0.5 rounded-md border border-frosted">
+                                Sinyal AI / Sistem (Z-Score &gt; 3.0σ)
+                            </span>
+                        </div>
+                        <div class="mt-4 space-y-3">
+                            <!-- Anomali 1: Sampah & Kebersihan with Sparkline & Threshold Line -->
+                            <div class="p-3 rounded-2xl bg-amber-50/50 border border-amber-200">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-xs font-bold text-amber-900">⚠️ Sampah &amp;
+                                                Kebersihan</span>
+                                            <span
+                                                class="text-[10px] font-extrabold text-amber-700 bg-amber-100 px-1.5 py-0.2 rounded">↑
+                                                38% vs 30 hari</span>
+                                        </div>
+                                        <p class="text-[11px] text-slate-600 mt-1">
+                                            Lonjakan aduan TPS liar di koridor Klojen pasca pasar tumpah melewati batas
+                                            3σ normal.
+                                        </p>
+                                    </div>
+                                    <!-- Sparkline with upper threshold line -->
+                                    <div class="w-20 h-10 shrink-0 flex flex-col items-center justify-center">
+                                        <svg class="w-full h-8 overflow-visible" viewbox="0 0 60 26">
+                                            <!-- Threshold dashed line (3σ limit) -->
+                                            <line stroke="#F59E0B" stroke-dasharray="2 2" stroke-width="1" x1="0"
+                                                x2="60" y1="10" y2="10"></line>
+                                            <!-- Trend line breaching threshold -->
+                                            <path d="M0 22 L15 20 L28 17 L40 14 L55 4" fill="none" stroke="#D97706"
+                                                stroke-linecap="round" stroke-width="2.2"></path>
+                                            <!-- Pulse breach dot -->
+                                            <circle cx="55" cy="4" fill="#D97706" r="3.5"></circle>
+                                            <circle cx="55" cy="4" fill="none" opacity="0.6" r="6" stroke="#F59E0B"
+                                                stroke-width="1"></circle>
+                                        </svg>
+                                        <span class="text-[8px] font-mono text-amber-700">Z: +3.4σ</span>
+                                    </div>
+                                </div>
+                                <div
+                                    class="mt-2 text-[10px] font-semibold text-amber-800 bg-amber-100/60 px-2 py-0.5 rounded inline-block">
+                                    Rekomendasi: Tambah ritase armada DLH
+                                </div>
+                            </div>
+                            <!-- Anomali 2: Kec. Lowokwaru with High Breach Sparkline -->
+                            <div class="p-3 rounded-2xl bg-rose-50/50 border border-rose-200">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-xs font-bold text-rose-900">⚠️ Kec. Lowokwaru</span>
+                                            <span
+                                                class="text-[10px] font-extrabold text-rose-700 bg-rose-100 px-1.5 py-0.2 rounded">↑
+                                                52% lonjakan</span>
+                                        </div>
+                                        <p class="text-[11px] text-slate-600 mt-1">
+                                            Gelombang aduan banjir &amp; aspal jebol akibat hujan ekstrem 3 hari
+                                            berturut-turut.
+                                        </p>
+                                    </div>
+                                    <div class="w-20 h-10 shrink-0 flex flex-col items-center justify-center">
+                                        <svg class="w-full h-8 overflow-visible" viewbox="0 0 60 26">
+                                            <line stroke="#F43F5E" stroke-dasharray="2 2" stroke-width="1" x1="0"
+                                                x2="60" y1="11" y2="11"></line>
+                                            <path d="M0 24 L14 20 L28 17 L42 10 L56 2" fill="none" stroke="#E11D48"
+                                                stroke-linecap="round" stroke-width="2.2"></path>
+                                            <circle cx="56" cy="2" fill="#E11D48" r="3.5"></circle>
+                                            <circle cx="56" cy="2" fill="none" opacity="0.6" r="6" stroke="#E11D48"
+                                                stroke-width="1"></circle>
+                                        </svg>
+                                        <span class="text-[8px] font-mono text-rose-700 font-bold">Z: +4.1σ</span>
+                                    </div>
+                                </div>
+                                <div
+                                    class="mt-2 text-[10px] font-semibold text-rose-800 bg-rose-100/60 px-2 py-0.5 rounded inline-block">
+                                    Rekomendasi: Siagakan pompa portable PUPR
+                                </div>
+                            </div>
+                            <!-- Anomali 3: Drainase & Gorong-gorong -->
+                            <div class="p-3 rounded-2xl bg-cyanlight/30 border border-frosted">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-xs font-bold text-tealblue">⚠️ Drainase &amp;
+                                                Gorong-gorong</span>
+                                            <span
+                                                class="text-[10px] font-extrabold text-tealblue bg-cyanlight px-1.5 py-0.2 rounded">↑
+                                                27% penumpukan</span>
+                                        </div>
+                                        <p class="text-[11px] text-slate-600 mt-1">
+                                            Sedimen pasir menumpuk di saluran primer menjelang puncak siklus hujan.
+                                        </p>
+                                    </div>
+                                    <div class="w-20 h-10 shrink-0 flex flex-col items-center justify-center">
+                                        <svg class="w-full h-8 overflow-visible" viewbox="0 0 60 26">
+                                            <line stroke="#0077B6" stroke-dasharray="2 2" stroke-width="1" x1="0"
+                                                x2="60" y1="10" y2="10"></line>
+                                            <path d="M0 20 L15 18 L30 15 L44 11 L56 5" fill="none" stroke="#0077B6"
+                                                stroke-linecap="round" stroke-width="2.2"></path>
+                                            <circle cx="56" cy="5" fill="#0077B6" r="3.5"></circle>
+                                            <circle cx="56" cy="5" fill="none" opacity="0.6" r="6" stroke="#00B4D8"
+                                                stroke-width="1"></circle>
+                                        </svg>
+                                        <span class="text-[8px] font-mono text-tealblue">Z: +3.1σ</span>
+                                    </div>
+                                </div>
+                                <div
+                                    class="mt-2 text-[10px] font-semibold text-tealblue bg-cyanlight/70 px-2 py-0.5 rounded inline-block">
+                                    Rekomendasi: Normalisasi berkala terjadwal
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div
+                        class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                        <span>Algoritma: <strong>Moving Average Z-Score (3.2σ)</strong></span>
+                        <span class="text-rose-600 font-semibold">Tindakan Preventif Diperlukan</span>
+                    </div>
+                </article>
+            </section>
+            <!-- 6. BACKLOG PER DINAS/UNIT & KATEGORI YANG MEMBURUK -->
+            <section class="grid grid-cols-1 lg:grid-cols-12 gap-5" data-purpose="opd-and-top-problems">
+                <!-- Kolom Kiri: Backlog & Kinerja per Dinas/Unit (OPD) -->
+                <article
+                    class="lg:col-span-7 bg-white rounded-3xl p-5 lg:p-6 border border-[#E2E8F0] shadow-card flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <div>
+                                <h2 class="text-base font-bold text-twilight">Backlog &amp; Kinerja per Dinas / Unit
+                                    (OPD)</h2>
+                                <p class="text-xs text-slate-400">Pengawasan beban aktif, kapasitas tertampung, dan
+                                    rasio risiko SLA</p>
+                            </div>
+                            <span class="text-xs font-semibold text-twilight bg-slate-100 px-3 py-1 rounded-xl">4 OPD
+                                Utama Terpantau</span>
+                        </div>
+                        <!-- Comparative Bullet Bars for OPDs -->
+                        <div class="mt-4 space-y-3">
+                            <!-- Dinas PUPR -->
+                            <div
+                                class="p-3.5 rounded-2xl bg-[#F8FAFC] border border-slate-100 hover:border-frosted transition-colors">
+                                <div class="flex justify-between items-center text-xs font-bold mb-1">
+                                    <span class="text-twilight flex items-center gap-2">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-twilight"></span>
+                                        Dinas Pekerjaan Umum &amp; Penataan Ruang (PUPR)
+                                    </span>
+                                    <span
+                                        class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-mono text-[11px]">Selesai:
+                                        92%</span>
+                                </div>
+                                <div class="flex items-center justify-between text-xs text-slate-600 mt-1">
+                                    <span>Backlog: <strong class="text-twilight font-mono">84 Tiket</strong> <span
+                                            class="text-[10px] text-slate-400">(Beban 78%)</span></span>
+                                    <span class="text-rose-600 font-bold flex items-center gap-1">
+                                        <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                                        SLA Risk: 24 Tiket (Kritis)
+                                    </span>
+                                </div>
+                                <!-- Dual Comparative Range Bar: Blue is backlog load, Red is SLA risk proportion -->
+                                <div class="w-full bg-slate-200/70 h-3 rounded-full overflow-hidden mt-2 relative flex">
+                                    <div class="bg-twilight h-full rounded-l-full" style="width: 58%"
+                                        title="Backlog Dalam Batas: 60 tiket"></div>
+                                    <div class="bg-rose-500 h-full rounded-r-full" style="width: 20%"
+                                        title="SLA Risk Kritis: 24 tiket"></div>
+                                    <!-- Capacity Threshold Line at 75% -->
+                                    <div class="absolute top-0 bottom-0 w-0.5 bg-slate-400 z-10" style="left: 75%"
+                                        title="Batas Aman Kapasitas"></div>
+                                </div>
+                            </div>
+                            <!-- Dinas Perhubungan (Dishub) -->
+                            <div
+                                class="p-3.5 rounded-2xl bg-[#F8FAFC] border border-slate-100 hover:border-frosted transition-colors">
+                                <div class="flex justify-between items-center text-xs font-bold mb-1">
+                                    <span class="text-twilight flex items-center gap-2">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-tealblue"></span>
+                                        Dinas Perhubungan (Dishub)
+                                    </span>
+                                    <span
+                                        class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-mono text-[11px]">Selesai:
+                                        95%</span>
+                                </div>
+                                <div class="flex items-center justify-between text-xs text-slate-600 mt-1">
+                                    <span>Backlog: <strong class="text-twilight font-mono">48 Tiket</strong> <span
+                                            class="text-[10px] text-slate-400">(Beban 62%)</span></span>
+                                    <span class="text-amber-700 font-bold flex items-center gap-1">
+                                        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                                        SLA Risk: 12 Tiket (Waspada)
+                                    </span>
+                                </div>
+                                <div class="w-full bg-slate-200/70 h-3 rounded-full overflow-hidden mt-2 relative flex">
+                                    <div class="bg-tealblue h-full rounded-l-full" style="width: 50%"></div>
+                                    <div class="bg-amber-500 h-full rounded-r-full" style="width: 12%"></div>
+                                    <div class="absolute top-0 bottom-0 w-0.5 bg-slate-400 z-10" style="left: 75%">
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Dinas Lingkungan Hidup (DLH) -->
+                            <div
+                                class="p-3.5 rounded-2xl bg-[#F8FAFC] border border-slate-100 hover:border-frosted transition-colors">
+                                <div class="flex justify-between items-center text-xs font-bold mb-1">
+                                    <span class="text-twilight flex items-center gap-2">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-turquoise"></span>
+                                        Dinas Lingkungan Hidup (DLH)
+                                    </span>
+                                    <span
+                                        class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-mono text-[11px]">Selesai:
+                                        98%</span>
+                                </div>
+                                <div class="flex items-center justify-between text-xs text-slate-600 mt-1">
+                                    <span>Backlog: <strong class="text-twilight font-mono">32 Tiket</strong> <span
+                                            class="text-[10px] text-slate-400">(Beban 48%)</span></span>
+                                    <span class="text-emerald-700 font-bold flex items-center gap-1">
+                                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                        SLA Risk: 4 Tiket (Terkendali)
+                                    </span>
+                                </div>
+                                <div class="w-full bg-slate-200/70 h-3 rounded-full overflow-hidden mt-2 relative flex">
+                                    <div class="bg-turquoise h-full rounded-l-full" style="width: 44%"></div>
+                                    <div class="bg-emerald-500 h-full rounded-r-full" style="width: 4%"></div>
+                                    <div class="absolute top-0 bottom-0 w-0.5 bg-slate-400 z-10" style="left: 75%">
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Satpol PP -->
+                            <div
+                                class="p-3.5 rounded-2xl bg-[#F8FAFC] border border-slate-100 hover:border-frosted transition-colors">
+                                <div class="flex justify-between items-center text-xs font-bold mb-1">
+                                    <span class="text-twilight flex items-center gap-2">
+                                        <span
+                                            class="w-2.5 h-2.5 rounded-full bg-frosted border border-tealblue/30"></span>
+                                        Satuan Polisi Pamong Praja (Satpol PP)
+                                    </span>
+                                    <span
+                                        class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-mono text-[11px]">Selesai:
+                                        91%</span>
+                                </div>
+                                <div class="flex items-center justify-between text-xs text-slate-600 mt-1">
+                                    <span>Backlog: <strong class="text-twilight font-mono">22 Tiket</strong> <span
+                                            class="text-[10px] text-slate-400">(Beban 32%)</span></span>
+                                    <span class="text-amber-700 font-bold flex items-center gap-1">
+                                        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                                        SLA Risk: 9 Tiket
+                                    </span>
+                                </div>
+                                <div class="w-full bg-slate-200/70 h-3 rounded-full overflow-hidden mt-2 relative flex">
+                                    <div class="bg-frosted h-full rounded-l-full" style="width: 22%"></div>
+                                    <div class="bg-amber-500 h-full rounded-r-full" style="width: 10%"></div>
+                                    <div class="absolute top-0 bottom-0 w-0.5 bg-slate-400 z-10" style="left: 75%">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div
+                        class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                        <span>Total Backlog 4 OPD: <strong class="text-twilight font-bold">186 Tiket</strong></span>
+                        <span class="text-rose-600 font-semibold">Total SLA Risk Kritis: 49 Tiket</span>
+                    </div>
+                </article>
+                <!-- Kolom Kanan: Top Problem Categories (Lonjakan Terbesar) -->
+                <article
+                    class="lg:col-span-5 bg-white rounded-3xl p-5 lg:p-6 border border-[#E2E8F0] shadow-card flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <div>
+                                <h2 class="text-base font-bold text-twilight">Top Problem Categories</h2>
+                                <p class="text-xs text-slate-400">Visualisasi lonjakan kasus tertinggi (MoM) dengan
+                                    Lollipop Chart</p>
+                            </div>
+                            <span
+                                class="text-xs font-semibold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200">
+                                Lonjakan Signifikan
+                            </span>
+                        </div>
+                        <div class="mt-4 space-y-4">
+                            <!-- 1. Drainase: Lollipop Chart (42% MoM) -->
+                            <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
+                                <div class="flex items-center justify-between text-xs mb-1.5">
+                                    <span class="font-bold text-twilight flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                                        Drainase &amp; Saluran Air
+                                    </span>
+                                    <span
+                                        class="font-mono font-bold text-rose-600 text-xs bg-rose-50 px-2 py-0.5 rounded border border-rose-200/60">↑
+                                        42% MoM</span>
+                                </div>
+                                <p class="text-[11px] text-slate-500 mb-2">Akumulasi 2.740 laporan • Sumbatan sedimen
+                                    &amp; tanggul jebol</p>
+                                <!-- Horizontal Lollipop Chart Track -->
+                                <div class="relative w-full h-4 flex items-center">
+                                    <div class="w-full h-1.5 bg-slate-200 rounded-full"></div>
+                                    <div class="absolute left-0 h-1.5 bg-rose-500 rounded-l-full" style="width: 82%">
+                                    </div>
+                                    <div class="absolute w-4 h-4 bg-rose-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center -ml-2"
+                                        style="left: 82%">
+                                        <span class="w-1.5 h-1.5 bg-white rounded-full"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- 2. Kebersihan & TPS Liar: Lollipop Chart (31% MoM) -->
+                            <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
+                                <div class="flex items-center justify-between text-xs mb-1.5">
+                                    <span class="font-bold text-twilight flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                                        Kebersihan &amp; TPS Liar
+                                    </span>
+                                    <span
+                                        class="font-mono font-bold text-amber-700 text-xs bg-amber-50 px-2 py-0.5 rounded border border-amber-200/60">↑
+                                        31% MoM</span>
+                                </div>
+                                <p class="text-[11px] text-slate-500 mb-2">Akumulasi 1.850 laporan • Sampah liar di bahu
+                                    jalan &amp; lahan kosong</p>
+                                <!-- Horizontal Lollipop Chart Track -->
+                                <div class="relative w-full h-4 flex items-center">
+                                    <div class="w-full h-1.5 bg-slate-200 rounded-full"></div>
+                                    <div class="absolute left-0 h-1.5 bg-amber-500 rounded-l-full" style="width: 68%">
+                                    </div>
+                                    <div class="absolute w-4 h-4 bg-amber-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center -ml-2"
+                                        style="left: 68%">
+                                        <span class="w-1.5 h-1.5 bg-white rounded-full"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- 3. PJU: Lollipop Chart (18% MoM) -->
+                            <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
+                                <div class="flex items-center justify-between text-xs mb-1.5">
+                                    <span class="font-bold text-twilight flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-tealblue"></span>
+                                        PJU &amp; Penerangan Jalan
+                                    </span>
+                                    <span
+                                        class="font-mono font-bold text-tealblue text-xs bg-cyanlight/50 px-2 py-0.5 rounded border border-frosted">↑
+                                        18% MoM</span>
+                                </div>
+                                <p class="text-[11px] text-slate-500 mb-2">Akumulasi 3.890 laporan • Gangguan trafo
+                                    &amp; lampu padam jalan sekunder</p>
+                                <!-- Horizontal Lollipop Chart Track -->
+                                <div class="relative w-full h-4 flex items-center">
+                                    <div class="w-full h-1.5 bg-slate-200 rounded-full"></div>
+                                    <div class="absolute left-0 h-1.5 bg-tealblue rounded-l-full" style="width: 54%">
+                                    </div>
+                                    <div class="absolute w-4 h-4 bg-tealblue rounded-full border-2 border-white shadow-sm flex items-center justify-center -ml-2"
+                                        style="left: 54%">
+                                        <span class="w-1.5 h-1.5 bg-white rounded-full"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div
+                        class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                        <span>Sektor Tercepat Ditangani: <strong>PJU (4.5 Jam)</strong></span>
+                        <span class="text-tealblue font-semibold">Tersinkron Warga</span>
+                    </div>
+                </article>
+            </section>
+            <!-- 7. AUDIT LOG & RECENT MONITORING FEED (FOCUSED ON ACTION & ATTENTION TICKETS) -->
+            <section class="grid grid-cols-1 lg:grid-cols-12 gap-5" data-purpose="monitoring-and-audit"
+                id="tabel-perhatian">
+                <!-- Tabel Pemantauan Tiket Berstatus Perhatian (Highlighting SLA Risk & High Aging) -->
+                <article class="lg:col-span-8 bg-white rounded-3xl p-5 lg:p-6 border border-[#E2E8F0] shadow-card">
+                    <div
+                        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-base lg:text-lg font-bold text-twilight">Daftar Pemantauan Tiket Kritis
+                                    &amp; Atensi</h2>
+                                <span
+                                    class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">Perlu
+                                    Pengawasan</span>
+                            </div>
+                            <p class="text-xs text-slate-400">Fokus pada tiket dengan status SLA terlambat atau umur
+                                pengerjaan tinggi</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span
+                                class="text-xs font-bold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/70">
+                                Mode: Hanya Pantau (Read-Only)
+                            </span>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto custom-scrollbar mt-3">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr
+                                    class="text-slate-400 font-semibold border-b border-slate-100 uppercase tracking-wider text-[11px]">
+                                    <th class="py-3 px-3">ID Tiket</th>
+                                    <th class="py-3 px-3">Kategori &amp; Lokasi</th>
+                                    <th class="py-3 px-3">Dinas Tujuan</th>
+                                    <th class="py-3 px-3">Aging / Umur</th>
+                                    <th class="py-3 px-3 text-center">Status SLA</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 font-medium text-slate-700">
+                                <!-- Item 1: High Aging Kritis #LPW-2025-0887 -->
+                                <tr class="hover:bg-rose-50/40 transition-colors bg-rose-50/20">
+                                    <td class="py-3.5 px-3 font-mono font-bold text-twilight">#LPW-2025-0887</td>
+                                    <td class="py-3.5 px-3">
+                                        <div class="font-semibold text-twilight">Rekonstruksi Gorong-gorong Amblas</div>
+                                        <div class="text-[10px] text-slate-400">Jl. S. Supriadi, Kec. Sukun</div>
+                                    </td>
+                                    <td class="py-3.5 px-3 text-slate-600">Dinas PUPR (Bina Marga)</td>
+                                    <td class="py-3.5 px-3 font-mono text-rose-700 font-bold">15 Hari</td>
+                                    <td class="py-3.5 px-3 text-center">
+                                        <span
+                                            class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-500 text-white shadow-sm">
+                                            🔴 Lewat SLA (Terlambat)
+                                        </span>
+                                    </td>
+                                </tr>
+                                <!-- Item 2: SLA Terlambat PUPR #LPW-2025-0902 -->
+                                <tr class="hover:bg-rose-50/40 transition-colors bg-rose-50/10">
+                                    <td class="py-3.5 px-3 font-mono font-bold text-twilight">#LPW-2025-0902</td>
+                                    <td class="py-3.5 px-3">
+                                        <div class="font-semibold text-twilight">Jalan Ambles Dekat Jembatan</div>
+                                        <div class="text-[10px] text-slate-400">Kec. Lowokwaru</div>
+                                    </td>
+                                    <td class="py-3.5 px-3 text-slate-600">Dinas PUPR Kota</td>
+                                    <td class="py-3.5 px-3 font-mono text-amber-700 font-bold">9 Hari</td>
+                                    <td class="py-3.5 px-3 text-center">
+                                        <span
+                                            class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
+                                            🔴 SLA Terlambat (56 Jam)
+                                        </span>
+                                    </td>
+                                </tr>
+                                <!-- Item 3: Sedang Diproses (Dishub) #LPW-2025-0918 -->
+                                <tr class="hover:bg-slate-50 transition-colors">
+                                    <td class="py-3.5 px-3 font-mono font-bold text-twilight">#LPW-2025-0918</td>
+                                    <td class="py-3.5 px-3">
+                                        <div class="font-semibold text-twilight">Traffic Light Simpang Empat Error</div>
+                                        <div class="text-[10px] text-slate-400">Klojen (Pusat Kota)</div>
+                                    </td>
+                                    <td class="py-3.5 px-3 text-slate-600">Dinas Perhubungan (Dishub)</td>
+                                    <td class="py-3.5 px-3 font-mono text-slate-600 font-semibold">1.2 Hari</td>
+                                    <td class="py-3.5 px-3 text-center">
+                                        <span
+                                            class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                            🟠 Kritis (&lt; 6 Jam Sisa)
+                                        </span>
+                                    </td>
+                                </tr>
+                                <!-- Item 4: Normal Selesai #LPW-2025-0914 -->
+                                <tr class="hover:bg-slate-50 transition-colors">
+                                    <td class="py-3.5 px-3 font-mono font-bold text-twilight">#LPW-2025-0914</td>
+                                    <td class="py-3.5 px-3">
+                                        <div class="font-semibold text-twilight">Lampu Jalan Padam 3 Titik</div>
+                                        <div class="text-[10px] text-slate-400">Jl. Bandung, Kec. Klojen</div>
+                                    </td>
+                                    <td class="py-3.5 px-3 text-slate-600">DISHUB (Penerangan Jalan)</td>
+                                    <td class="py-3.5 px-3 font-mono text-emerald-700 font-semibold">4.5 Jam</td>
+                                    <td class="py-3.5 px-3 text-center">
+                                        <span
+                                            class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-twilight text-white">
+                                            ✓ Selesai Tuntas
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div
+                        class="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
+                        <span>Menampilkan 4 dari 12 tiket kriteria kritis aktif</span>
+                        <div class="flex items-center gap-1.5">
+                            <button class="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-400"
+                                disabled="">Sebelumnya</button>
+                            <span class="px-2.5 py-1 rounded-lg bg-twilight text-white font-bold text-[11px]">1</span>
+                            <button
+                                class="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 hover:text-twilight hover:bg-slate-50">2</button>
+                            <button
+                                class="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 hover:text-twilight hover:bg-slate-50">Selanjutnya</button>
+                        </div>
+                    </div>
+                </article>
+                <!-- Log Audit Terkini & Integritas Hash -->
+                <article
+                    class="lg:col-span-4 bg-white rounded-3xl p-5 lg:p-6 border border-[#E2E8F0] shadow-card flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-4 h-4 text-tealblue" fill="none" stroke="currentColor" stroke-width="2.2"
+                                    viewbox="0 0 24 24">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                </svg>
+                                <h2 class="text-base font-bold text-twilight">Aktivitas Audit Terkini</h2>
+                            </div>
+                            <span class="w-2 h-2 rounded-full bg-tealblue"></span>
+                        </div>
+                        <div class="mt-4 space-y-3.5">
+                            <!-- Audit Item 1 -->
+                            <div class="flex items-start gap-3">
+                                <div
+                                    class="w-7 h-7 rounded-full bg-cyanlight/60 text-tealblue flex items-center justify-center shrink-0 mt-0.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5"
+                                        viewbox="0 0 24 24">
+                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                        <circle cx="12" cy="7" r="4"></circle>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-xs font-semibold text-twilight">Login Sesi Admin Pengawas</p>
+                                    <p class="text-[11px] text-slate-400">Drs. M. Sanusi, M.Si (Audit Read-Only)</p>
+                                </div>
+                                <span class="text-[10px] font-bold text-slate-400 shrink-0">14:30 WIB</span>
+                            </div>
+                            <!-- Audit Item 2: Anomaly System Alert -->
+                            <div class="flex items-start gap-3">
+                                <div
+                                    class="w-7 h-7 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 mt-0.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5"
+                                        viewbox="0 0 24 24">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <line x1="12" x2="12" y1="8" y2="12"></line>
+                                        <line x1="12" x2="12.01" y1="16" y2="16"></line>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-xs font-semibold text-rose-700">Deteksi Lonjakan Anomali Otomatis</p>
+                                    <p class="text-[11px] text-slate-400">Trigger: Lonjakan aduan sampah liar +38%</p>
+                                </div>
+                                <span class="text-[10px] font-bold text-slate-400 shrink-0">14:05 WIB</span>
+                            </div>
+                            <!-- Audit Item 3 -->
+                            <div class="flex items-start gap-3">
+                                <div
+                                    class="w-7 h-7 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5"
+                                        viewbox="0 0 24 24">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-xs font-semibold text-twilight">Status Tiket #LPW-0914 Selesai</p>
+                                    <p class="text-[11px] text-slate-400">Verifikasi penutupan oleh DISHUB Kota</p>
+                                </div>
+                                <span class="text-[10px] font-bold text-slate-400 shrink-0">13:45 WIB</span>
+                            </div>
+                            <!-- Audit Item 4: Backup & Hash -->
+                            <div class="flex items-start gap-3">
+                                <div
+                                    class="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 mt-0.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5"
+                                        viewbox="0 0 24 24">
+                                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-xs font-semibold text-twilight">Verifikasi Integritas SHA-256</p>
+                                    <p class="text-[11px] text-slate-400">Blok audit tamper-proof tidak berubah</p>
+                                </div>
+                                <span class="text-[10px] font-bold text-slate-400 shrink-0">04:00 WIB</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                        <span class="text-emerald-700 font-semibold flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            Integritas Hash: VALID (OK)
+                        </span>
+                        <a class="font-bold text-tealblue hover:underline" href="#audit">Semua Log Audit →</a>
+                    </div>
+                </article>
+            </section>
+        </main>
+        <!-- END: MainContentArea -->
+    </div>
+    <!-- END: MainDashboardContainer -->
+</body>
+
+</html>

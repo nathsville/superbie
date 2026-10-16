@@ -1,5 +1,7 @@
 # Prompt 13 — Architecture & Scope Gap Audit
 
+> **LC-2 CORRECTION NOTE (added by LC-2D, later than this document):** This is a dated read-only audit. Its "7 statuses, 11 transitions, `closed` terminal" statement reflects the pre-LC-2 lifecycle and is **superseded**. Under LC-2 the active lifecycle is 4 statuses with **3 transitions** (`submitted → in_progress`; `in_progress → resolved`; `in_progress → rejected`); `under_review`, `waiting_for_information`, and `closed` are **legacy** (history only). See `schema.md` §6 for the current matrix. The historical content below is retained unchanged for traceability.
+
 **Project:** SuperBie — Lapor Pak Wali
 **Type:** READ-ONLY discovery / architecture & scope gap audit
 **Scope:** Post-Prompt-12 state (Prompts 6–12 complete)

@@ -69,7 +69,7 @@ php artisan test                       # seluruh suite
 php artisan test --filter=NamaTest     # satu test tertentu
 ```
 
-- Baseline saat ini: **566 test / 2468 assertion, 0 gagal**.
+- Baseline saat ini: **1193 test / 5445 assertion, 0 gagal**.
 - Test memakai MySQL **`superbie_testing`** (bukan SQLite). Database itu **harus
   ada** dan MySQL **harus jalan** sebelum menjalankan test.
 - **Jangan** menjalankan dua proses `php artisan test` bersamaan — keduanya
@@ -141,8 +141,7 @@ konsistensi sistem dan membuat test gagal.
 
 - **Peran:** hanya **4** peran — `masyarakat`, `operator`, `admin`, `super_admin`.
   Peran `petugas` bersifat historis dan **tidak boleh dihidupkan kembali**.
-- **Status & transisi laporan:** **FROZEN** (7 status, 11 transisi; `closed`
-  bersifat terminal). **Jangan** mengubah `app/Enums/ComplaintStatus.php`.
+- **Status & transisi laporan:** **FROZEN (LC-2).** 7 nilai enum dipertahankan, tetapi lifecycle aktif = 4 status (`submitted`, `in_progress`, `resolved`, `rejected`) dengan **3 transisi** (`submitted → in_progress`; `in_progress → resolved`; `in_progress → rejected`). `under_review`, `waiting_for_information`, `closed` adalah status **legacy** (histori) — tidak ada transisi masuk/keluar; penutupan manual `resolved → closed` **dihentikan**. **Jangan** mengubah `app/Enums/ComplaintStatus.php`.
 - **Otorisasi:** memakai middleware `role:*` / `active` + Form Request
   `authorize()` + pengecekan inline di controller. **Tidak** memakai class
   Policy/Gate.

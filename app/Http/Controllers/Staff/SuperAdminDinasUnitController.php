@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\SuperAdmin\SaveDinasUnitRequest;
 use App\Models\AuditLog;
 use App\Models\DinasUnit;
+use App\Support\QueryInput;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,24 +22,36 @@ class SuperAdminDinasUnitController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = DinasUnit::query()->withCount('categories', 'complaints');
+        // PHASE 1 — eager-load the single owning Operator so the "Operator"
+        // column renders without an N+1 query per row.
+        $query = DinasUnit::query()->withCount('categories', 'complaints')->with('operator');
 
-        if ($search = trim((string) $request->get('search'))) {
+        // Raw input is coerced defensively: a crafted array (`?search[]=x`) must
+        // be ignored, never cast inline (that raises "Array to string conversion").
+        $search = QueryInput::trimmed($request->get('search')) ?? '';
+        if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', '%' . $search . '%')
                   ->orWhere('code', 'like', '%' . $search . '%');
             });
         }
 
-        if ($request->get('status') === 'active') {
+        // Only the two recognised statuses narrow the list; anything else (including
+        // a crafted array) is ignored.
+        $statusFilter = QueryInput::string($request->get('status')) ?? '';
+        if ($statusFilter === 'active') {
             $query->where('is_active', true);
-        } elseif ($request->get('status') === 'inactive') {
+        } elseif ($statusFilter === 'inactive') {
             $query->where('is_active', false);
         }
 
         $dinasUnits = $query->orderBy('sort_order')->orderBy('name')->paginate(20)->withQueryString();
 
-        return view('super-admin.dinas.index', compact('dinasUnits'));
+        // The header reports the GRAND total (independent of filters), so an
+        // active search/filter never mislabels the master-data size.
+        $totalUnits = DinasUnit::count();
+
+        return view('super-admin.dinas.index', compact('dinasUnits', 'totalUnits', 'search', 'statusFilter'));
     }
 
     public function create(): View

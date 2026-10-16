@@ -12,6 +12,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
+use Tests\Concerns\CreatesLocationFixtures;
 use Tests\TestCase;
 
 /**
@@ -31,6 +32,7 @@ use Tests\TestCase;
 class CitizenExperienceFinalTest extends TestCase
 {
     use RefreshDatabase;
+    use CreatesLocationFixtures;
 
     private User $citizenA;
     private User $citizenB;
@@ -222,6 +224,7 @@ class CitizenExperienceFinalTest extends TestCase
             'reporter_id' => $this->citizenB->id,
             'status'      => 'closed',
             'assigned_to' => $this->operator->id,
+            ...$this->locationPayload(),
         ]);
 
         $complaint = Complaint::where('title', 'Uji reporter_id tampering')->first();

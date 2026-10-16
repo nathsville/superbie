@@ -7,6 +7,8 @@ use App\Models\ComplaintCategory;
 use App\Models\DinasUnit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route;
+use Tests\Concerns\CreatesLocationFixtures;
 use Tests\TestCase;
 
 /**
@@ -24,6 +26,7 @@ use Tests\TestCase;
 class CategoryMappingAndRoutingTest extends TestCase
 {
     use RefreshDatabase;
+    use CreatesLocationFixtures;
 
     private User $superAdmin;
     private User $operator;
@@ -252,22 +255,41 @@ class CategoryMappingAndRoutingTest extends TestCase
 
     // =========================================================================
     // OPERATOR ROUTING — VALIDATION
+    //
+    // PHASE 2R — an Operator must NEVER be able to set the Dinas/Unit destination.
+    // The endpoint was REMOVED entirely (404 for every actor); the destination is
+    // decided by Super Admin initial validation. These tests now assert the route
+    // is gone AND that no state changes — the server-side immutability guarantee.
     // =========================================================================
 
-    public function test_operator_valid_destination_allowed(): void
+    public function test_operator_destination_route_is_removed(): void
+    {
+        $this->assertFalse(
+            Route::has('operator.complaint.update-destination'),
+            'The operator destination-mutation route must not exist (PHASE 2R).'
+        );
+    }
+
+    public function test_operator_cannot_set_destination(): void
     {
         $dinas = $this->makeDinas(['is_active' => true]);
         $this->category->dinasUnits()->attach($dinas->id);
         $complaint = $this->makeComplaint();
 
         $this->actingAs($this->operator)
-            ->patch(route('operator.complaint.update-destination', $complaint), ['dinas_unit_id' => $dinas->id])
-            ->assertSessionHasNoErrors();
+            ->patch('/operator/laporan/' . $complaint->id . '/tujuan', ['dinas_unit_id' => $dinas->id])
+            ->assertNotFound();
 
-        $this->assertSame($dinas->id, $complaint->fresh()->dinas_unit_id);
+        // Destination untouched and no success audit event recorded.
+        $this->assertNull($complaint->fresh()->dinas_unit_id);
+        $this->assertDatabaseMissing('audit_logs', [
+            'subject_type' => 'complaint',
+            'subject_id'   => $complaint->id,
+            'action'       => 'complaint.destination_updated',
+        ]);
     }
 
-    public function test_operator_rejects_dinas_not_mapped_to_category(): void
+    public function test_operator_cannot_set_unmapped_destination(): void
     {
         $mapped = $this->makeDinas();
         $unmapped = $this->makeDinas();
@@ -275,51 +297,50 @@ class CategoryMappingAndRoutingTest extends TestCase
         $complaint = $this->makeComplaint();
 
         $this->actingAs($this->operator)
-            ->patch(route('operator.complaint.update-destination', $complaint), ['dinas_unit_id' => $unmapped->id])
-            ->assertSessionHasErrors('dinas_unit_id');
+            ->patch('/operator/laporan/' . $complaint->id . '/tujuan', ['dinas_unit_id' => $unmapped->id])
+            ->assertNotFound();
 
         $this->assertNull($complaint->fresh()->dinas_unit_id);
     }
 
-    public function test_operator_rejects_inactive_dinas(): void
+    public function test_operator_cannot_set_inactive_destination(): void
     {
         $inactive = $this->makeDinas(['is_active' => false]);
         $this->category->dinasUnits()->attach($inactive->id);
         $complaint = $this->makeComplaint();
 
         $this->actingAs($this->operator)
-            ->patch(route('operator.complaint.update-destination', $complaint), ['dinas_unit_id' => $inactive->id])
-            ->assertSessionHasErrors('dinas_unit_id');
+            ->patch('/operator/laporan/' . $complaint->id . '/tujuan', ['dinas_unit_id' => $inactive->id])
+            ->assertNotFound();
 
         $this->assertNull($complaint->fresh()->dinas_unit_id);
     }
 
-    public function test_operator_rejects_nonexistent_dinas(): void
+    public function test_operator_cannot_set_nonexistent_destination(): void
     {
         $this->category->dinasUnits()->attach($this->makeDinas()->id);
         $complaint = $this->makeComplaint();
 
         $this->actingAs($this->operator)
-            ->patch(route('operator.complaint.update-destination', $complaint), ['dinas_unit_id' => 999999])
-            ->assertSessionHasErrors('dinas_unit_id');
+            ->patch('/operator/laporan/' . $complaint->id . '/tujuan', ['dinas_unit_id' => 999999])
+            ->assertNotFound();
 
         $this->assertNull($complaint->fresh()->dinas_unit_id);
     }
 
-    public function test_operator_show_lists_only_active_mapped_destinations(): void
+    public function test_operator_show_lists_no_destination_selector(): void
     {
+        // PHASE 2R — the destination is read-only: no <select name="dinas_unit_id">
+        // control may appear on the Operator detail page.
         $active = $this->makeDinas(['name' => 'Dinas Aktif Pilihan']);
-        $inactive = $this->makeDinas(['name' => 'Dinas Inaktif Pilihan', 'is_active' => false]);
-        $unmapped = $this->makeDinas(['name' => 'Dinas Tak Terhubung']);
-        $this->category->dinasUnits()->attach([$active->id, $inactive->id]);
+        $this->category->dinasUnits()->attach($active->id);
 
         $complaint = $this->makeComplaint();
 
         $response = $this->actingAs($this->operator)->get(route('operator.complaint.show', $complaint));
         $response->assertOk();
-        $response->assertSee('Dinas Aktif Pilihan');
-        $response->assertDontSee('Dinas Inaktif Pilihan');
-        $response->assertDontSee('Dinas Tak Terhubung');
+        $response->assertDontSee('name="dinas_unit_id"', false);
+        $response->assertDontSee('Simpan Tujuan');
     }
 
     // =========================================================================
@@ -411,6 +432,7 @@ class CategoryMappingAndRoutingTest extends TestCase
             'title'         => 'Laporan manipulasi tujuan',
             'description'   => 'Deskripsi cukup panjang untuk lolos validasi.',
             'dinas_unit_id' => $dinas->id,
+            ...$this->locationPayload(),
         ])->assertSessionHasNoErrors();
 
         $complaint = Complaint::where('title', 'Laporan manipulasi tujuan')->firstOrFail();

@@ -20,11 +20,12 @@ class ComplaintFactory extends Factory
     {
         return [
             'reference_code' => 'LPW-' . now()->format('Ymd') . '-' . strtoupper(Str::random(4)),
-            'tracking_secret_hash' => hash('sha256', Str::random(32)),
+            // PHASE 6C — Decision 4/5: `tracking_secret_hash` and `reporter_phone`
+            // are DEPRECATED; no active workflow writes them, so the factory does
+            // not either (they default to NULL).
             'category_id' => ComplaintCategory::factory(),
             'reporter_id' => User::factory(),
             'reporter_email' => fake()->safeEmail(),
-            'reporter_phone' => fake()->phoneNumber(),
             'title' => fake()->sentence(4),
             'description' => fake()->paragraph(3),
             'location_text' => 'Kec. Ujung, Kota Parepare',

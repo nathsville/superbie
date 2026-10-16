@@ -15,14 +15,17 @@ use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 /**
- * Prompt 3B — Official Status & Transition Matrix Tests
+ * Official Status & Transition Matrix Tests (LC-2 active lifecycle).
  *
- * Business rules frozen per Prompt 3B:
- *  - 7 official statuses
- *  - 11 allowed transitions
- *  - submitted → rejected: FORBIDDEN
- *  - waiting_for_information → rejected: FORBIDDEN
- *  - closed = terminal (no transitions)
+ * Business rules frozen per LC-1/LC-1-R/LC-1-R2:
+ *  - 7 enum cases RETAINED for history/hydration compatibility
+ *  - 4 active statuses: submitted, in_progress (active) + resolved, rejected (final outcome)
+ *  - 3 allowed transitions: submitted→in_progress, in_progress→resolved, in_progress→rejected
+ *  - 3 legacy statuses (history only, no transitions): under_review,
+ *    waiting_for_information, closed
+ *  - submitted → rejected: FORBIDDEN (pre-validation rejection = return to citizen)
+ *  - manual close retired: resolved/rejected → closed: FORBIDDEN
+ *  - isTerminal() == isFinalOutcome() (resolved/rejected only)
  *  - No reopen
  *  - rejected: rejection_reason required + public_response required
  *  - resolved: public_response required
@@ -151,6 +154,139 @@ class ComplaintStatusLifecycleTest extends TestCase
     }
 
     // =========================================================================
+    // §26.1b — LC-2 enum classification helpers
+    // =========================================================================
+
+    public function test_classification_partition_is_complete_and_disjoint(): void
+    {
+        // Every one of the 7 cases belongs to EXACTLY one classification.
+        foreach (ComplaintStatus::cases() as $status) {
+            $buckets = array_filter([
+                'active'       => $status->isActiveLifecycle(),
+                'finalOutcome' => $status->isFinalOutcome(),
+                'legacy'       => $status->isLegacy(),
+            ]);
+            $this->assertCount(
+                1,
+                $buckets,
+                "{$status->value} must belong to exactly one classification bucket.",
+            );
+        }
+
+        $this->assertSame(7, count(ComplaintStatus::cases()));
+    }
+
+    public function test_active_lifecycle_cases_are_submitted_and_in_progress(): void
+    {
+        $this->assertSame(
+            [ComplaintStatus::Submitted, ComplaintStatus::InProgress],
+            ComplaintStatus::activeCases(),
+        );
+
+        $this->assertTrue(ComplaintStatus::Submitted->isActiveLifecycle());
+        $this->assertTrue(ComplaintStatus::InProgress->isActiveLifecycle());
+        $this->assertFalse(ComplaintStatus::Resolved->isActiveLifecycle());
+        $this->assertFalse(ComplaintStatus::Rejected->isActiveLifecycle());
+        $this->assertFalse(ComplaintStatus::UnderReview->isActiveLifecycle());
+        $this->assertFalse(ComplaintStatus::WaitingForInformation->isActiveLifecycle());
+        $this->assertFalse(ComplaintStatus::Closed->isActiveLifecycle());
+    }
+
+    public function test_final_outcome_cases_are_resolved_and_rejected(): void
+    {
+        $this->assertSame(
+            [ComplaintStatus::Resolved, ComplaintStatus::Rejected],
+            ComplaintStatus::finalOutcomeCases(),
+        );
+
+        $this->assertTrue(ComplaintStatus::Resolved->isFinalOutcome());
+        $this->assertTrue(ComplaintStatus::Rejected->isFinalOutcome());
+        $this->assertFalse(ComplaintStatus::Submitted->isFinalOutcome());
+        $this->assertFalse(ComplaintStatus::InProgress->isFinalOutcome());
+        $this->assertFalse(ComplaintStatus::UnderReview->isFinalOutcome());
+        $this->assertFalse(ComplaintStatus::WaitingForInformation->isFinalOutcome());
+        $this->assertFalse(ComplaintStatus::Closed->isFinalOutcome());
+    }
+
+    public function test_legacy_cases_are_the_three_history_only_statuses(): void
+    {
+        $this->assertSame(
+            [
+                ComplaintStatus::UnderReview,
+                ComplaintStatus::WaitingForInformation,
+                ComplaintStatus::Closed,
+            ],
+            ComplaintStatus::legacyCases(),
+        );
+
+        foreach (ComplaintStatus::legacyCases() as $status) {
+            $this->assertTrue($status->isLegacy());
+        }
+
+        $this->assertFalse(ComplaintStatus::Submitted->isLegacy());
+        $this->assertFalse(ComplaintStatus::InProgress->isLegacy());
+        $this->assertFalse(ComplaintStatus::Resolved->isLegacy());
+        $this->assertFalse(ComplaintStatus::Rejected->isLegacy());
+    }
+
+    public function test_is_terminal_equals_is_final_outcome_for_all_cases(): void
+    {
+        foreach (ComplaintStatus::cases() as $status) {
+            $this->assertSame(
+                $status->isFinalOutcome(),
+                $status->isTerminal(),
+                "{$status->value}: isTerminal() must equal isFinalOutcome().",
+            );
+        }
+
+        $this->assertTrue(ComplaintStatus::Resolved->isTerminal());
+        $this->assertTrue(ComplaintStatus::Rejected->isTerminal());
+        $this->assertFalse(ComplaintStatus::Submitted->isTerminal());
+        $this->assertFalse(ComplaintStatus::InProgress->isTerminal());
+        $this->assertFalse(ComplaintStatus::UnderReview->isTerminal());
+        $this->assertFalse(ComplaintStatus::WaitingForInformation->isTerminal());
+        $this->assertFalse(ComplaintStatus::Closed->isTerminal());
+    }
+
+    public function test_has_outgoing_transitions_matches_the_active_graph(): void
+    {
+        $this->assertTrue(ComplaintStatus::Submitted->hasOutgoingTransitions());
+        $this->assertTrue(ComplaintStatus::InProgress->hasOutgoingTransitions());
+
+        foreach (ComplaintStatus::cases() as $status) {
+            // hasOutgoingTransitions() must always agree with the matrix.
+            $this->assertSame(
+                $status->allowedTransitions() !== [],
+                $status->hasOutgoingTransitions(),
+                "{$status->value}: hasOutgoingTransitions() must mirror allowedTransitions().",
+            );
+        }
+
+        $this->assertFalse(ComplaintStatus::Resolved->hasOutgoingTransitions());
+        $this->assertFalse(ComplaintStatus::Rejected->hasOutgoingTransitions());
+        $this->assertFalse(ComplaintStatus::UnderReview->hasOutgoingTransitions());
+        $this->assertFalse(ComplaintStatus::WaitingForInformation->hasOutgoingTransitions());
+        $this->assertFalse(ComplaintStatus::Closed->hasOutgoingTransitions());
+    }
+
+    public function test_enum_case_values_are_unchanged(): void
+    {
+        // The 7 database values must remain EXACTLY as before (no rename, no
+        // removal) so historical rows keep hydrating.
+        $values = array_map(fn ($c) => $c->value, ComplaintStatus::cases());
+
+        $this->assertSame([
+            'submitted',
+            'under_review',
+            'in_progress',
+            'waiting_for_information',
+            'resolved',
+            'rejected',
+            'closed',
+        ], $values);
+    }
+
+    // =========================================================================
     // §26.2 — Initial Status
     // =========================================================================
 
@@ -169,61 +305,17 @@ class ComplaintStatusLifecycleTest extends TestCase
     }
 
     // =========================================================================
-    // §26.3 — Allowed Transitions (all 11)
+    // §26.3 — Allowed Transitions (the 3 active edges only)
     // =========================================================================
 
-    public function test_transition_submitted_to_under_review(): void
+    public function test_transition_submitted_to_in_progress(): void
     {
         $complaint = $this->makeComplaint(ComplaintStatus::Submitted);
-        $this->assertTrue(ComplaintStatus::Submitted->canTransitionTo(ComplaintStatus::UnderReview));
-
-        $this->updateStatus($this->operator, $complaint, ['status' => 'under_review'])
-            ->assertRedirect();
-        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'under_review']);
-    }
-
-    public function test_transition_under_review_to_in_progress(): void
-    {
-        $complaint = $this->makeComplaint(ComplaintStatus::UnderReview);
-        $this->assertTrue(ComplaintStatus::UnderReview->canTransitionTo(ComplaintStatus::InProgress));
+        $this->assertTrue(ComplaintStatus::Submitted->canTransitionTo(ComplaintStatus::InProgress));
 
         $this->updateStatus($this->operator, $complaint, ['status' => 'in_progress'])
-            ->assertRedirect();
+            ->assertRedirect()->assertSessionHas('success');
         $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'in_progress']);
-    }
-
-    public function test_transition_under_review_to_waiting_for_information(): void
-    {
-        $complaint = $this->makeComplaint(ComplaintStatus::UnderReview);
-        $this->assertTrue(ComplaintStatus::UnderReview->canTransitionTo(ComplaintStatus::WaitingForInformation));
-
-        $this->updateStatus($this->operator, $complaint, ['status' => 'waiting_for_information'])
-            ->assertRedirect();
-        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'waiting_for_information']);
-    }
-
-    public function test_transition_under_review_to_rejected(): void
-    {
-        $complaint = $this->makeComplaint(ComplaintStatus::UnderReview);
-        $this->assertTrue(ComplaintStatus::UnderReview->canTransitionTo(ComplaintStatus::Rejected));
-
-        $this->updateStatus($this->operator, $complaint, [
-            'status'               => 'rejected',
-            'rejection_reason'     => 'Laporan tidak lengkap dan tidak dapat diverifikasi.',
-            'public_response_body' => 'Maaf, laporan Anda tidak dapat kami proses karena informasi yang diberikan tidak lengkap.',
-        ])->assertRedirect()->assertSessionHas('success');
-
-        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'rejected']);
-    }
-
-    public function test_transition_in_progress_to_waiting_for_information(): void
-    {
-        $complaint = $this->makeComplaint(ComplaintStatus::InProgress);
-        $this->assertTrue(ComplaintStatus::InProgress->canTransitionTo(ComplaintStatus::WaitingForInformation));
-
-        $this->updateStatus($this->operator, $complaint, ['status' => 'waiting_for_information'])
-            ->assertRedirect();
-        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'waiting_for_information']);
     }
 
     public function test_transition_in_progress_to_resolved(): void
@@ -231,7 +323,12 @@ class ComplaintStatusLifecycleTest extends TestCase
         $complaint = $this->makeComplaint(ComplaintStatus::InProgress);
         $this->assertTrue(ComplaintStatus::InProgress->canTransitionTo(ComplaintStatus::Resolved));
 
-        $this->updateStatus($this->operator, $complaint, [
+        // PHASE 3 — the transition MATRIX allows in_progress → resolved, but
+        // AUTHORITY changed: an Operator can no longer resolve directly (it must
+        // "Ajukan Penyelesaian"). Super Admin retains authority over this existing
+        // transition, so the matrix is exercised through the Super Admin actor
+        // (see CompletionValidationSubmitTest for the Operator-blocked assertions).
+        $this->updateStatus($this->superAdmin, $complaint, [
             'status'               => 'resolved',
             'public_response_body' => 'Masalah telah berhasil ditangani oleh tim terkait.',
         ])->assertRedirect()->assertSessionHas('success');
@@ -253,56 +350,13 @@ class ComplaintStatusLifecycleTest extends TestCase
         $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'rejected']);
     }
 
-    public function test_transition_waiting_for_information_to_in_progress(): void
-    {
-        $complaint = $this->makeComplaint(ComplaintStatus::WaitingForInformation);
-        $this->assertTrue(ComplaintStatus::WaitingForInformation->canTransitionTo(ComplaintStatus::InProgress));
-
-        $this->updateStatus($this->operator, $complaint, ['status' => 'in_progress'])
-            ->assertRedirect();
-        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'in_progress']);
-    }
-
-    public function test_transition_waiting_for_information_to_resolved(): void
-    {
-        $complaint = $this->makeComplaint(ComplaintStatus::WaitingForInformation);
-        $this->assertTrue(ComplaintStatus::WaitingForInformation->canTransitionTo(ComplaintStatus::Resolved));
-
-        $this->updateStatus($this->operator, $complaint, [
-            'status'               => 'resolved',
-            'public_response_body' => 'Informasi yang diterima mencukupi dan masalah telah diselesaikan.',
-        ])->assertRedirect()->assertSessionHas('success');
-
-        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'resolved']);
-    }
-
-    public function test_transition_resolved_to_closed(): void
-    {
-        $complaint = $this->makeComplaint(ComplaintStatus::Resolved);
-        $this->assertTrue(ComplaintStatus::Resolved->canTransitionTo(ComplaintStatus::Closed));
-
-        $this->updateStatus($this->operator, $complaint, ['status' => 'closed'])
-            ->assertRedirect()->assertSessionHas('success');
-        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'closed']);
-    }
-
-    public function test_transition_rejected_to_closed(): void
-    {
-        $complaint = $this->makeComplaint(ComplaintStatus::Rejected);
-        $this->assertTrue(ComplaintStatus::Rejected->canTransitionTo(ComplaintStatus::Closed));
-
-        $this->updateStatus($this->operator, $complaint, ['status' => 'closed'])
-            ->assertRedirect()->assertSessionHas('success');
-        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'closed']);
-    }
-
-    public function test_exactly_11_allowed_transitions_in_enum(): void
+    public function test_exactly_3_allowed_transitions_in_enum(): void
     {
         $count = 0;
         foreach (ComplaintStatus::cases() as $status) {
             $count += count($status->allowedTransitions());
         }
-        $this->assertSame(11, $count, "Expected exactly 11 allowed transitions, got {$count}.");
+        $this->assertSame(3, $count, "Expected exactly 3 allowed transitions, got {$count}.");
     }
 
     // =========================================================================
@@ -322,26 +376,25 @@ class ComplaintStatusLifecycleTest extends TestCase
         $this->assertDatabaseHas('complaints', ['id' => $this->complaint->id, 'status' => 'submitted']);
     }
 
-    public function test_waiting_for_information_to_rejected_is_forbidden(): void
+    public function test_submitted_to_under_review_is_forbidden(): void
     {
-        $complaint = $this->makeComplaint(ComplaintStatus::WaitingForInformation);
-        $this->assertFalse(ComplaintStatus::WaitingForInformation->canTransitionTo(ComplaintStatus::Rejected));
+        // LC-2 — under_review is a legacy status: no transition may enter it.
+        $this->assertFalse(ComplaintStatus::Submitted->canTransitionTo(ComplaintStatus::UnderReview));
 
-        $this->updateStatus($this->operator, $complaint, [
-            'status'               => 'rejected',
-            'rejection_reason'     => 'test reason',
-            'public_response_body' => 'test response',
-        ])->assertSessionHasErrors('status');
+        $this->updateStatus($this->operator, $this->complaint, ['status' => 'under_review'])
+            ->assertSessionHasErrors('status');
 
-        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'waiting_for_information']);
+        $this->assertDatabaseHas('complaints', ['id' => $this->complaint->id, 'status' => 'submitted']);
     }
 
-    public function test_submitted_to_in_progress_is_forbidden(): void
+    public function test_submitted_to_waiting_for_information_is_forbidden(): void
     {
-        $this->assertFalse(ComplaintStatus::Submitted->canTransitionTo(ComplaintStatus::InProgress));
+        $this->assertFalse(ComplaintStatus::Submitted->canTransitionTo(ComplaintStatus::WaitingForInformation));
 
-        $this->updateStatus($this->operator, $this->complaint, ['status' => 'in_progress'])
+        $this->updateStatus($this->operator, $this->complaint, ['status' => 'waiting_for_information'])
             ->assertSessionHasErrors('status');
+
+        $this->assertDatabaseHas('complaints', ['id' => $this->complaint->id, 'status' => 'submitted']);
     }
 
     public function test_submitted_to_resolved_is_forbidden(): void
@@ -360,6 +413,17 @@ class ComplaintStatusLifecycleTest extends TestCase
 
         $this->updateStatus($this->operator, $this->complaint, ['status' => 'closed'])
             ->assertSessionHasErrors('status');
+    }
+
+    public function test_in_progress_to_waiting_for_information_is_forbidden(): void
+    {
+        $complaint = $this->makeComplaint(ComplaintStatus::InProgress);
+        $this->assertFalse(ComplaintStatus::InProgress->canTransitionTo(ComplaintStatus::WaitingForInformation));
+
+        $this->updateStatus($this->operator, $complaint, ['status' => 'waiting_for_information'])
+            ->assertSessionHasErrors('status');
+
+        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'in_progress']);
     }
 
     public function test_under_review_to_resolved_is_forbidden(): void
@@ -382,6 +446,29 @@ class ComplaintStatusLifecycleTest extends TestCase
             ->assertSessionHasErrors('status');
     }
 
+    public function test_under_review_to_in_progress_is_forbidden(): void
+    {
+        // LC-2 — a legacy status cannot be resurrected into the active flow.
+        $complaint = $this->makeComplaint(ComplaintStatus::UnderReview);
+        $this->assertFalse(ComplaintStatus::UnderReview->canTransitionTo(ComplaintStatus::InProgress));
+
+        $this->updateStatus($this->operator, $complaint, ['status' => 'in_progress'])
+            ->assertSessionHasErrors('status');
+
+        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'under_review']);
+    }
+
+    public function test_waiting_for_information_has_no_outgoing_transitions(): void
+    {
+        $complaint = $this->makeComplaint(ComplaintStatus::WaitingForInformation);
+        $this->assertEmpty(ComplaintStatus::WaitingForInformation->allowedTransitions());
+
+        $this->updateStatus($this->operator, $complaint, ['status' => 'in_progress'])
+            ->assertSessionHasErrors('status');
+
+        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'waiting_for_information']);
+    }
+
     public function test_in_progress_to_closed_is_forbidden(): void
     {
         $complaint = $this->makeComplaint(ComplaintStatus::InProgress);
@@ -389,6 +476,18 @@ class ComplaintStatusLifecycleTest extends TestCase
 
         $this->updateStatus($this->operator, $complaint, ['status' => 'closed'])
             ->assertSessionHasErrors('status');
+    }
+
+    public function test_rejected_to_closed_is_forbidden(): void
+    {
+        // LC-2 — the manual close edge is retired; rejected is a final outcome.
+        $complaint = $this->makeComplaint(ComplaintStatus::Rejected);
+        $this->assertFalse(ComplaintStatus::Rejected->canTransitionTo(ComplaintStatus::Closed));
+
+        $this->updateStatus($this->operator, $complaint, ['status' => 'closed'])
+            ->assertSessionHasErrors('status');
+
+        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'rejected']);
     }
 
     public function test_arbitrary_string_status_is_rejected(): void
@@ -399,7 +498,7 @@ class ComplaintStatusLifecycleTest extends TestCase
     }
 
     // =========================================================================
-    // §26.5 — Terminal: closed has no transitions out
+    // §26.5 — Terminal (final business outcome) semantics
     // =========================================================================
 
     public function test_closed_to_submitted_is_forbidden(): void
@@ -437,17 +536,26 @@ class ComplaintStatusLifecycleTest extends TestCase
         $this->assertEmpty(ComplaintStatus::Closed->allowedTransitions());
     }
 
-    public function test_closed_is_terminal_via_is_terminal_helper(): void
+    public function test_closed_is_legacy_but_not_a_final_business_outcome(): void
     {
-        $this->assertTrue(ComplaintStatus::Closed->isTerminal());
+        // LC-2 — `closed` is a LEGACY status retained for history. It has no
+        // outgoing transitions, but it is NOT a final business outcome, so
+        // isTerminal() (== isFinalOutcome()) must be FALSE for it.
+        $this->assertTrue(ComplaintStatus::Closed->isLegacy());
+        $this->assertFalse(ComplaintStatus::Closed->isFinalOutcome());
+        $this->assertFalse(ComplaintStatus::Closed->isTerminal());
+        $this->assertFalse(ComplaintStatus::Closed->hasOutgoingTransitions());
     }
 
-    public function test_non_closed_statuses_are_not_terminal(): void
+    public function test_only_resolved_and_rejected_are_terminal(): void
     {
         foreach (ComplaintStatus::cases() as $status) {
-            if ($status !== ComplaintStatus::Closed) {
-                $this->assertFalse($status->isTerminal(), "{$status->value} should not be terminal.");
-            }
+            $expected = in_array($status, [ComplaintStatus::Resolved, ComplaintStatus::Rejected], true);
+            $this->assertSame(
+                $expected,
+                $status->isTerminal(),
+                "{$status->value} terminal expectation mismatch.",
+            );
         }
     }
 
@@ -486,6 +594,18 @@ class ComplaintStatusLifecycleTest extends TestCase
     public function test_resolved_to_submitted_is_forbidden(): void
     {
         $this->assertFalse(ComplaintStatus::Resolved->canTransitionTo(ComplaintStatus::Submitted));
+    }
+
+    public function test_resolved_to_closed_is_forbidden(): void
+    {
+        // LC-2 — the manual close edge is retired.
+        $complaint = $this->makeComplaint(ComplaintStatus::Resolved);
+        $this->assertFalse(ComplaintStatus::Resolved->canTransitionTo(ComplaintStatus::Closed));
+
+        $this->updateStatus($this->operator, $complaint, ['status' => 'closed'])
+            ->assertSessionHasErrors('status');
+
+        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'resolved']);
     }
 
     public function test_rejected_to_in_progress_is_forbidden(): void
@@ -554,20 +674,20 @@ class ComplaintStatusLifecycleTest extends TestCase
 
     public function test_operator_can_update_status(): void
     {
-        $this->updateStatus($this->operator, $this->complaint, ['status' => 'under_review'])
+        $this->updateStatus($this->operator, $this->complaint, ['status' => 'in_progress'])
             ->assertRedirect()
             ->assertSessionHas('success');
 
-        $this->assertDatabaseHas('complaints', ['id' => $this->complaint->id, 'status' => 'under_review']);
+        $this->assertDatabaseHas('complaints', ['id' => $this->complaint->id, 'status' => 'in_progress']);
     }
 
     public function test_super_admin_can_update_status(): void
     {
-        $this->updateStatus($this->superAdmin, $this->complaint, ['status' => 'under_review'])
+        $this->updateStatus($this->superAdmin, $this->complaint, ['status' => 'in_progress'])
             ->assertRedirect()
             ->assertSessionHas('success');
 
-        $this->assertDatabaseHas('complaints', ['id' => $this->complaint->id, 'status' => 'under_review']);
+        $this->assertDatabaseHas('complaints', ['id' => $this->complaint->id, 'status' => 'in_progress']);
     }
 
     public function test_super_admin_must_follow_transition_matrix(): void
@@ -596,7 +716,7 @@ class ComplaintStatusLifecycleTest extends TestCase
 
     public function test_rejected_without_reason_fails(): void
     {
-        $complaint = $this->makeComplaint(ComplaintStatus::UnderReview);
+        $complaint = $this->makeComplaint(ComplaintStatus::InProgress);
 
         $this->updateStatus($this->operator, $complaint, [
             'status'               => 'rejected',
@@ -604,12 +724,12 @@ class ComplaintStatusLifecycleTest extends TestCase
             'public_response_body' => 'Some public response.',
         ])->assertSessionHasErrors('rejection_reason');
 
-        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'under_review']);
+        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'in_progress']);
     }
 
     public function test_rejected_with_whitespace_only_reason_fails(): void
     {
-        $complaint = $this->makeComplaint(ComplaintStatus::UnderReview);
+        $complaint = $this->makeComplaint(ComplaintStatus::InProgress);
 
         $this->updateStatus($this->operator, $complaint, [
             'status'               => 'rejected',
@@ -617,12 +737,12 @@ class ComplaintStatusLifecycleTest extends TestCase
             'public_response_body' => 'Some public response.',
         ])->assertSessionHasErrors('rejection_reason');
 
-        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'under_review']);
+        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'in_progress']);
     }
 
     public function test_rejected_without_public_response_fails(): void
     {
-        $complaint = $this->makeComplaint(ComplaintStatus::UnderReview);
+        $complaint = $this->makeComplaint(ComplaintStatus::InProgress);
 
         $this->updateStatus($this->operator, $complaint, [
             'status'               => 'rejected',
@@ -630,12 +750,12 @@ class ComplaintStatusLifecycleTest extends TestCase
             'public_response_body' => '',
         ])->assertSessionHasErrors('public_response_body');
 
-        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'under_review']);
+        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'in_progress']);
     }
 
     public function test_rejected_with_valid_reason_and_public_response_succeeds(): void
     {
-        $complaint = $this->makeComplaint(ComplaintStatus::UnderReview);
+        $complaint = $this->makeComplaint(ComplaintStatus::InProgress);
 
         $this->updateStatus($this->operator, $complaint, [
             'status'               => 'rejected',
@@ -648,7 +768,7 @@ class ComplaintStatusLifecycleTest extends TestCase
 
     public function test_rejection_reason_is_stored_in_status_history(): void
     {
-        $complaint = $this->makeComplaint(ComplaintStatus::UnderReview);
+        $complaint = $this->makeComplaint(ComplaintStatus::InProgress);
         $reason = 'Ini adalah alasan penolakan resmi.';
 
         $this->updateStatus($this->operator, $complaint, [
@@ -673,7 +793,9 @@ class ComplaintStatusLifecycleTest extends TestCase
     {
         $complaint = $this->makeComplaint(ComplaintStatus::InProgress);
 
-        $this->updateStatus($this->operator, $complaint, [
+        // PHASE 3 — resolution authority is Super Admin's; the public-response
+        // requirement is unchanged and still enforced on that actor.
+        $this->updateStatus($this->superAdmin, $complaint, [
             'status'               => 'resolved',
             'public_response_body' => '',
         ])->assertSessionHasErrors('public_response_body');
@@ -685,7 +807,7 @@ class ComplaintStatusLifecycleTest extends TestCase
     {
         $complaint = $this->makeComplaint(ComplaintStatus::InProgress);
 
-        $this->updateStatus($this->operator, $complaint, [
+        $this->updateStatus($this->superAdmin, $complaint, [
             'status'               => 'resolved',
             'public_response_body' => '   ',
         ])->assertSessionHasErrors('public_response_body');
@@ -698,7 +820,7 @@ class ComplaintStatusLifecycleTest extends TestCase
         $complaint = $this->makeComplaint(ComplaintStatus::InProgress);
         $publicResponse = 'Masalah yang Anda laporkan telah berhasil ditangani oleh Dinas PUPR Parepare.';
 
-        $this->updateStatus($this->operator, $complaint, [
+        $this->updateStatus($this->superAdmin, $complaint, [
             'status'               => 'resolved',
             'public_response_body' => $publicResponse,
         ])->assertRedirect()->assertSessionHas('success');
@@ -711,7 +833,7 @@ class ComplaintStatusLifecycleTest extends TestCase
         $complaint = $this->makeComplaint(ComplaintStatus::InProgress);
         $publicBody = 'Laporan telah diselesaikan dan diverifikasi oleh tim lapangan.';
 
-        $this->updateStatus($this->operator, $complaint, [
+        $this->updateStatus($this->superAdmin, $complaint, [
             'status'               => 'resolved',
             'public_response_body' => $publicBody,
         ]);
@@ -725,7 +847,7 @@ class ComplaintStatusLifecycleTest extends TestCase
 
     public function test_public_response_is_saved_as_note_when_rejected(): void
     {
-        $complaint = $this->makeComplaint(ComplaintStatus::UnderReview);
+        $complaint = $this->makeComplaint(ComplaintStatus::InProgress);
         $publicBody = 'Laporan Anda ditolak karena tidak sesuai ketentuan layanan.';
 
         $this->updateStatus($this->operator, $complaint, [
@@ -743,8 +865,8 @@ class ComplaintStatusLifecycleTest extends TestCase
 
     public function test_transitions_not_requiring_public_response_do_not_force_it(): void
     {
-        // under_review → in_progress: no public response required
-        $complaint = $this->makeComplaint(ComplaintStatus::UnderReview);
+        // submitted → in_progress: no public response required
+        $complaint = $this->makeComplaint(ComplaintStatus::Submitted);
 
         $this->updateStatus($this->operator, $complaint, [
             'status' => 'in_progress',
@@ -839,15 +961,15 @@ class ComplaintStatusLifecycleTest extends TestCase
         // lifecycle. IDOR on complaint_id is blocked for out-of-scope records.
         $otherComplaint = $this->makeComplaint(ComplaintStatus::Submitted);
 
-        $this->updateStatus($this->operator, $otherComplaint, ['status' => 'under_review'])
+        $this->updateStatus($this->operator, $otherComplaint, ['status' => 'in_progress'])
             ->assertRedirect()
             ->assertSessionHas('success'); // In-scope complaint per Prompt 15 visibility rule
 
-        // But CANNOT bypass lifecycle
+        // But CANNOT bypass lifecycle (an Operator may not resolve directly).
         $this->updateStatus($this->operator, $otherComplaint, [
             'status'               => 'resolved',
             'public_response_body' => 'bypass',
-        ])->assertSessionHasErrors('status'); // now under_review → resolved is invalid
+        ])->assertSessionHasErrors('status');
     }
 
     public function test_citizen_cannot_reach_operator_status_mutation_endpoint(): void
@@ -876,13 +998,13 @@ class ComplaintStatusLifecycleTest extends TestCase
     {
         $complaint = $this->makeComplaint(ComplaintStatus::Submitted);
 
-        $this->updateStatus($this->operator, $complaint, ['status' => 'under_review']);
+        $this->updateStatus($this->operator, $complaint, ['status' => 'in_progress']);
 
-        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'under_review']);
+        $this->assertDatabaseHas('complaints', ['id' => $complaint->id, 'status' => 'in_progress']);
         $this->assertDatabaseHas('complaint_status_histories', [
             'complaint_id' => $complaint->id,
             'from_status'  => 'submitted',
-            'to_status'    => 'under_review',
+            'to_status'    => 'in_progress',
             'changed_by'   => $this->operator->id,
         ]);
         $this->assertDatabaseHas('audit_logs', [

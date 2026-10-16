@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class DinasUnit extends Model
 {
@@ -55,8 +56,26 @@ class DinasUnit extends Model
     }
 
     /**
-     * Operator accounts that belong to this Dinas/Unit (Prompt 15 — BDR-1 = 1a).
-     * An Operator's unit determines which complaints it may see and act on.
+     * The single Operator account that owns this Dinas/Unit (PHASE 1 — 1:1).
+     *
+     * One Dinas/Unit has AT MOST ONE Operator. The relationship is constrained
+     * to `role = operator` so a stray non-operator row can never be surfaced as
+     * "the operator". NULL means the unit currently has no operator.
+     *
+     * Backed by `users.dinas_unit_id` (FK, ON DELETE SET NULL) and enforced by
+     * the UNIQUE index `users_dinas_unit_id_unique` plus the model-layer guard.
+     */
+    public function operator(): HasOne
+    {
+        return $this->hasOne(User::class, 'dinas_unit_id')->where('role', 'operator');
+    }
+
+    /**
+     * Operator accounts historically linked to this Dinas/Unit.
+     *
+     * DEPRECATED by the PHASE 1 1:1 rule: a Dinas/Unit may now have at most one
+     * Operator. Kept as a convenience alias for the (0..1) set so existing
+     * read-only call sites remain valid; new code should use {@see operator()}.
      */
     public function users(): HasMany
     {

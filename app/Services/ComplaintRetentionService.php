@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Models\Complaint;
+use App\Models\AppNotification;
 use App\Models\ComplaintAttachment;
 use App\Models\ComplaintNote;
+use App\Models\ComplaintRating;
 use App\Models\ComplaintStatusHistory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -60,8 +62,8 @@ class ComplaintRetentionService
      *
      *   PHASE 1 (database): collect attachment paths, then inside a DB
      *     transaction delete complaint_attachments, complaint_notes,
-     *     complaint_status_histories, complaint-related audit_logs, and the
-     *     complaint row — then COMMIT.
+     *     complaint_status_histories, complaint_ratings, complaint-related
+     *     audit_logs, and the complaint row — then COMMIT.
      *   PHASE 2 (filesystem): only AFTER a successful commit, delete the
      *     physical attachment files using the collected paths.
      *
@@ -71,10 +73,10 @@ class ComplaintRetentionService
      *   - file cleanup error → no fake DB rollback; DB stays committed.
      *
      * FK audit: complaint_attachments / complaint_status_histories /
-     * complaint_notes all reference complaints.id with RESTRICT, so children
-     * are deleted before the parent. `audit_logs` uses the plain string
-     * subject_type 'complaint' (verified against every AuditLog writer in the
-     * project; no morph map exists).
+     * complaint_notes / complaint_ratings all reference complaints.id with
+     * RESTRICT, so children are deleted before the parent. `audit_logs` uses the
+     * plain string subject_type 'complaint' (verified against every AuditLog
+     * writer in the project; no morph map exists).
      *
      * @return array{deleted:bool, missing_files:int, failed_files:int}
      */
@@ -89,6 +91,14 @@ class ComplaintRetentionService
             ComplaintAttachment::where('complaint_id', $complaint->id)->delete();
             ComplaintNote::where('complaint_id', $complaint->id)->delete();
             ComplaintStatusHistory::where('complaint_id', $complaint->id)->delete();
+            // PHASE 3 — Bagian 2 — satisfaction ratings are child data of the
+            // complaint; delete them with the other children (RESTRICT FK).
+            ComplaintRating::where('complaint_id', $complaint->id)->delete();
+
+            // PHASE N4 — in-app notifications are CHILD data of the complaint
+            // (FK RESTRICT). They are deleted here, BEFORE the parent complaint,
+            // so the purge never leaves a dangling notification FK.
+            AppNotification::where('complaint_id', $complaint->id)->delete();
 
             // Complaint-related audit logs only (subject_type 'complaint').
             // Unrelated audit logs are preserved.

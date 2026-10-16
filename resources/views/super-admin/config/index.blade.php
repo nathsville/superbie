@@ -11,75 +11,100 @@
     <x-slot:header>Konfigurasi</x-slot:header>
     <x-slot:breadcrumb>Konfigurasi operasional yang didukung aplikasi</x-slot:breadcrumb>
 
-    @if (session('success'))
-        <div class="mb-4 flex items-center gap-3 bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-xl card-enter" role="alert">
-            <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            {{ session('success') }}
-        </div>
-    @endif
-
-    <div class="mb-4">
-        <p class="text-sm text-[#64748B]">
-            Hanya konfigurasi yang memiliki pengaruh nyata pada aplikasi yang ditampilkan di sini.
-        </p>
-    </div>
-
-    @if (empty($settings))
-        <div class="bg-white rounded-2xl border border-[#E2E8F0] p-8 text-center card-enter">
-            <p class="text-sm text-[#94A3B8] italic">Tidak ada konfigurasi yang dapat dikelola.</p>
-        </div>
-    @else
-        <div class="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden card-enter">
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-[#F8FAFC] text-[#475569] text-xs uppercase tracking-wider">
-                        <tr>
-                            <th class="text-left px-4 py-3">Konfigurasi</th>
-                            <th class="text-center px-4 py-3">Tipe</th>
-                            <th class="text-center px-4 py-3">Nilai Aktif</th>
-                            <th class="text-center px-4 py-3">Sumber</th>
-                            <th class="text-left px-4 py-3">Diperbarui</th>
-                            <th class="text-right px-4 py-3">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-[#E2E8F0]">
-                        @foreach ($settings as $setting)
-                            <tr class="hover:bg-[#F8FAFC]">
-                                <td class="px-4 py-3">
-                                    <span class="font-semibold text-[#0F172A]">{{ $setting['label'] }}</span>
-                                    <span class="block font-mono text-[11px] text-[#94A3B8]">{{ $setting['key'] }}</span>
-                                    <span class="block text-xs text-[#64748B] mt-0.5">{{ $setting['description'] }}</span>
-                                </td>
-                                <td class="px-4 py-3 text-center text-[#475569]">{{ $setting['type'] }}</td>
-                                <td class="px-4 py-3 text-center">
-                                    <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-[#EFF6FF] text-[#1D4ED8] border border-[#BFDBFE]">
-                                        {{ $setting['effective'] }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 text-center">
-                                    @if ($setting['is_overridden'])
-                                        <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">Diatur</span>
-                                    @else
-                                        <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">Default</span>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3 text-[#64748B] whitespace-nowrap">
-                                    {{ $setting['updated_at']?->translatedFormat('d M Y H:i') ?? '—' }}
-                                </td>
-                                <td class="px-4 py-3 text-right">
-                                    <a href="{{ route('super-admin.config.edit', $setting['key']) }}"
-                                       class="text-[#2563EB] hover:underline font-semibold">Ubah</a>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+    <div class="w-full max-w-full space-y-6 card-enter">
+        @if (session('success'))
+            <div class="flex items-center gap-3 bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-3 rounded-xl card-enter" role="alert">
+                <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                {{ session('success') }}
             </div>
+        @endif
+
+        <div class="w-full bg-white rounded-2xl border border-line shadow-sm p-4 sm:p-5">
+            <h2 class="text-sm font-semibold text-ink tracking-wide">Pengaturan Operasional</h2>
+            <p class="text-sm text-ink-faint mt-1">
+                Hanya konfigurasi yang memiliki pengaruh nyata pada aplikasi yang ditampilkan di sini.
+            </p>
         </div>
 
-        <p class="mt-3 text-xs text-[#94A3B8]">
-            Default ditentukan di <span class="font-mono">config/business_rules.php</span> (sumber kebenaran tunggal).
-            Nilai di sini hanya menimpa default tersebut dan divalidasi sesuai aturan konsumen yang ada.
-        </p>
-    @endif
+        @if (empty($settings))
+            <div class="w-full bg-white rounded-2xl border border-line shadow-sm py-16 text-center">
+                <svg class="w-12 h-12 text-line-strong mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                <p class="text-sm font-semibold text-ink-soft">Tidak ada konfigurasi yang dapat dikelola.</p>
+            </div>
+        @else
+            {{-- ── Table ────────────────────────────────────────────────────── --}}
+            <h2 class="sr-only">Daftar konfigurasi</h2>
+            <div class="w-full bg-white rounded-2xl border border-line shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <caption class="sr-only">Daftar konfigurasi beserta tipe, nilai aktif, sumber nilai, waktu pembaruan, dan aksi</caption>
+                        <thead class="bg-page text-ink-soft text-xs uppercase tracking-wider">
+                            <tr>
+                                <th scope="col" class="text-left px-4 py-3.5 font-semibold min-w-[18rem]">Konfigurasi</th>
+                                <th scope="col" class="text-center px-4 py-3.5 font-semibold whitespace-nowrap">Tipe</th>
+                                <th scope="col" class="text-center px-4 py-3.5 font-semibold whitespace-nowrap">Nilai Aktif</th>
+                                <th scope="col" class="text-center px-4 py-3.5 font-semibold whitespace-nowrap">Sumber</th>
+                                <th scope="col" class="text-left px-4 py-3.5 font-semibold whitespace-nowrap">Diperbarui</th>
+                                <th scope="col" class="text-right px-4 py-3.5 font-semibold whitespace-nowrap">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-surface-sunken">
+                            @foreach ($settings as $setting)
+                                <tr class="hover:bg-page transition-colors">
+                                    <td class="px-4 py-4">
+                                        <span class="font-semibold text-ink">{{ $setting['label'] }}</span>
+                                        <span class="mt-1 block">
+                                            <span class="inline-flex font-mono text-[11px] text-ink-soft bg-page px-2 py-0.5 rounded-md border border-line">{{ $setting['key'] }}</span>
+                                        </span>
+                                        <span class="block text-xs text-ink-faint mt-1">{{ $setting['description'] }}</span>
+                                    </td>
+                                    <td class="px-4 py-4 text-center whitespace-nowrap">
+                                        <span class="inline-flex items-center rounded-full bg-surface-sunken text-ink-soft border border-line px-2.5 py-0.5 text-[11px] font-semibold">{{ $setting['type'] }}</span>
+                                    </td>
+                                    <td class="px-4 py-4 text-center whitespace-nowrap">
+                                        <span class="inline-flex items-center rounded-full bg-primary-50 text-primary-700 border border-primary-100 px-3 py-1 text-xs font-semibold">
+                                            {{ $setting['effective'] }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-4 text-center whitespace-nowrap">
+                                        @if ($setting['is_overridden'])
+                                            <span class="inline-flex items-center gap-1 rounded-full text-[11px] font-semibold bg-accent-50 text-accent-700 border border-accent-200 px-2.5 py-0.5">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-current" aria-hidden="true"></span>
+                                                Diatur
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1 rounded-full text-[11px] font-semibold bg-surface-sunken text-ink-soft border border-line px-2.5 py-0.5">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-current" aria-hidden="true"></span>
+                                                Default
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-4 text-ink-faint whitespace-nowrap">
+                                        {{ $setting['updated_at']?->translatedFormat('d M Y H:i') ?? '—' }}
+                                    </td>
+                                    <td class="px-4 py-4 text-right whitespace-nowrap">
+                                        <a href="{{ route('super-admin.config.edit', $setting['key']) }}"
+                                           aria-label="Ubah konfigurasi {{ $setting['label'] }}" title="Ubah"
+                                           class="inline-flex items-center gap-1 rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-600 hover:bg-primary-100 ui-animated">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                            Ubah
+                                        </a>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {{-- ── Footer note ──────────────────────────────────────────────── --}}
+            <div class="w-full flex items-start gap-2.5 bg-page border border-line rounded-2xl px-4 py-3.5">
+                <svg class="w-4 h-4 shrink-0 mt-0.5 text-ink-faint" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <p class="text-xs text-ink-faint leading-relaxed">
+                    Default ditentukan di <span class="font-mono text-ink-soft">config/business_rules.php</span> (sumber kebenaran tunggal).
+                    Nilai di sini hanya menimpa default tersebut dan divalidasi sesuai aturan konsumen yang ada.
+                </p>
+            </div>
+        @endif
+    </div>
 </x-layouts.dashboard>

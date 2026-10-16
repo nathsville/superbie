@@ -52,4 +52,13 @@ return [
         'reference_column' => 'submitted_at',
     ],
 
+    // ─── Help Desk write rate limit (SECURITY / abuse protection) ─────────────
+    // PROMPT TAHAP 2. Mirrors the complaint-submission limiter pattern: a named
+    // limiter keyed on the AUTHENTICATED user id (never the client IP). Applied
+    // ONLY to the Help Desk write endpoints (create ticket / send message /
+    // reopen), never to read pages. This is an anti-abuse control, NOT a
+    // business rule, and is deliberately separate from the complaint limit.
+    'help_desk_write_rate_limit'         => 20,
+    'help_desk_write_rate_window_minutes' => 10,
+
 ];

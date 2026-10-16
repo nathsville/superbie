@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Citizen;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Services\ProfilePhotoService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,7 +28,7 @@ class ProfileController extends Controller
     /**
      * Update citizen profile information and/or password.
      */
-    public function update(Request $request): RedirectResponse
+    public function update(Request $request, ProfilePhotoService $photos): RedirectResponse
     {
         $user = $request->user();
 
@@ -39,6 +40,11 @@ class ProfileController extends Controller
                 Rule::unique('users', 'phone_number')->ignore($user->id),
             ],
             'address' => ['required', 'string'],
+            'avatar' => [
+                'nullable', 'file', 'image',
+                'mimes:'.implode(',', ProfilePhotoService::MIMES),
+                'max:'.ProfilePhotoService::MAX_KILOBYTES,
+            ],
             'current_password' => ['nullable', 'required_with:password', 'string'],
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
         ], [
@@ -48,6 +54,9 @@ class ProfileController extends Controller
             'phone_number.regex' => 'Format nomor HP tidak valid. Gunakan format Indonesia (contoh: 08xxxxxxxxxx atau +62xxxxxxxxxx).',
             'phone_number.unique' => 'Nomor HP sudah terdaftar pada akun lain.',
             'address.required' => 'Alamat wajib diisi.',
+            'avatar.image' => 'Berkas foto harus berupa gambar.',
+            'avatar.mimes' => 'Format foto harus JPG, JPEG, PNG, atau WEBP.',
+            'avatar.max' => 'Ukuran foto maksimal 2 MB.',
             'current_password.required_with' => 'Masukkan kata sandi saat ini untuk mengubah kata sandi baru.',
             'password.min' => 'Kata sandi baru minimal 8 karakter.',
             'password.confirmed' => 'Konfirmasi kata sandi baru tidak cocok.',
@@ -69,6 +78,11 @@ class ProfileController extends Controller
         $user->name = $request->name;
         $user->phone_number = $this->normalizePhone($request->phone_number);
         $user->address = trim($request->address);
+
+        if ($request->hasFile('avatar')) {
+            $photos->store($user, $request->file('avatar'));
+        }
+
         // NIK is intentionally NOT updated here: it is immutable after account
         // creation (FINAL business rule). Even if a client submits a "nik" field,
         // it is ignored — and the User model also rejects NIK mutation.
@@ -92,7 +106,13 @@ class ProfileController extends Controller
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
             'metadata' => [
-                'updated_fields' => array_keys($request->only(['name', 'phone_number', 'address', 'password'])),
+                'updated_fields' => array_values(array_filter([
+                    $request->filled('name') ? 'name' : null,
+                    $request->filled('phone_number') ? 'phone_number' : null,
+                    $request->filled('address') ? 'address' : null,
+                    $request->hasFile('avatar') ? 'avatar' : null,
+                    $passwordChanged ? 'password' : null,
+                ])),
             ],
         ]);
 

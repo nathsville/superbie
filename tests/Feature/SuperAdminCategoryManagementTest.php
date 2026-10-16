@@ -7,6 +7,7 @@ use App\Models\ComplaintCategory;
 use App\Models\DinasUnit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\CreatesLocationFixtures;
 use Tests\TestCase;
 
 /**
@@ -25,6 +26,7 @@ use Tests\TestCase;
 class SuperAdminCategoryManagementTest extends TestCase
 {
     use RefreshDatabase;
+    use CreatesLocationFixtures;
 
     private User $superAdmin;
     private User $operator;
@@ -209,6 +211,7 @@ class SuperAdminCategoryManagementTest extends TestCase
             'category_id' => $this->category->id,
             'title' => 'Jalan berlubang',
             'description' => 'Ada lubang besar di jalan utama kota.',
+            ...$this->locationPayload(),
         ]);
 
         $response->assertRedirect();
@@ -227,6 +230,7 @@ class SuperAdminCategoryManagementTest extends TestCase
             'category_id' => $inactive->id,
             'title' => 'Laporan kategori nonaktif',
             'description' => 'Deskripsi cukup panjang untuk lolos validasi.',
+            ...$this->locationPayload(),
         ]);
 
         $response->assertSessionHasErrors('category_id');
@@ -239,6 +243,7 @@ class SuperAdminCategoryManagementTest extends TestCase
             'category_id' => 999999,
             'title' => 'Laporan kategori tidak ada',
             'description' => 'Deskripsi cukup panjang untuk lolos validasi.',
+            ...$this->locationPayload(),
         ]);
 
         $response->assertSessionHasErrors('category_id');
@@ -254,6 +259,7 @@ class SuperAdminCategoryManagementTest extends TestCase
             'title' => 'Laporan tanpa dinas',
             'description' => 'Deskripsi cukup panjang untuk lolos validasi.',
             'dinas_unit_id' => $dinas->id, // must be ignored
+            ...$this->locationPayload(),
         ])->assertSessionHasNoErrors();
 
         $complaint = Complaint::where('title', 'Laporan tanpa dinas')->firstOrFail();
@@ -406,9 +412,11 @@ class SuperAdminCategoryManagementTest extends TestCase
 
         $complaint = $this->makeComplaint();
 
+        // PHASE 2R — the Operator has NO destination-mutation capability at all
+        // (route removed → 404), so an inactive Dinas can never be selected.
         $this->actingAs($this->operator)
-            ->patch(route('operator.complaint.update-destination', $complaint), ['dinas_unit_id' => $inactive->id])
-            ->assertSessionHasErrors('dinas_unit_id');
+            ->patch('/operator/laporan/' . $complaint->id . '/tujuan', ['dinas_unit_id' => $inactive->id])
+            ->assertNotFound();
 
         $this->assertNull($complaint->fresh()->dinas_unit_id);
     }

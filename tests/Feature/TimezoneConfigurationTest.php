@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
+use Tests\Concerns\CreatesLocationFixtures;
 use Tests\TestCase;
 
 /**
@@ -25,6 +26,7 @@ use Tests\TestCase;
 class TimezoneConfigurationTest extends TestCase
 {
     use RefreshDatabase;
+    use CreatesLocationFixtures;
 
     private User $citizen;
     private ComplaintCategory $category;
@@ -86,6 +88,7 @@ class TimezoneConfigurationTest extends TestCase
             'category_id' => $this->category->id,
             'title'       => 'Laporan malam WITA',
             'description' => 'Dikirim pukul 23:30 WITA.',
+            ...$this->locationPayload(),
         ]);
         $first->assertSessionHasNoErrors();
         $this->assertSame(1, Complaint::where('reporter_id', $this->citizen->id)->count());
@@ -104,6 +107,7 @@ class TimezoneConfigurationTest extends TestCase
             'category_id' => $this->category->id,
             'title'       => 'Laporan dini hari WITA',
             'description' => 'Dikirim pukul 00:30 WITA hari berikutnya.',
+            ...$this->locationPayload(),
         ]);
         $second->assertSessionHasNoErrors();
 
@@ -137,6 +141,7 @@ class TimezoneConfigurationTest extends TestCase
             'category_id' => $this->category->id,
             'title'       => 'Laporan kedua hari WITA',
             'description' => 'Harus ditolak batas harian.',
+            ...$this->locationPayload(),
         ]);
 
         $response->assertSessionHasErrors('daily_limit');

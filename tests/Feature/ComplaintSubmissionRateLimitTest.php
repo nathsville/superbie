@@ -10,6 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Tests\Concerns\CreatesLocationFixtures;
 use Tests\TestCase;
 
 /**
@@ -29,6 +30,7 @@ use Tests\TestCase;
 class ComplaintSubmissionRateLimitTest extends TestCase
 {
     use RefreshDatabase;
+    use CreatesLocationFixtures;
 
     private User $citizenA;
     private User $citizenB;
@@ -70,7 +72,7 @@ class ComplaintSubmissionRateLimitTest extends TestCase
             'category_id' => $this->category->id,
             'title'       => 'Laporan uji rate limit pengiriman',
             'description' => 'Deskripsi laporan pengujian rate limit pengiriman warga.',
-        ], $overrides);
+        ], $this->locationPayload(), $overrides);
     }
 
     /** Submit a complaint over HTTP as the given user. */
@@ -268,6 +270,7 @@ class ComplaintSubmissionRateLimitTest extends TestCase
             'category_id' => $this->category->id,
             'title'       => '',
             'description' => 'Deskripsi cukup panjang namun judul kosong.',
+            ...$this->locationPayload(),
         ]);
 
         $response->assertStatus(302);

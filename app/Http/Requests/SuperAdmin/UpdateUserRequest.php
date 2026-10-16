@@ -41,11 +41,18 @@ class UpdateUserRequest extends FormRequest
             'role'  => ['required', 'string', Rule::in(UserRole::values())],
             'is_active' => ['nullable', 'boolean'],
             // Prompt 15 — an Operator MUST belong to exactly one Dinas/Unit.
+            // PHASE 1 — a Dinas/Unit may be owned by AT MOST ONE Operator. The
+            // chosen unit must not already belong to a DIFFERENT Operator; the
+            // row being edited is excluded so an idempotent save never conflicts
+            // with itself. Scoped to `role = operator` rows (1:1 relationship).
             'dinas_unit_id' => [
                 'nullable',
                 'integer',
                 'exists:dinas_units,id',
                 Rule::requiredIf(fn () => $this->input('role') === 'operator'),
+                Rule::unique('users', 'dinas_unit_id')
+                    ->where(fn ($query) => $query->where('role', 'operator'))
+                    ->ignore($userId),
             ],
         ];
     }
@@ -62,16 +69,26 @@ class UpdateUserRequest extends FormRequest
             'role.in'        => 'Role yang dipilih tidak valid.',
             'dinas_unit_id.required' => 'Dinas/Unit wajib dipilih untuk akun Operator.',
             'dinas_unit_id.exists'   => 'Dinas/Unit yang dipilih tidak valid.',
+            'dinas_unit_id.unique'   => 'Dinas/Unit ini sudah dimiliki oleh Operator lain.',
         ];
     }
 
     protected function prepareForValidation(): void
     {
+        // PHASE 1 — only an Operator may carry a Dinas/Unit. For every other
+        // role the field is normalised to NULL here, so the 1:1 uniqueness rule
+        // (scoped to `role = operator`) can never fire for a non-operator
+        // payload. The model layer's own guard remains the single source of
+        // truth for the "non-operators never keep a unit" invariant.
+        $isOperator = $this->input('role') === 'operator';
+
         $this->merge([
             'name'      => trim((string) $this->input('name')),
             'email'     => strtolower(trim((string) $this->input('email'))),
             'is_active' => $this->boolean('is_active'),
-            'dinas_unit_id' => $this->filled('dinas_unit_id') ? $this->input('dinas_unit_id') : null,
+            'dinas_unit_id' => ($isOperator && $this->filled('dinas_unit_id'))
+                ? $this->input('dinas_unit_id')
+                : null,
         ]);
     }
 }

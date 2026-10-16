@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Support\QueryInput;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
@@ -62,7 +63,7 @@ class AuditLogService
             ->orderByDesc('created_at')
             ->orderByDesc('id');
 
-        $search = trim((string) ($filters['search'] ?? ''));
+        $search = QueryInput::trimmed($filters['search'] ?? null) ?? '';
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('action', 'like', '%' . $search . '%')
@@ -78,19 +79,19 @@ class AuditLogService
             });
         }
 
-        $action = (string) ($filters['action'] ?? '');
+        $action = QueryInput::string($filters['action'] ?? null) ?? '';
         if ($action !== '') {
             $query->where('action', $action);
         }
 
-        $subject = (string) ($filters['subject'] ?? '');
+        $subject = QueryInput::string($filters['subject'] ?? null) ?? '';
         if ($subject !== '') {
             $query->where('subject_type', $subject);
         }
 
-        $actor = $filters['actor'] ?? null;
-        if ($actor !== null && $actor !== '') {
-            $query->where('actor_id', (int) $actor);
+        $actor = QueryInput::int($filters['actor'] ?? null);
+        if ($actor !== null) {
+            $query->where('actor_id', $actor);
         }
 
         $from = $this->validDate($filters['date_from'] ?? null);

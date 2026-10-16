@@ -14,6 +14,7 @@ use App\Models\DinasUnit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -23,8 +24,9 @@ use Tests\TestCase;
  * Tests cover:
  *  - Authorization (access control, role boundaries)
  *  - Complaint index/show (read)
- *  - Category update
- *  - Assignment (valid operator only)
+ *  - PHASE 2R — Operator IMMUTABILITY of routing metadata:
+ *      the category / Dinas-Unit destination / assigned-Operator endpoints are
+ *      REMOVED entirely (no Operator code path can mutate those columns)
  *  - Status update (transition-rule enforcement)
  *  - Internal note (internal vs public_response visibility)
  *  - Attachment download (IDOR protection)
@@ -45,14 +47,18 @@ class OperatorComplaintWorkflowTest extends TestCase
     private ComplaintCategory $category;
     private ComplaintCategory $category2;
     private DinasUnit $unit;
+    private DinasUnit $unit2;
     private Complaint $complaint;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        // Prompt 15 — Operators are scoped to a Dinas/Unit. Both operators share
-        // one unit so that assignment/visibility assertions remain meaningful.
+        // Prompt 15 — Operators are scoped to a Dinas/Unit.
+        // PHASE 1 — a Dinas/Unit is owned by AT MOST ONE Operator, so operator2
+        // is given its own unit. `assigned_to` (complaint assignment) is an
+        // independent concept from unit ownership, so the assignment and
+        // visibility assertions remain meaningful.
         $this->unit = DinasUnit::create([
             'name'       => 'Dinas Uji Operator',
             'code'       => 'UJI-OP',
@@ -60,8 +66,15 @@ class OperatorComplaintWorkflowTest extends TestCase
             'sort_order' => 1,
         ]);
 
+        $this->unit2 = DinasUnit::create([
+            'name'       => 'Dinas Uji Operator 2',
+            'code'       => 'UJI-OP-2',
+            'is_active'  => true,
+            'sort_order' => 2,
+        ]);
+
         $this->operator   = User::factory()->create(['role' => 'operator', 'is_active' => true, 'dinas_unit_id' => $this->unit->id]);
-        $this->operator2  = User::factory()->create(['role' => 'operator', 'is_active' => true, 'dinas_unit_id' => $this->unit->id]);
+        $this->operator2  = User::factory()->create(['role' => 'operator', 'is_active' => true, 'dinas_unit_id' => $this->unit2->id]);
         $this->citizen    = User::factory()->create(['role' => 'masyarakat', 'is_active' => true]);
         $this->citizen2   = User::factory()->create(['role' => 'masyarakat', 'is_active' => true]);
         $this->admin      = User::factory()->create(['role' => 'admin', 'is_active' => true]);
@@ -214,28 +227,36 @@ class OperatorComplaintWorkflowTest extends TestCase
     }
 
     // =========================================================================
-    // 4. Category update
+    // 4. PHASE 2R — Operator CANNOT change category (immutable routing metadata)
     // =========================================================================
 
-    public function test_operator_can_update_category(): void
+    public function test_operator_category_mutation_route_is_removed(): void
     {
+        // The category-mutation endpoint no longer exists at all — the strongest
+        // possible server-side guarantee (no code path can mutate category_id).
+        $this->assertFalse(
+            Route::has('operator.complaint.update-category'),
+            'The operator category-mutation route must not exist (PHASE 2R).'
+        );
+    }
+
+    public function test_operator_cannot_change_category(): void
+    {
+        $original = $this->complaint->category_id;
+
+        // The former endpoint is gone: the URI resolves to no route (404).
         $this->actingAs($this->operator)
-            ->patch(route('operator.complaint.update-category', $this->complaint), [
+            ->patch('/operator/laporan/' . $this->complaint->id . '/kategori', [
                 'category_id' => $this->category2->id,
             ])
-            ->assertRedirect(route('operator.complaint.show', $this->complaint))
-            ->assertSessionHas('success');
+            ->assertNotFound();
 
-        $this->assertDatabaseHas('complaints', [
-            'id'          => $this->complaint->id,
-            'category_id' => $this->category2->id,
-        ]);
-
-        $this->assertDatabaseHas('audit_logs', [
-            'actor_id'     => $this->operator->id,
-            'action'       => 'complaint.category_updated',
+        // Category is unchanged AND no success audit event was recorded.
+        $this->assertSame($original, $this->complaint->fresh()->category_id);
+        $this->assertDatabaseMissing('audit_logs', [
             'subject_type' => 'complaint',
             'subject_id'   => $this->complaint->id,
+            'action'       => 'complaint.category_updated',
         ]);
     }
 
@@ -248,122 +269,182 @@ class OperatorComplaintWorkflowTest extends TestCase
             'sort_order' => 99,
         ]);
 
+        $original = $this->complaint->category_id;
+
         $this->actingAs($this->operator)
-            ->patch(route('operator.complaint.update-category', $this->complaint), [
+            ->patch('/operator/laporan/' . $this->complaint->id . '/kategori', [
                 'category_id' => $inactive->id,
             ])
-            ->assertStatus(404); // firstOrFail on active category throws 404
+            ->assertNotFound();
 
-        // complaint category should be unchanged
-        $this->assertDatabaseHas('complaints', [
-            'id'          => $this->complaint->id,
-            'category_id' => $this->category->id,
-        ]);
+        $this->assertSame($original, $this->complaint->fresh()->category_id);
     }
 
     public function test_operator_cannot_set_nonexistent_category(): void
     {
+        $original = $this->complaint->category_id;
+
         $this->actingAs($this->operator)
-            ->patch(route('operator.complaint.update-category', $this->complaint), [
+            ->patch('/operator/laporan/' . $this->complaint->id . '/kategori', [
                 'category_id' => 99999,
             ])
-            ->assertSessionHasErrors('category_id');
+            ->assertNotFound();
+
+        $this->assertSame($original, $this->complaint->fresh()->category_id);
     }
 
     public function test_citizen_cannot_update_category(): void
     {
+        $original = $this->complaint->category_id;
+
         $this->actingAs($this->citizen)
-            ->patch(route('operator.complaint.update-category', $this->complaint), [
+            ->patch('/operator/laporan/' . $this->complaint->id . '/kategori', [
                 'category_id' => $this->category2->id,
             ])
-            ->assertForbidden();
+            ->assertNotFound();
+
+        $this->assertSame($original, $this->complaint->fresh()->category_id);
     }
 
     public function test_admin_cannot_update_category(): void
     {
+        $original = $this->complaint->category_id;
+
         $this->actingAs($this->admin)
-            ->patch(route('operator.complaint.update-category', $this->complaint), [
+            ->patch('/operator/laporan/' . $this->complaint->id . '/kategori', [
                 'category_id' => $this->category2->id,
             ])
-            ->assertForbidden();
+            ->assertNotFound();
+
+        $this->assertSame($original, $this->complaint->fresh()->category_id);
     }
 
     // =========================================================================
-    // 5. Assignment
+    // 4b. PHASE 2R — Operator CANNOT change Dinas/Unit destination (immutable)
     // =========================================================================
 
-    public function test_operator_can_assign_complaint_to_operator(): void
+    public function test_operator_destination_mutation_route_is_removed(): void
     {
+        $this->assertFalse(
+            Route::has('operator.complaint.update-destination'),
+            'The operator destination-mutation route must not exist (PHASE 2R).'
+        );
+    }
+
+    public function test_operator_cannot_change_dinas_unit_destination(): void
+    {
+        $original = $this->complaint->dinas_unit_id;
+
         $this->actingAs($this->operator)
-            ->patch(route('operator.complaint.assign', $this->complaint), [
+            ->patch('/operator/laporan/' . $this->complaint->id . '/tujuan', [
+                'dinas_unit_id' => $this->unit2->id,
+            ])
+            ->assertNotFound();
+
+        $this->assertSame($original, $this->complaint->fresh()->dinas_unit_id);
+        $this->assertDatabaseMissing('audit_logs', [
+            'subject_type' => 'complaint',
+            'subject_id'   => $this->complaint->id,
+            'action'       => 'complaint.destination_updated',
+        ]);
+    }
+
+    public function test_operator_cannot_clear_dinas_unit_destination(): void
+    {
+        $original = $this->complaint->dinas_unit_id;
+        $this->assertNotNull($original);
+
+        $this->actingAs($this->operator)
+            ->patch('/operator/laporan/' . $this->complaint->id . '/tujuan', [
+                'dinas_unit_id' => '',
+            ])
+            ->assertNotFound();
+
+        $this->assertSame($original, $this->complaint->fresh()->dinas_unit_id);
+    }
+
+    // =========================================================================
+    // 5. PHASE 2R — Operator CANNOT assign/reassign Operator (immutable)
+    // =========================================================================
+
+    public function test_operator_assignment_route_is_removed(): void
+    {
+        $this->assertFalse(
+            Route::has('operator.complaint.assign'),
+            'The operator assignment route must not exist (PHASE 2R).'
+        );
+    }
+
+    public function test_operator_cannot_assign_complaint_to_operator(): void
+    {
+        $original = $this->complaint->assigned_to;
+
+        $this->actingAs($this->operator)
+            ->patch('/operator/laporan/' . $this->complaint->id . '/tugaskan', [
                 'assigned_to' => $this->operator2->id,
             ])
-            ->assertRedirect(route('operator.complaint.show', $this->complaint))
-            ->assertSessionHas('success');
+            ->assertNotFound();
 
-        $this->assertDatabaseHas('complaints', [
-            'id'          => $this->complaint->id,
-            'assigned_to' => $this->operator2->id,
-        ]);
-
-        $this->assertDatabaseHas('audit_logs', [
-            'actor_id'     => $this->operator->id,
-            'action'       => 'complaint.assigned',
+        $this->assertSame($original, $this->complaint->fresh()->assigned_to);
+        $this->assertDatabaseMissing('audit_logs', [
+            'subject_type' => 'complaint',
             'subject_id'   => $this->complaint->id,
+            'action'       => 'complaint.assigned',
         ]);
     }
 
-    public function test_operator_can_unassign_complaint(): void
+    public function test_operator_cannot_unassign_complaint(): void
     {
+        $original = $this->complaint->assigned_to;
+        $this->assertNotNull($original);
+
         $this->actingAs($this->operator)
-            ->patch(route('operator.complaint.assign', $this->complaint), [
+            ->patch('/operator/laporan/' . $this->complaint->id . '/tugaskan', [
                 'assigned_to' => null,
             ])
-            ->assertRedirect(route('operator.complaint.show', $this->complaint))
-            ->assertSessionHas('success');
+            ->assertNotFound();
 
-        $this->assertDatabaseHas('complaints', [
-            'id'          => $this->complaint->id,
-            'assigned_to' => null,
-        ]);
+        $this->assertSame($original, $this->complaint->fresh()->assigned_to);
     }
 
     public function test_operator_cannot_assign_to_citizen(): void
     {
+        $original = $this->complaint->assigned_to;
+
         $this->actingAs($this->operator)
-            ->patch(route('operator.complaint.assign', $this->complaint), [
+            ->patch('/operator/laporan/' . $this->complaint->id . '/tugaskan', [
                 'assigned_to' => $this->citizen->id,
             ])
-            ->assertRedirect(route('operator.complaint.show', $this->complaint))
-            ->assertSessionHasErrors('assigned_to');
+            ->assertNotFound();
 
-        // complaint assignment unchanged
-        $this->assertDatabaseHas('complaints', [
-            'id'          => $this->complaint->id,
-            'assigned_to' => $this->operator->id, // original
-        ]);
+        $this->assertSame($original, $this->complaint->fresh()->assigned_to);
     }
 
     public function test_operator_cannot_assign_to_admin(): void
     {
+        $original = $this->complaint->assigned_to;
+
         $this->actingAs($this->operator)
-            ->patch(route('operator.complaint.assign', $this->complaint), [
+            ->patch('/operator/laporan/' . $this->complaint->id . '/tugaskan', [
                 'assigned_to' => $this->admin->id,
             ])
-            ->assertRedirect(route('operator.complaint.show', $this->complaint))
-            ->assertSessionHasErrors('assigned_to');
+            ->assertNotFound();
+
+        $this->assertSame($original, $this->complaint->fresh()->assigned_to);
     }
 
     public function test_operator_cannot_assign_to_inactive_operator(): void
     {
         $inactive = User::factory()->create(['role' => 'operator', 'is_active' => false]);
+        $original = $this->complaint->assigned_to;
 
         $this->actingAs($this->operator)
-            ->patch(route('operator.complaint.assign', $this->complaint), [
+            ->patch('/operator/laporan/' . $this->complaint->id . '/tugaskan', [
                 'assigned_to' => $inactive->id,
             ])
-            ->assertRedirect(route('operator.complaint.show', $this->complaint))
-            ->assertSessionHasErrors('assigned_to');
+            ->assertNotFound();
+
+        $this->assertSame($original, $this->complaint->fresh()->assigned_to);
     }
 
     public function test_historical_assignment_is_not_automatically_changed(): void
@@ -382,27 +463,27 @@ class OperatorComplaintWorkflowTest extends TestCase
     // 6. Status update (transition rules)
     // =========================================================================
 
-    public function test_operator_can_transition_status_from_submitted_to_under_review(): void
+    public function test_operator_can_transition_status_from_submitted_to_in_progress(): void
     {
         $this->actingAs($this->operator)
             ->patch(route('operator.complaint.update-status', $this->complaint), [
-                'status' => 'under_review',
-                'note'   => 'Laporan sedang ditinjau',
+                'status' => 'in_progress',
+                'note'   => 'Laporan sedang diproses',
             ])
             ->assertRedirect(route('operator.complaint.show', $this->complaint))
             ->assertSessionHas('success');
 
         $this->assertDatabaseHas('complaints', [
             'id'     => $this->complaint->id,
-            'status' => 'under_review',
+            'status' => 'in_progress',
         ]);
 
         $this->assertDatabaseHas('complaint_status_histories', [
             'complaint_id' => $this->complaint->id,
             'from_status'  => 'submitted',
-            'to_status'    => 'under_review',
+            'to_status'    => 'in_progress',
             'changed_by'   => $this->operator->id,
-            'note'         => 'Laporan sedang ditinjau',
+            'note'         => 'Laporan sedang diproses',
         ]);
 
         $this->assertDatabaseHas('audit_logs', [
@@ -454,13 +535,13 @@ class OperatorComplaintWorkflowTest extends TestCase
     {
         $this->actingAs($this->operator)
             ->patch(route('operator.complaint.update-status', $this->complaint), [
-                'status' => 'under_review',
+                'status' => 'in_progress',
             ])
             ->assertRedirect();
 
         // All three records must exist
-        $this->assertDatabaseHas('complaints', ['id' => $this->complaint->id, 'status' => 'under_review']);
-        $this->assertDatabaseHas('complaint_status_histories', ['complaint_id' => $this->complaint->id, 'to_status' => 'under_review']);
+        $this->assertDatabaseHas('complaints', ['id' => $this->complaint->id, 'status' => 'in_progress']);
+        $this->assertDatabaseHas('complaint_status_histories', ['complaint_id' => $this->complaint->id, 'to_status' => 'in_progress']);
         $this->assertDatabaseHas('audit_logs', ['action' => 'complaint.status_updated', 'subject_id' => $this->complaint->id]);
     }
 
@@ -705,17 +786,20 @@ class OperatorComplaintWorkflowTest extends TestCase
 
     public function test_admin_cannot_mutate_complaints(): void
     {
+        // PHASE 2R — the operator category/assignment endpoints are removed, so
+        // these resolve to 404 for everyone (including admin). The remaining
+        // mutations are role-gated and must be forbidden for admin.
         $this->actingAs($this->admin)
-            ->patch(route('operator.complaint.update-category', $this->complaint), [
+            ->patch('/operator/laporan/' . $this->complaint->id . '/kategori', [
                 'category_id' => $this->category2->id,
             ])
-            ->assertForbidden();
+            ->assertNotFound();
 
         $this->actingAs($this->admin)
-            ->patch(route('operator.complaint.assign', $this->complaint), [
+            ->patch('/operator/laporan/' . $this->complaint->id . '/tugaskan', [
                 'assigned_to' => $this->operator->id,
             ])
-            ->assertForbidden();
+            ->assertNotFound();
 
         $this->actingAs($this->admin)
             ->patch(route('operator.complaint.update-status', $this->complaint), [
@@ -772,11 +856,15 @@ class OperatorComplaintWorkflowTest extends TestCase
 
     public function test_citizen_cannot_bypass_idor_for_category_update(): void
     {
+        // PHASE 2R — the operator category-mutation route was removed, so this URI
+        // resolves to no route at all (404) for every actor.
         $this->actingAs($this->citizen)
             ->patch('/operator/laporan/' . $this->complaint->id . '/kategori', [
                 'category_id' => $this->category2->id,
             ])
-            ->assertForbidden();
+            ->assertNotFound();
+
+        $this->assertSame($this->category->id, $this->complaint->fresh()->category_id);
     }
 
     public function test_citizen_cannot_bypass_idor_for_note(): void
@@ -791,10 +879,11 @@ class OperatorComplaintWorkflowTest extends TestCase
 
     public function test_citizen_cannot_bypass_idor_for_assignment(): void
     {
+        // PHASE 2R — the operator assignment route was removed (404 for all).
         $this->actingAs($this->citizen)
             ->patch('/operator/laporan/' . $this->complaint->id . '/tugaskan', [
                 'assigned_to' => $this->operator->id,
             ])
-            ->assertForbidden();
+            ->assertNotFound();
     }
 }

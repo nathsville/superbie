@@ -3,6 +3,7 @@
 namespace App\Http\Requests\SuperAdmin;
 
 use App\Models\DinasUnit;
+use App\Support\QueryInput;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -51,10 +52,29 @@ class SaveDinasUnitRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        // Coerce `name`/`code` to trimmed strings ONLY when the input is scalar.
+        // A crafted array (`name[]=x`, `code[]=y`) is left untouched so the
+        // `string` rule rejects it with a 422 — never cast inline, which would
+        // raise "Array to string conversion" (HTTP 500).
+        $name = $this->input('name');
+        $code = $this->input('code');
+
+        // `is_active`: normalise a scalar to a real boolean; an array is left as
+        // the array so the `boolean` rule rejects it (it must never be silently
+        // coerced to `false`, which would create an inactive unit).
+        $isActive = $this->input('is_active');
+        if ($isActive === null) {
+            $normalisedActive = false;               // absent → inactive (legacy default)
+        } elseif (is_scalar($isActive)) {
+            $normalisedActive = $this->boolean('is_active');
+        } else {
+            $normalisedActive = $isActive;
+        }
+
         $this->merge([
-            'is_active' => $this->boolean('is_active'),
-            'code' => $this->filled('code') ? trim((string) $this->input('code')) : null,
-            'name' => trim((string) $this->input('name')),
+            'name'      => is_scalar($name) ? trim((string) $name) : $name,
+            'code'      => is_scalar($code) ? ($this->filled('code') ? trim((string) $code) : null) : $code,
+            'is_active' => $normalisedActive,
         ]);
     }
 }

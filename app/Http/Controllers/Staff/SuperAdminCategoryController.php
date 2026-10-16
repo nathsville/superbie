@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\SuperAdmin\SaveComplaintCategoryRequest;
 use App\Models\AuditLog;
 use App\Models\ComplaintCategory;
+use App\Support\QueryInput;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -34,7 +35,7 @@ class SuperAdminCategoryController extends Controller
     {
         $query = ComplaintCategory::query()->withCount('complaints', 'dinasUnits');
 
-        if ($search = trim((string) $request->get('search'))) {
+        if ($search = QueryInput::trimmed($request->get('search'))) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', '%' . $search . '%')
                   ->orWhere('slug', 'like', '%' . $search . '%');
@@ -49,7 +50,11 @@ class SuperAdminCategoryController extends Controller
 
         $categories = $query->orderBy('sort_order')->orderBy('name')->paginate(20)->withQueryString();
 
-        return view('super-admin.categories.index', compact('categories'));
+        return view('super-admin.categories.index', [
+            'categories' => $categories,
+            'search'     => QueryInput::trimmed($request->get('search')) ?? '',
+            'status'     => QueryInput::string($request->get('status')) ?? '',
+        ]);
     }
 
     public function create(): View

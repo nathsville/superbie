@@ -8,6 +8,7 @@ use App\Models\ComplaintCategory;
 use App\Models\DinasUnit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 /**
@@ -204,9 +205,22 @@ class DinasUnitRoutingTest extends TestCase
 
     // =========================================================================
     // OPERATOR — ACTUAL DESTINATION
+    //
+    // PHASE 2R — an Operator must NEVER be able to set/clear the Dinas/Unit
+    // destination. The endpoint was REMOVED entirely (404 for every actor); the
+    // destination is decided by Super Admin initial validation. The tests below
+    // assert the route is gone AND that no state changes (immutability guarantee).
     // =========================================================================
 
-    public function test_operator_can_set_destination_from_mapped_active_dinas(): void
+    public function test_operator_destination_route_is_removed(): void
+    {
+        $this->assertFalse(
+            Route::has('operator.complaint.update-destination'),
+            'The operator destination-mutation route must not exist (PHASE 2R).'
+        );
+    }
+
+    public function test_operator_cannot_set_destination(): void
     {
         $pupr = $this->makeDinas(['name' => 'Dinas PU', 'is_active' => true]);
         $dishub = $this->makeDinas(['name' => 'Dinas Perhubungan', 'is_active' => true]);
@@ -214,15 +228,19 @@ class DinasUnitRoutingTest extends TestCase
 
         $complaint = $this->makeComplaint();
 
-        $this->actingAs($this->operator)->patch(route('operator.complaint.update-destination', $complaint), [
+        $this->actingAs($this->operator)->patch('/operator/laporan/' . $complaint->id . '/tujuan', [
             'dinas_unit_id' => $pupr->id,
-        ])->assertRedirect(route('operator.complaint.show', $complaint));
+        ])->assertNotFound();
 
-        $this->assertSame($pupr->id, $complaint->fresh()->dinas_unit_id);
-        $this->assertDatabaseHas('audit_logs', ['action' => 'complaint.destination_updated', 'subject_type' => 'complaint']);
+        $this->assertNull($complaint->fresh()->dinas_unit_id);
+        $this->assertDatabaseMissing('audit_logs', [
+            'subject_type' => 'complaint',
+            'subject_id'   => $complaint->id,
+            'action'       => 'complaint.destination_updated',
+        ]);
     }
 
-    public function test_destination_not_mapped_to_category_is_rejected(): void
+    public function test_operator_cannot_set_unmapped_destination(): void
     {
         $mapped = $this->makeDinas();
         $unmapped = $this->makeDinas();
@@ -230,38 +248,37 @@ class DinasUnitRoutingTest extends TestCase
 
         $complaint = $this->makeComplaint();
 
-        $this->actingAs($this->operator)->patch(route('operator.complaint.update-destination', $complaint), [
+        $this->actingAs($this->operator)->patch('/operator/laporan/' . $complaint->id . '/tujuan', [
             'dinas_unit_id' => $unmapped->id,
-        ])->assertSessionHasErrors('dinas_unit_id');
+        ])->assertNotFound();
 
         $this->assertNull($complaint->fresh()->dinas_unit_id);
     }
 
-    public function test_inactive_dinas_cannot_be_new_destination(): void
+    public function test_operator_cannot_set_inactive_destination(): void
     {
         $inactive = $this->makeDinas(['is_active' => false]);
         $this->category->dinasUnits()->attach($inactive->id);
 
         $complaint = $this->makeComplaint();
 
-        $this->actingAs($this->operator)->patch(route('operator.complaint.update-destination', $complaint), [
+        $this->actingAs($this->operator)->patch('/operator/laporan/' . $complaint->id . '/tujuan', [
             'dinas_unit_id' => $inactive->id,
-        ])->assertSessionHasErrors('dinas_unit_id');
+        ])->assertNotFound();
 
         $this->assertNull($complaint->fresh()->dinas_unit_id);
     }
 
-    public function test_operator_can_clear_destination(): void
+    public function test_operator_cannot_clear_destination(): void
     {
-        // Prompt 15 — the complaint must be within the operator's scope to be
-        // actionable. Route it to the operator's own unit, then clear it.
         $complaint = $this->makeComplaint(['dinas_unit_id' => $this->operatorUnit->id]);
 
-        $this->actingAs($this->operator)->patch(route('operator.complaint.update-destination', $complaint), [
+        $this->actingAs($this->operator)->patch('/operator/laporan/' . $complaint->id . '/tujuan', [
             'dinas_unit_id' => '',
-        ])->assertRedirect();
+        ])->assertNotFound();
 
-        $this->assertNull($complaint->fresh()->dinas_unit_id);
+        // The stored destination is preserved (never cleared by an Operator).
+        $this->assertSame($this->operatorUnit->id, $complaint->fresh()->dinas_unit_id);
     }
 
     // =========================================================================
@@ -286,7 +303,7 @@ class DinasUnitRoutingTest extends TestCase
         $this->assertDatabaseHas('complaints', ['id' => $complaint->id]);
     }
 
-    public function test_inactive_existing_destination_remains_selectable_for_that_complaint(): void
+    public function test_inactive_existing_destination_remains_stored_for_that_complaint(): void
     {
         $pupr = $this->makeDinas(['name' => 'Dinas PU', 'is_active' => false]);
         $this->category->dinasUnits()->attach($pupr->id);
@@ -297,10 +314,11 @@ class DinasUnitRoutingTest extends TestCase
 
         $complaint = $this->makeComplaint(['dinas_unit_id' => $pupr->id]);
 
-        // Re-submitting the same (inactive) destination must be accepted (no change).
-        $this->actingAs($this->operator)->patch(route('operator.complaint.update-destination', $complaint), [
+        // PHASE 2R — the Operator cannot mutate the destination at all; the stored
+        // (inactive, historical) destination is preserved and never force-cleared.
+        $this->actingAs($this->operator)->patch('/operator/laporan/' . $complaint->id . '/tujuan', [
             'dinas_unit_id' => $pupr->id,
-        ])->assertSessionHasNoErrors();
+        ])->assertNotFound();
 
         $this->assertSame($pupr->id, $complaint->fresh()->dinas_unit_id);
     }
@@ -334,10 +352,10 @@ class DinasUnitRoutingTest extends TestCase
     }
 
     // =========================================================================
-    // OPERATOR SHOW — VALID DESTINATION LIST
+    // OPERATOR SHOW — DESTINATION IS READ-ONLY (PHASE 2R)
     // =========================================================================
 
-    public function test_operator_show_offers_only_active_mapped_destinations(): void
+    public function test_operator_show_has_no_destination_selector(): void
     {
         $active = $this->makeDinas(['name' => 'Dinas Aktif', 'is_active' => true]);
         $inactive = $this->makeDinas(['name' => 'Dinas Nonaktif', 'is_active' => false]);
@@ -348,13 +366,32 @@ class DinasUnitRoutingTest extends TestCase
 
         $response = $this->actingAs($this->operator)->get(route('operator.complaint.show', $complaint));
         $response->assertOk();
-        $response->assertSee('Dinas Aktif');
-        $response->assertDontSee('Dinas Nonaktif');
-        $response->assertDontSee('Dinas Bukan Mapping');
+
+        // No destination selector of any kind is rendered (read-only info only).
+        $response->assertDontSee('name="dinas_unit_id"', false);
+        $response->assertDontSee('Simpan Tujuan');
+        $response->assertDontSee('Tugaskan Operator');
+    }
+
+    public function test_operator_show_displays_own_destination_read_only(): void
+    {
+        $dinas = $this->makeDinas(['name' => 'Dinas Tujuan Baca', 'is_active' => true]);
+        $this->category->dinasUnits()->attach($dinas->id);
+
+        // Prompt 15 — the operator must belong to the complaint's unit to see it.
+        $this->operator->forceFill(['dinas_unit_id' => $dinas->id])->save();
+
+        $complaint = $this->makeComplaint(['dinas_unit_id' => $dinas->id]);
+
+        $response = $this->actingAs($this->operator)->get(route('operator.complaint.show', $complaint));
+        $response->assertOk();
+        $response->assertSee('Dinas Tujuan Baca');
+        // Still no writable control for it.
+        $response->assertDontSee('name="dinas_unit_id"', false);
     }
 
     // =========================================================================
-    // AUTHORIZATION — OPERATOR DESTINATION ROUTE
+    // AUTHORIZATION — OPERATOR DESTINATION ROUTE (REMOVED IN PHASE 2R)
     // =========================================================================
 
     public function test_citizen_and_admin_cannot_set_destination(): void
@@ -363,13 +400,14 @@ class DinasUnitRoutingTest extends TestCase
         $this->category->dinasUnits()->attach($dinas->id);
         $complaint = $this->makeComplaint();
 
+        // The route is gone: 404 for every actor, and no state change.
         $this->actingAs($this->citizen)
-            ->patch(route('operator.complaint.update-destination', $complaint), ['dinas_unit_id' => $dinas->id])
-            ->assertForbidden();
+            ->patch('/operator/laporan/' . $complaint->id . '/tujuan', ['dinas_unit_id' => $dinas->id])
+            ->assertNotFound();
 
         $this->actingAs($this->admin)
-            ->patch(route('operator.complaint.update-destination', $complaint), ['dinas_unit_id' => $dinas->id])
-            ->assertForbidden();
+            ->patch('/operator/laporan/' . $complaint->id . '/tujuan', ['dinas_unit_id' => $dinas->id])
+            ->assertNotFound();
 
         $this->assertNull($complaint->fresh()->dinas_unit_id);
     }
@@ -441,13 +479,15 @@ class DinasUnitRoutingTest extends TestCase
 
         $response = $this->actingAs($this->operator)->get(route('operator.complaint.show', $complaint));
         $response->assertOk();
-        $response->assertSee('Dinas B Aktif');
+        // PHASE 2R — no destination selector exists at all, so inactive Dinas are
+        // never offered; the destination is decided by Super Admin validation.
+        $response->assertDontSee('name="dinas_unit_id"', false);
         $response->assertDontSee('Dinas A Inaktif');
 
-        // And the server rejects selecting the inactive one as a NEW destination.
-        $this->actingAs($this->operator)->patch(route('operator.complaint.update-destination', $complaint), [
+        // And the server rejects any destination mutation outright (route removed).
+        $this->actingAs($this->operator)->patch('/operator/laporan/' . $complaint->id . '/tujuan', [
             'dinas_unit_id' => $dinasA->id,
-        ])->assertSessionHasErrors('dinas_unit_id');
+        ])->assertNotFound();
     }
 
     /**
@@ -467,10 +507,11 @@ class DinasUnitRoutingTest extends TestCase
         $response->assertOk();
         $response->assertSee('Dinas A Histori');
 
-        // Re-submitting the same stored destination is accepted (no change).
-        $this->actingAs($this->operator)->patch(route('operator.complaint.update-destination', $complaint), [
+        // PHASE 2R — the Operator cannot mutate the destination; the historical
+        // (inactive) value is preserved and displayed read-only.
+        $this->actingAs($this->operator)->patch('/operator/laporan/' . $complaint->id . '/tujuan', [
             'dinas_unit_id' => $dinasA->id,
-        ])->assertSessionHasNoErrors();
+        ])->assertNotFound();
 
         $this->assertSame($dinasA->id, $complaint->fresh()->dinas_unit_id);
     }

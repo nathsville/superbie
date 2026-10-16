@@ -15,7 +15,15 @@ class ComplaintCategoryFactory extends Factory
 
     public function definition(): array
     {
-        $name = fake()->words(2, true);
+        // The DB enforces UNIQUE(complaint_categories.slug). Deriving the slug
+        // from a purely random 2-word phrase could collide between records and
+        // intermittently fail fixtures (e.g. the 25-category pagination test).
+        // The faker `unique()` proxy (the same convention used by UserFactory
+        // and DinasUnitFactory) guarantees a distinct phrase per generated
+        // record within the process, so the derived slug is unique by
+        // construction while staying human-readable. No schema or production
+        // behaviour is affected — this is a test/dev fixture only.
+        $name = fake()->unique()->words(2, true);
         return [
             'name' => ucfirst($name),
             'slug' => Str::slug($name),

@@ -19,6 +19,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             \App\Http\Middleware\EnsureUserIsActive::class,
+            // WINDY (O-8): narrow security headers incl. a minimal CSP that
+            // permits ONLY the Windy.com embed as an external frame.
+            \App\Http\Middleware\AddSecurityHeaders::class,
         ]);
 
         // Enable the framework's session-authentication guard middleware so that

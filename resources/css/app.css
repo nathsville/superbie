@@ -17,30 +17,115 @@
   --shadow-card-hover: 0 10px 25px -4px rgba(3, 4, 94, 0.08), 0 4px 12px -2px rgba(3, 4, 94, 0.03);
   --shadow-float-pill: 0 12px 30px -4px rgba(3, 4, 94, 0.12);
 
+  /* Site primary font — Poppins. Overriding `--font-sans` makes Tailwind's
+     `html`/`--default-font-family` and the `.font-sans` utility all resolve to
+     Poppins, matching the `body` rule below. (Monospace text keeps its own
+     `--font-mono` stack.) */
+  --font-sans: 'Poppins', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
   /* Plus Jakarta Sans font family token */
   --font-family-jakarta: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
   --font-family-jetbrains: 'JetBrains Mono', ui-monospace, monospace;
 }
 
-/* ─── Design Tokens (design.md §2) ─────────────────────────────────────────── */
-:root {
-  --color-primary-700:   #1D4ED8;
-  --color-primary-600:   #2563EB;
-  --color-primary-100:   #DBEAFE;
-  --color-secondary-700: #0F766E;
-  --color-secondary-100: #CCFBF1;
-  --color-accent-500:    #F59E0B;
-  --color-bg:            #F8FAFC;
+/* ─── Design Tokens (design.md §2) ─────────────────────────────────────────────
+   These MUST live inside `@theme`, not `:root`. Tailwind v4 only turns
+   `@theme` variables into utilities; variables declared on `:root` are ignored
+   by the compiler. That mismatch is why 96 of 106 Blade files hardcode hex
+   values such as `bg-[#2563EB]` — `bg-primary-600` simply did not exist.
+
+   Values are unchanged from design.md §2. Naming maps to utilities like:
+     --color-primary-600  →  bg-primary-600 / text-primary-600 / ring-primary-600
+     --color-surface      →  bg-surface
+     --color-text         →  text-text        (see aliases below)  */
+@theme {
+  /* ── Brand scales — derived from the official SuperBie logo ───────────────
+     The logo is a bee built from exactly two colours: brand blue #013FF6
+     ("Super" + the bee) and brand yellow #FFC14D ("Bie" + the sparkle).
+     Every step below is an HSL sibling of one of those two colours, so the
+     whole scale stays inside the logo's hue family instead of drifting into
+     Tailwind's default blues and ambers.
+
+     Contrast was measured, not assumed:
+       white on primary-600 ....... 6.9:1   buttons, links on brand
+       primary-700 on white ....... 9.5:1   link / body text
+       primary-700 on primary-100 . 7.5:1   badges
+       accent-600 on white ........ 5.1:1   warning text  (Tailwind's
+                                            amber-600 was only 3.9:1)
+       accent-700 on white ........ 5.9:1   icons, small text
+     accent-500 and lighter are FILL colours only — #FFC14D on white is
+     1.6:1, so it must never carry text. Use accent-600/700 for that. */
+  --color-primary-50:    #F0F4FF;
+  --color-primary-100:   #DBE4FF;
+  --color-primary-200:   #C2D1FF;
+  --color-primary-300:   #99B3FF;
+  --color-primary-400:   #5C85FF;
+  --color-primary-500:   #2A5FFE;
+  --color-primary-600:   #013FF6;   /* logo blue, exactly */
+  --color-primary-700:   #0131C1;
+  --color-primary-800:   #01248E;
+  --color-primary-900:   #011C70;
+
+  --color-accent-50:     #FFFBF5;
+  --color-accent-100:    #FFF1D6;
+  --color-accent-200:    #FFE8BD;
+  --color-accent-300:    #FFD88F;
+  --color-accent-400:    #FFCB6B;
+  --color-accent-500:    #FFC14D;   /* logo yellow, exactly */
+  --color-accent-600:    #996300;
+  --color-accent-700:    #8A5A00;
+  --color-accent-800:    #704900;
+  --color-accent-900:    #573800;
+
+  /* ── Neutral scale ───────────────────────────────────────────────────────
+     Cool slate greys, matching the blue hue family of the brand. These are
+     the exact values that were already scattered through the markup as raw
+     hex (#64748B, #94A3B8, #334155, …) — now they have names, and the warm
+     greys that used to sit beside them are gone. */
+  --color-ink-strong:    #1E293B;
+  --color-ink-body:      #334155;
+  --color-ink:           #0F172A;
+  --color-ink-soft:      #475569;
+  --color-ink-faint:     #64748B;
+  --color-ink-ghost:     #94A3B8;
+
+  --color-line-strong:   #CBD5E1;
+  --color-line:          #E2E8F0;
+
+  --color-page:          #F8FAFC;
   --color-surface:       #FFFFFF;
+  --color-surface-sunken: #F1F5F9;
+  /* Soft cream "canvas" used by the dashboard shell (Prompt 27 — bento
+     reference clone). Flagged: this is the one warm grey left, and it is the
+     only place the app mixes warm and cool greys. */
+  --color-canvas:        #F0F1EE;
+
+  /* Canonical design.md §2 names — same values as the readable aliases above,
+     kept so both `text-text` and `text-ink` work. */
+  --color-bg:            #F8FAFC;
   --color-text:          #0F172A;
   --color-text-muted:    #475569;
   --color-border:        #E2E8F0;
+
+  /* ── Status colours ──────────────────────────────────────────────────────
+     Deliberately NOT brand colours: green means "selesai", red means
+     "ditolak". A citizen must be able to read complaint status at a glance,
+     so these stay semantic. */
   --color-success:       #15803D;
   --color-warning:       #B45309;
   --color-error:         #B91C1C;
+  --color-error-soft:    #FEF2F2;
   --color-info:          #0369A1;
 
-  /* Motion tokens (design.md §5) */
+  /* Borderless "flat" card elevation. Tinted with the brand blue instead of
+     neutral black, so shadows sit in the same hue family as the surfaces. */
+  --shadow-soft:         0 1px 2px rgba(1, 34, 128, 0.04), 0 8px 24px -16px rgba(1, 34, 128, 0.14);
+  --shadow-soft-hover:   0 2px 4px rgba(1, 34, 128, 0.05), 0 16px 34px -18px rgba(1, 34, 128, 0.20);
+}
+
+/* Motion tokens (design.md §5) — not a Tailwind namespace, so plain `:root`
+   stays correct here. Consumed by `.ui-animated` and the entrance keyframes. */
+:root {
   --motion-fast:    120ms;
   --motion-normal:  200ms;
   --motion-slow:    320ms;
@@ -96,24 +181,61 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration:       0.01ms !important;
+    animation-delay:          0ms    !important;
     animation-iteration-count: 1     !important;
-    scroll-behavior:          auto   !important;
     transition-duration:      0.01ms !important;
+    transition-delay:         0ms    !important;
+    scroll-behavior:          auto   !important;
   }
 }
 
+/* ─── Landing hero backdrop — depth without imagery ────────────────────────────
+   Two decorative layers on the hero only: one soft blue wash and one hairline
+   grid that fades out. Both read their colours from design.md tokens. */
+.hero-glow {
+  background-image: radial-gradient(
+    46rem 30rem at 78% -18%,
+    var(--color-primary-100) 0%,
+    transparent 60%
+  );
+}
+
+.hero-grid {
+  background-image:
+    linear-gradient(to right,  var(--color-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-line) 1px, transparent 1px);
+  background-size: 72px 72px;
+  opacity: 0.55;
+  -webkit-mask-image: radial-gradient(120% 70% at 50% 0%, #000 0%, transparent 70%);
+          mask-image: radial-gradient(120% 70% at 50% 0%, #000 0%, transparent 70%);
+}
+
 /* ─── Typography ─────────────────────────────────────────────────────────────── */
+html {
+  /* Anchor navigation (e.g. the landing skip-link) scrolls instead of jumping.
+     Overridden to `auto` by the reduced-motion block above. */
+  scroll-behavior: smooth;
+}
+
 body {
-  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: 'Poppins', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 16px;
   line-height: 1.5;
   color: var(--color-text);
   background-color: var(--color-bg);
 }
 
-h1 { font-size: clamp(2rem, 4vw, 3.25rem); font-weight: 700; line-height: 1.1; }
-h2 { font-size: clamp(1.5rem, 3vw, 2.25rem); font-weight: 700; line-height: 1.2; }
-h3 { font-size: 1.25rem; font-weight: 650; line-height: 1.3; }
+/* These three sizes are the landing page's display type. They only reach
+   headings with no Tailwind text-* size class: the landing hero (h1) and the
+   landing section title (h2). They live inside @layer base deliberately.
+   Before, they sat outside every layer, and unlayered CSS outranks layered
+   CSS, so text-2xl on an <h1> lost and inner-page headings rendered at up to
+   52px. */
+@layer base {
+  h1 { font-size: clamp(2rem, 4vw, 3.25rem); font-weight: 700; line-height: 1.1; }
+  h2 { font-size: clamp(1.5rem, 3vw, 2.25rem); font-weight: 700; line-height: 1.2; }
+  h3 { font-size: 1.25rem; font-weight: 650; line-height: 1.3; }
+}
 
 /* ─── Focus visible (accessibility) ─────────────────────────────────────────── */
 :focus-visible {
@@ -148,34 +270,451 @@ h3 { font-size: 1.25rem; font-weight: 650; line-height: 1.3; }
 }
 
 .nav-link.active {
-  color: #FFFFFF;
+  color: var(--color-surface);
   background-color: var(--color-primary-700);
   font-weight: 600;
-  box-shadow: 0 4px 12px -2px rgba(29, 78, 216, 0.25);
+  box-shadow: 0 4px 12px -2px rgba(1, 49, 193, 0.25);
 }
 
 .nav-link.active svg {
-  color: #FFFFFF;
+  color: var(--color-surface);
 }
 
 .nav-link.active:hover {
-  color: #FFFFFF;
+  color: var(--color-surface);
   background-color: var(--color-primary-700);
+}
+
+/* ─── Icon rail navigation (Prompt 27 — dashboard shell) ───────────────────────
+   Shape/feel only: narrow floating rail with circular icons and a filled
+   rounded-square active state, cloned from the supplied reference. Colors stay
+   the repository's blue/teal brand tokens. Labels remain in the DOM for
+   accessibility (`title` + `aria-label` + `.sr-only`). */
+.nav-rail-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  transition:
+    color            var(--motion-normal) var(--ease-standard),
+    background-color var(--motion-normal) var(--ease-standard),
+    box-shadow       var(--motion-normal) var(--ease-standard),
+    transform        var(--motion-normal) var(--ease-standard);
+}
+
+/* Desktop: collapse to a centered circular icon target (the icon rail). */
+@media (min-width: 1024px) {
+  .nav-rail-link {
+    justify-content: center;
+    gap: 0;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border-radius: 9999px;
+  }
+}
+
+/* ─── Collapsible rail: click to expand / pin to lock (desktop) ───────────────
+   On desktop the rail is a DOCKED FLEX SIBLING of the main content (no overlay,
+   no absolute/fixed positioning): the rail's width change reflows the content
+   beside it, so nothing is ever covered. The rail is COLLAPSED by default and
+   only widens when the user clicks the menu button (navbar) or the rail surface
+   — never on hover. A pin toggle keeps it open permanently. Mobile keeps the
+   off-canvas drawer behaviour (unchanged). */
+
+/* Sidebar header (brand + a single control). Mobile drawer: brand left, close
+   button right. Desktop: collapsed shows only the centred shield mark; expanded
+   shows the brand left and the pin control right. */
+.sb-rail-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 4.25rem;
+  padding: 0.75rem 1rem;
+}
+
+.sb-rail-brand {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.sb-rail-brand-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.sb-rail-name {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--color-ink);
+}
+
+.sb-rail-tagline {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+
+/* Header controls are a desktop affordance (mobile uses the drawer). */
+.sb-rail-controls {
+  display: none;
+}
+
+/* Rail footer (bottom of the rail): a compact group — Logout + expand toggle on
+   the action row, then the account link last. Mobile drawer: full-width rows. */
+.sb-rail-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.75rem 0.875rem 0.875rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.sb-rail-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.sb-rail-logout-form {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Account link (last element of the rail). */
+.sb-rail-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.sb-rail-profile:hover {
+  background-color: var(--color-bg);
+}
+
+.sb-rail-profile:hover .sb-rail-avatar {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+.sb-rail-logout {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+}
+
+.sb-rail-logout:hover {
+  color: var(--color-error);
+  background-color: var(--color-error-soft);
+}
+
+/* Small round expand/collapse toggle (16px chevron — standard menu-icon size).
+   Desktop-only affordance (mobile uses the off-canvas drawer). */
+.sb-rail-expand {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  color: var(--color-ink-faint);
+  background-color: var(--color-surface-sunken);
+  cursor: pointer;
+}
+
+.sb-rail-expand:hover {
+  color: var(--color-primary-700);
+  background-color: var(--color-line);
+}
+
+.sb-rail-expand:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.sb-rail-expand-icon {
+  width: 1rem;
+  height: 1rem;
+  transition: transform var(--motion-normal) var(--ease-standard);
+}
+
+/* Expanded → the chevron points inward (collapse). */
+.sb-rail-expanded .sb-rail-expand-icon {
+  transform: rotate(180deg);
+}
+
+/* Topbar profile — interactive link with hover feedback. */
+.sb-topbar-profile {
+  padding: 0.25rem 0.5rem 0.25rem 0.25rem;
+  text-decoration: none;
+}
+
+.sb-topbar-profile:hover {
+  background-color: var(--color-surface);
+}
+
+@media (min-width: 1024px) {
+  .sb-rail {
+    width: 4.75rem;
+  }
+
+  /* Width transition is enabled only after Alpine has applied the persisted
+     state, so a pinned rail does not animate on first paint. */
+  .sb-rail-ready .sb-rail {
+    transition: width var(--motion-slow) var(--ease-standard);
+  }
+
+  .sb-rail-expanded .sb-rail {
+    width: 16rem;
+  }
+
+  /* Collapsed: only the shield mark, centred, with no control shown. */
+  .sb-rail-top {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  /* Expanded: brand left, single pin control right. */
+  .sb-rail-expanded .sb-rail-top {
+    justify-content: space-between;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .sb-rail-expanded .sb-rail-controls {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  /* Rail links become full labelled rows when the rail is open. */
+  .sb-rail-expanded .nav-rail-link {
+    justify-content: flex-start;
+    gap: 0.75rem;
+    width: 100%;
+    height: auto;
+    padding: 0.625rem 0.75rem;
+    border-radius: 0.75rem;
+  }
+
+  /* Footer group: centred compact column when collapsed; tidy rows when open. */
+  .sb-rail-footer {
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.5rem 0.875rem;
+  }
+
+  .sb-rail-footer-actions {
+    flex-direction: column;
+    gap: 0.375rem;
+    width: auto;
+  }
+
+  .sb-rail-logout-form {
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  .sb-rail-expand {
+    display: inline-flex;
+  }
+
+  /* Collapsed: icon-only circular Logout + circular toggle (labels clipped by
+     `.rail-label`), avatar centred below. */
+  .sb-rail-logout {
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border-radius: 9999px;
+  }
+
+  .sb-rail-profile {
+    justify-content: center;
+    width: auto;
+    padding: 0.25rem 0;
+    border-radius: 0.75rem;
+  }
+
+  /* Expanded: action row (Logout left, toggle right), then the account row. */
+  .sb-rail-expanded .sb-rail-footer {
+    align-items: stretch;
+  }
+
+  .sb-rail-expanded .sb-rail-footer-actions {
+    flex-direction: row;
+    gap: 0.375rem;
+    width: 100%;
+  }
+
+  .sb-rail-expanded .sb-rail-logout-form {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .sb-rail-expanded .sb-rail-logout {
+    justify-content: flex-start;
+    width: 100%;
+    height: auto;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.75rem;
+  }
+
+  .sb-rail-expanded .sb-rail-profile {
+    justify-content: flex-start;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+  }
+
+  /* Nav list stretches to full width when open. */
+  .sb-rail-expanded .sb-rail-nav-list {
+    align-items: stretch;
+  }
+}
+
+/* Labels (rail links, brand, account): visible in the mobile drawer; clipped to
+   an assistive-tech-only label on the collapsed desktop rail. */
+@media (min-width: 1024px) {
+  .rail-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    white-space: nowrap;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+    opacity: 0;
+  }
+
+  .sb-rail-ready .rail-label {
+    transition: opacity var(--motion-normal) var(--ease-standard);
+  }
+
+  .sb-rail-expanded .rail-label {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    white-space: normal;
+    clip: auto;
+    opacity: 1;
+  }
+}
+
+.nav-rail-link:hover {
+  color: var(--color-text);
+  background-color: var(--color-bg);
+}
+
+.nav-rail-link.is-active {
+  color: var(--color-surface);
+  background-color: var(--color-primary-700);
+  box-shadow: 0 10px 22px -8px rgba(29, 78, 216, 0.75);
+}
+
+.nav-rail-link.is-active:hover {
+  color: var(--color-surface);
+  background-color: var(--color-primary-700);
+}
+
+.nav-rail-link.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.nav-rail-link .nav-rail-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-rail-link .nav-rail-icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
 }
 
 /* ─── Stat card ──────────────────────────────────────────────────────────────── */
 .stat-card {
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
+  border: 0;
+  border-radius: 1.5rem;
   padding: 1.5rem;
-  transition:
-    box-shadow var(--motion-normal) var(--ease-standard),
-    border-color var(--motion-normal) var(--ease-standard);
+  box-shadow: var(--shadow-soft);
+  transition: box-shadow var(--motion-normal) var(--ease-standard);
 }
 
 .stat-card:hover {
-  box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  box-shadow: var(--shadow-soft-hover);
+}
+
+/* ─── Soft bento card (Prompt 27 — bento-grid style clone) ────────────────────
+   Deep radius, NO hairline border, very soft layered shadow (flat style).
+   Shape/feel only — the accent colors stay the repository's blue/teal tokens. */
+.soft-card {
+  background: var(--color-surface);
+  border: 0;
+  border-radius: 1.5rem;
+  box-shadow: var(--shadow-soft);
+}
+
+.soft-card-hover {
+  transition:
+    box-shadow var(--motion-normal) var(--ease-standard),
+    translate  var(--motion-normal) var(--ease-standard);
+}
+
+/* Lift via the individual `translate` property — NOT `transform`. Cards that
+   also carry `.card-enter` animate `transform` with `fill-mode: both`, which
+   permanently pins `transform: translateY(0)` and silently cancels any
+   `transform`-based hover. `translate` is an independent property, so the lift
+   survives (same technique as the public `/cuaca` cards). */
+.soft-card-hover:hover {
+  box-shadow: var(--shadow-soft-hover);
+  translate: 0 -1px;
+}
+
+/* ─── Dashboard shell surfaces (Prompt 27 — bento reference clone) ────────────
+   Soft grey/cream canvas behind the whole dashboard, plus the floating rail
+   card. Shape/feel only — brand accents stay blue/teal. */
+.sb-canvas {
+  background-color: var(--color-canvas);
+}
+
+@media (min-width: 1024px) {
+  .sb-rail-surface {
+    background-color: var(--color-surface);
+    border-radius: 1.75rem;
+    box-shadow: var(--shadow-soft);
+  }
 }
 
 /* ─── Status badge ───────────────────────────────────────────────────────────── */
@@ -225,7 +764,7 @@ h3 { font-size: 1.25rem; font-weight: 650; line-height: 1.3; }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #CBD5E1; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-line-strong); }
 
 /* ─── Progressive navigation progress bar (Prompt 26) ───────────────────────── */
 /* Minimal, non-blocking, does not affect layout flow. */
@@ -236,7 +775,7 @@ h3 { font-size: 1.25rem; font-weight: 650; line-height: 1.3; }
   z-index: 60;
   height: 2px;
   width: 0;
-  background: linear-gradient(90deg, #2563EB, #0F766E);
+  background: linear-gradient(90deg, var(--color-primary-600), var(--color-accent-500));
   opacity: 0;
   pointer-events: none;
   transition: width 200ms var(--ease-enter), opacity 150ms var(--ease-standard);
@@ -258,8 +797,7 @@ h3 { font-size: 1.25rem; font-weight: 650; line-height: 1.3; }
   }
 }
 
-/* ─── Modern View Transitions (Cross-Document and Same-Document) ───────────── */
-@media (prefers-reduced-motion: no-preference) {
+/* ─── Modern View Transitions (Cross-Document and Same-Document) ───────────── */@media (prefers-reduced-motion: no-preference) {
   @view-transition {
     navigation: auto;
   }
@@ -282,4 +820,263 @@ h3 { font-size: 1.25rem; font-weight: 650; line-height: 1.3; }
     to   { opacity: 1; transform: scale(1); }
   }
 }
+
+/* ─── Report-location map (Leaflet) — Prompt 4/5 ───────────────────────────── */
+/* The container is given an explicit, responsive height so Leaflet always has a
+   measurable box. `isolation: isolate` creates a stacking context so Leaflet's
+   internal panes/controls can never overlap the sticky app chrome. */
+.location-map-canvas {
+  position: relative;
+  isolation: isolate;
+  z-index: 0;
+  width: 100%;
+  height: 300px;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-line);
+  overflow: hidden;
+  background: var(--color-page);
+}
+
+@media (min-width: 640px) {
+  .location-map-canvas {
+    height: 360px;
+  }
+}
+
+/* Leaflet controls should use the app font, not a serif fallback. */
+.location-map-canvas .leaflet-container {
+  font-family: inherit;
+  background: var(--color-page);
+}
+
+/* ─── Geographic dashboard map (Prompt 5/5) — "Peta Wilayah Aduan" ─────────── */
+/* Read-only analytics map. Explicit responsive height so Leaflet always has a
+   measurable box; no `100vh`. `isolation: isolate` keeps Leaflet panes from
+   overlapping the app chrome. */
+.geographic-map-canvas {
+  position: relative;
+  isolation: isolate;
+  z-index: 0;
+  width: 100%;
+  height: 360px;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-line);
+  overflow: hidden;
+  background: var(--color-page);
+}
+
+@media (min-width: 640px) {
+  .geographic-map-canvas {
+    height: 520px;
+  }
+}
+
+.geographic-map-canvas .leaflet-container {
+  font-family: inherit;
+  background: var(--color-page);
+}
+
+/* Branded cluster bubble (SuperBie blue) instead of the default green/yellow. */
+.sb-cluster-wrapper {
+  background: transparent;
+  border: 0;
+}
+
+.sb-cluster-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  background: rgba(1, 63, 246, 0.92);
+  color: var(--color-surface);
+  font-size: 13px;
+  font-weight: 700;
+  border: 3px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 12px -2px rgba(1, 63, 246, 0.45);
+}
+
+/* Marker popup: minimal read-only summary (no edit/assign/status actions). */
+.sb-popup {
+  min-width: 180px;
+  font-size: 12px;
+}
+
+.sb-popup-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0;
+}
+
+.sb-popup-label {
+  color: var(--color-ink-ghost);
+  font-weight: 500;
+}
+
+.sb-popup-value {
+  color: var(--color-ink);
+  font-weight: 600;
+  text-align: right;
+}
+
+/* ─── Weather page micro-interactions (public `/cuaca`) ───────────────────────
+   Page-scoped motion helpers. Every effect is pure CSS (transform / opacity /
+   box-shadow only) so it stays GPU-friendly, and all of them are neutralised by
+   the global `prefers-reduced-motion` rule near the top of this file. */
+
+/* Lift-on-hover surface: soft elevation + a slightly stronger hairline.
+   Uses the INDIVIDUAL `translate` property (not `transform`) so it composes
+   with the `transform`-based `.card-enter` entrance animation — an animation
+   with `fill-mode: both` would otherwise pin `transform` and cancel the lift. */
+.wx-card {
+  transition:
+    translate    var(--motion-normal) var(--ease-standard),
+    box-shadow   var(--motion-normal) var(--ease-standard),
+    border-color var(--motion-normal) var(--ease-standard);
+}
+
+.wx-card:hover {
+  translate: 0 -2px;
+  border-color: var(--color-line-strong);
+  box-shadow: 0 14px 30px -18px rgba(15, 23, 42, 0.28);
+}
+
+/* Pressable control (chips, pills, buttons): gentle hover lift + tactile press. */
+.wx-press {
+  transition:
+    translate        var(--motion-fast) var(--ease-standard),
+    scale            var(--motion-fast) var(--ease-standard),
+    color            var(--motion-normal) var(--ease-standard),
+    background-color var(--motion-normal) var(--ease-standard),
+    border-color     var(--motion-normal) var(--ease-standard),
+    box-shadow       var(--motion-normal) var(--ease-standard);
+}
+
+.wx-press:hover  { translate: 0 -1px; }
+.wx-press:active { translate: 0 0; scale: 0.97; }
+
+/* Tab button: soft accent glow while selected. */
+.wx-tab[aria-selected='true'] {
+  box-shadow: 0 8px 18px -10px rgba(37, 99, 235, 0.75);
+}
+
+/* Tab panel: fades/slides in on each switch (x-show toggles `display`, which
+   restarts this animation every time the panel becomes visible). */
+.wx-panel {
+  animation: wx-panel-in var(--motion-normal) var(--ease-enter) both;
+}
+
+@keyframes wx-panel-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Compact stat tile: hairline + shadow on hover. Deliberately no lift, so it
+   never compounds with the parent `.wx-card` elevation. */
+.wx-tile {
+  transition:
+    border-color var(--motion-normal) var(--ease-standard),
+    box-shadow   var(--motion-normal) var(--ease-standard);
+}
+
+.wx-tile:hover {
+  border-color: var(--color-line-strong);
+  box-shadow: 0 8px 18px -14px rgba(15, 23, 42, 0.32);
+}
+
+/* Per-3-hour detail row: a soft tint sweeps in on hover. */
+.wx-slot {
+  margin-inline: -0.375rem;
+  padding-inline: 0.375rem;
+  border-radius: 0.375rem;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+
+.wx-slot:hover {
+  background-color: var(--color-surface-sunken);
+}
+
+/* Sticky header: elevation fades in once the page is scrolled. */
+.wx-header {
+  transition:
+    box-shadow       var(--motion-normal) var(--ease-standard),
+    background-color var(--motion-normal) var(--ease-standard);
+}
+
+.wx-header.is-scrolled {
+  box-shadow: 0 10px 26px -20px rgba(15, 23, 42, 0.35);
+}
+
+/* Live indicator dot (running WITA clock): a soft outward ping. */
+.wx-live-dot {
+  position: relative;
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background-color: var(--color-success);
+}
+
+.wx-live-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-color: var(--color-success);
+  animation: wx-ping 1.9s var(--ease-standard) infinite;
+}
+
+@keyframes wx-ping {
+  0%   { transform: scale(1);   opacity: 0.55; }
+  70%  { transform: scale(2.6); opacity: 0; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+/* Early-warning step dots: the reached step breathes gently. */
+.wx-sev-dot { transition: transform var(--motion-normal) var(--ease-standard); }
+
+.wx-sev-dot.is-active { animation: wx-sev-pulse 2.4s var(--ease-standard) infinite; }
+
+@keyframes wx-sev-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.28); }
+}
+
+/* Chart reveal — the SVG is server-rendered, so these run purely in CSS and
+   replay each time the "Prakiraan & Analitik" tab becomes visible again. */
+.wx-chart-area {
+  opacity: 0;
+  animation: wx-fade 0.5s var(--ease-standard) 0.05s forwards;
+}
+
+@keyframes wx-fade { to { opacity: 1; } }
+
+.wx-chart-line {
+  stroke-dasharray: 2800;
+  stroke-dashoffset: 2800;
+  animation: wx-draw 1.15s var(--ease-standard) 0.2s forwards;
+}
+
+@keyframes wx-draw { to { stroke-dashoffset: 0; } }
+
+.wx-chart-bar {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  transform: scaleY(0);
+  animation: wx-grow 0.65s var(--ease-enter) forwards;
+}
+
+@keyframes wx-grow { to { transform: scaleY(1); } }
+
+.wx-chart-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(0);
+  animation: wx-pop 0.4s var(--ease-enter) forwards;
+}
+
+@keyframes wx-pop { to { transform: scale(1); } }
+
 

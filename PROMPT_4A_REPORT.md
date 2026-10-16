@@ -1,6 +1,8 @@
 # SUPERBIE — PROMPT 4A REPORT
 ## Business Decision Freeze — Citizen Response pada `waiting_for_information`
 
+> **LC-2 CORRECTION NOTE (added by LC-2D, later than this document):** This is a dated decision-freeze artifact. The citizen-response decision (H1–H12 = Tidak) still holds, but the `waiting_for_information` status is now **legacy** under LC-2 (no active transition enters or leaves it); the transitions listed below are no longer part of the active lifecycle. See `schema.md` §6. Historical content retained unchanged.
+
 - **Tanggal eksekusi:** (Prompt 4A)
 - **Jenis prompt:** AUDIT + BUSINESS DECISION FREEZE + REQUIREMENT SPECIFICATION
 - **Scope:** Menentukan STATUS KEPUTUSAN RESMI untuk mekanisme balasan/tanggapan Masyarakat saat status `waiting_for_information`.

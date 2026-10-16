@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Support\QueryInput;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
@@ -124,9 +125,11 @@ class UserManagementService
      */
     public function listQuery(array $filters): \Illuminate\Contracts\Pagination\LengthAwarePaginator
     {
-        $query = User::query()->orderBy('name');
+        // PHASE 1 — eager-load the owning Dinas/Unit so the "Dinas/Unit" column
+        // renders without an N+1 query per row.
+        $query = User::query()->with('dinasUnit')->orderBy('name');
 
-        $search = trim((string) ($filters['search'] ?? ''));
+        $search = QueryInput::trimmed($filters['search'] ?? null) ?? '';
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', '%' . $search . '%')
@@ -134,12 +137,12 @@ class UserManagementService
             });
         }
 
-        $role = (string) ($filters['role'] ?? '');
+        $role = QueryInput::string($filters['role'] ?? null) ?? '';
         if ($role !== '' && in_array($role, $this->assignableRoles(), true)) {
             $query->where('role', $role);
         }
 
-        $status = (string) ($filters['status'] ?? '');
+        $status = QueryInput::string($filters['status'] ?? null) ?? '';
         if ($status === 'active') {
             $query->where('is_active', true);
         } elseif ($status === 'inactive') {

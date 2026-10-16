@@ -75,7 +75,7 @@ Semua akun menggunakan password: `password123`
 |---|---|---|
 | **Masyarakat** | `warga1@superbie.local` | Dashboard sendiri, riwayat sendiri, buat laporan |
 | **Masyarakat** | `warga2@superbie.local` | Dashboard sendiri (terisolasi dari warga 1) |
-| **Operator** | `operator@superbie.local` | Penanganan operasional laporan: review, kategori, penugasan, status, catatan, respons |
+| **Operator** | `operator@superbie.local` | Penanganan operasional laporan pada Dinas/Unit sendiri: review, status, catatan internal, respons publik, lokasi. **Tidak** mengubah kategori, tujuan Dinas/Unit, atau penugasan (diputuskan Super Admin pada validasi awal) |
 | **Admin** | `admin@superbie.local` | **Monitoring saja** (tanpa aksi pengelolaan) |
 | **Super Admin** | `superadmin@superbie.local` | Akses penuh seluruh modul dan sistem |
 
@@ -147,14 +147,20 @@ Sesuai aturan **"DOCUMENTATION FIRST / DO NOT INVENT"**, berikut hal-hal yang be
 
 1. **DONE (Prompt 5B)** — Daily report limit final = **5 laporan / hari kalender** (timezone aplikasi), diatur di `config/business_rules.php` dan dapat dioverride via `app_settings.daily_report_limit`.
 2. `TODO: Define official category → dinas/unit mapping` — Daftar kategori resmi Pemerintah Kota Parepare dan **daftar resmi Dinas/Unit** belum ditetapkan. Struktur many-to-many (`dinas_units` + pivot `category_dinas_unit`) dan **CRUD Super Admin (Dinas/Unit: Prompt 5C; Kategori: Prompt 6)** sudah tersedia. Complaint menyimpan **tujuan Dinas/Unit aktual** (`complaints.dinas_unit_id`). Seed berisi *sample/development*, bukan daftar resmi.
-3. `TODO: Define official statuses, SLA, and workflow transitions` — **Status resmi dan transition matrix: DONE (finalized per Prompt 3B).** SLA dan escalation masih pending. **Prompt 8:** karena SLA belum ditetapkan sebagai business rule, tidak ada nilai SLA (mis. 3/5/7 hari atau 24 jam) yang boleh dihitung, ditampilkan, atau diklaim di dashboard/view mana pun. Nilai SLA yang sebelumnya muncul di Admin Dashboard/`Monitoring Laporan` telah **dihapus**; sebagai gantinya hanya ditampilkan **umur laporan** (selisih faktual dari `submitted_at`) yang bukan klaim SLA.
+3. `TODO: Define official statuses, SLA, and workflow transitions` — **Status resmi dan transition matrix: DONE (finalized per Prompt 3B; dinormalisasi LC-2 — FINAL: 7 nilai enum, lifecycle aktif 4 status, 3 transisi).** SLA dan escalation masih pending. **Prompt 8:** karena SLA belum ditetapkan sebagai business rule, tidak ada nilai SLA (mis. 3/5/7 hari atau 24 jam) yang boleh dihitung, ditampilkan, atau diklaim di dashboard/view mana pun. Nilai SLA yang sebelumnya muncul di Admin Dashboard/`Monitoring Laporan` telah **dihapus**; sebagai gantinya hanya ditampilkan **umur laporan** (selisih faktual dari `submitted_at`) yang bukan klaim SLA.
 4. **DONE (Prompt 5B)** — Attachment rules final = **opsional, maks 10 file, maks 20 MB/file, format JPG/JPEG/PNG/PDF/MP4, tanpa malware scanning.** Diatur di `config/business_rules.php`.
 5. **DONE (Prompt 5B)** — Public tracking **tidak diperlukan** untuk MVP; guest tidak boleh melihat data laporan. Tidak ada endpoint/route public tracking.
-6. **DONE (Prompt 5B)** — Notification **tidak diperlukan** untuk MVP.
+6. **DONE (Prompt 5B)** — Notification **eksternal** (email/SMS/WhatsApp) tidak diperlukan untuk MVP. **PHASE N4:** *notifikasi in-app* (bell + halaman `/notifikasi`) **diimplementasikan** — lihat §Notification di bawah.
 7. `TODO: Define retention & privacy policy` — **Privacy: DONE (Prompt 5B)** — masyarakat hanya melihat laporan miliknya; guest tidak dapat mengakses data laporan. **Retention: DONE (Prompt 5B.1)** — 5 tahun sejak `complaints.submitted_at` → **permanent deletion** (data anak complaint, berkas lampiran fisik, audit log terkait complaint). Command `complaints:purge-expired` + scheduler harian (02:00). Akun user & master data tidak terhapus.
-8. **DONE — BUSINESS DECISION FINAL (Prompt 4B)** — Mekanisme tanggapan/balasan Masyarakat saat status `waiting_for_information`. **Keputusan resmi (H1–H12 = Tidak):** Masyarakat **tidak** dapat membalas atau menambahkan informasi/bukti setelah laporan dikirim. Tidak ada citizen response, citizen reply, form tambahan, attachment tambahan, endpoint/route respons, maupun transisi status yang dipicu Masyarakat. Status `waiting_for_information` hanya **ditampilkan** sebagai "Menunggu Informasi"; perpindahan status tetap dilakukan **Operator/Super Admin** sesuai transition matrix yang sudah frozen (`waiting_for_information → in_progress` atau `→ resolved`). Tidak ada entity/kolom/migration tambahan yang diperlukan.
+8. **DONE — BUSINESS DECISION FINAL (Prompt 4B; status diperbarui LC-2)** — Mekanisme tanggapan/balasan Masyarakat saat status `waiting_for_information`. **Keputusan resmi (H1–H12 = Tidak):** Masyarakat **tidak** dapat membalas atau menambahkan informasi/bukti setelah laporan dikirim. Tidak ada citizen response, citizen reply, form tambahan, attachment tambahan, endpoint/route respons, maupun transisi status yang dipicu Masyarakat. **LC-2:** status `waiting_for_information` kini **legacy** (histori) dan tidak lagi dicapai oleh transisi aktif; status dikendalikan Operator/Super Admin sesuai lifecycle aktif (LC-2) — lihat `prd.md` §8 / `schema.md` §6. Tidak ada entity/kolom/migration tambahan yang diperlukan.
 9. ~~`TODO: Define retention reference timestamp`~~ **DONE (Prompt 5B.1)** — Reference retention FINAL = `complaints.submitted_at` ("sejak laporan masuk"). Implementasi: `app/Services/ComplaintRetentionService.php` + command `complaints:purge-expired` (`--dry-run`, `--force` untuk production). **Permanent deletion**, tanpa archive/soft-delete/grace period. `submitted_at IS NULL` tidak pernah dianggap expired; tidak ada fallback ke `created_at`.
-10. ~~`TODO: Define official Dinas/Unit list`~~ **PARTIAL (Prompt 5C, 6)** — Struktur relasional + CRUD Super Admin (Dinas/Unit & Kategori) + mapping + routing Operator selesai. **Daftar resmi Dinas/Unit masih belum tersedia**; yang ada adalah sample/development (ditandai jelas, bukan daftar resmi). Super Admin dapat menambah/mengubah/menonaktifkan via dashboard.
+10. ~~`TODO: Define official Dinas/Unit list`~~ **PARTIAL (Prompt 5C, 6)** — Struktur relasional + CRUD Super Admin (Dinas/Unit & Kategori) + mapping + routing oleh Super Admin (validasi awal) selesai. **Daftar resmi Dinas/Unit masih belum tersedia**; yang ada adalah sample/development (ditandai jelas, bukan daftar resmi). Super Admin dapat menambah/mengubah/menonaktifkan via dashboard.
+11. **DONE — PHASE 6C (legacy semantics remediation)** — 9 keputusan PHASE 6B diimplementasikan tanpa keputusan bisnis baru:
+    - **Historical Petugas (Decision 1):** baris historis peran `petugas` **dipertahankan** (historical) — tanpa reassignment, tanpa penghapusan, tanpa route/aktor baru.
+    - **Kolom legacy (Decision 2/4/5/7):** `complaints.assigned_to`, `tracking_secret_hash`, `reporter_phone`, `public_updated_at` = **DEPRECATED** — tidak lagi ditulis oleh workflow aktif; nilai historis dipertahankan; **tanpa DROP kolom**.
+    - **Snapshot historis (Decision 6/8):** `complaints.reporter_email` dan `complaint_categories.dinas_name` **DIPERTAHANKAN** (masih ditulis/dibaca sebagai snapshot/label historis).
+    - **KPI (Decision 3):** "Belum Ditugaskan" (`assigned_to IS NULL`) **DIDEFINISIKAN ULANG** menjadi "**Belum Ditentukan Dinas/Unit**" (`dinas_unit_id IS NULL`, scope aktif).
+    - **Filter (Decision 9):** filter penugasan Operator (mine/unassigned) **DIHAPUS**.
 
 ---
 
@@ -162,7 +168,7 @@ Sesuai aturan **"DOCUMENTATION FIRST / DO NOT INVENT"**, berikut hal-hal yang be
 
 - **Status timeline (sisi Masyarakat):** hanya menampilkan status yang benar-benar tercatat pada `complaint_status_histories` (bukan seluruh daftar enum). `note` pada riwayat status bersifat operasional internal dan **tidak** ditampilkan ke Masyarakat. Alasan penolakan resmi disampaikan melalui **public response** (`complaint_notes.visibility = public_response`), yang diwajibkan secara server-side oleh `ComplaintStatus::requiresPublicResponse()`.
 - **Penyimpanan lampiran privat:** disk `local` (root `storage/app/private`, sama dengan disk `private`) dikonfigurasi dengan `'serve' => false` agar route `/storage/{path}` tidak pernah terdaftar untuk file privat. Lampiran pengaduan hanya dilayani melalui controller terotorisasi (`citizen.complaint.attachment`, `operator.complaint.attachment`).
-- **Allowlist field pembuatan laporan:** request Masyarakat hanya menerima `category_id`, `title`, `description`, `location_text`, dan `attachments[]`. `status`, `assigned_to`, `reporter_id`, dan field internal lain diabaikan (bukan mass-assignment).
+- **Allowlist field pembuatan laporan:** request Masyarakat hanya menerima `category_id`, `title`, `description`, `location_text`, dan `attachments[]`. `status`, `assigned_to`, `reporter_id`, dan field internal lain diabaikan (bukan mass-assignment). **PHASE 6C:** `tracking_secret_hash` dan `reporter_phone` tidak lagi ditulis; `reporter_email` tetap disimpan sebagai snapshot.
 
 ---
 
@@ -171,8 +177,8 @@ Sesuai aturan **"DOCUMENTATION FIRST / DO NOT INVENT"**, berikut hal-hal yang be
 Business decision `waiting_for_information` telah **FINAL** (Prompt 4B) dengan hasil H1–H12 = **Tidak**. Konsekuensi yang divalidasi pada implementasi:
 
 - **Tidak ada citizen response mechanism.** Tidak ada route, controller action, form, endpoint, atau tabel khusus respons Masyarakat. Ini diverifikasi secara otomatis oleh `tests/Feature/CitizenExperienceFinalTest.php` (§tidak ada route respons).
-- **`waiting_for_information` hanya ditampilkan.** Halaman detail Masyarakat menampilkan status "Menunggu Informasi" tanpa tombol apa pun untuk membalas/menambah bukti.
-- **Status tetap dikendalikan staf.** Masyarakat tidak memiliki kemampuan mengubah status (authority Masyarakat = NO, frozen). Hanya Operator/Super Admin yang dapat menjalankan `waiting_for_information → in_progress` / `→ resolved`.
+- **`waiting_for_information` hanya ditampilkan.** Halaman detail Masyarakat menampilkan status "Menunggu Informasi" tanpa tombol apa pun untuk membalas/menambah bukti. **LC-2:** status ini kini **legacy** (histori) — tidak lagi dicapai oleh transisi aktif.
+- **Status tetap dikendalikan staf.** Masyarakat tidak memiliki kemampuan mengubah status (authority Masyarakat = NO, frozen). Perpindahan status kini mengikuti lifecycle aktif (LC-2): `submitted → in_progress → {resolved | rejected}`; `waiting_for_information → in_progress` / `→ resolved` tidak lagi merupakan transisi yang tersedia.
 - **Tidak ada perubahan schema.** `complaint_notes` tetap `internal | public_response` (staff-only). Tidak ada migration/kolom/entity baru. Historical data aman.
 - **Komunikasi publik tetap satu arah** dari staf ke Masyarakat melalui **public response** (`complaint_notes.visibility = public_response`), yang diwajibkan server-side untuk status `rejected` dan `resolved` via `ComplaintStatus::requiresPublicResponse()`.
 - **Isolasi data & lampiran** (Prompt 4) tetap berlaku: dashboard/history/detail di-scope ke `reporter_id` authenticated user pada level database; lampiran disajikan lewat controller terotorisasi dengan cek kepemilikan ganda (`complaint_id` + `reporter_id`), tanpa direct public serving (`local` disk `'serve' => false`).
@@ -186,9 +192,9 @@ Business rules final diimplementasikan; nilai utama terpusat di `config/business
 - **Daily limit:** maks **5 laporan / hari kalender** (timezone aplikasi). Mekanisme existing (`DailyReportLimit`) dipertahankan; nilai default 5 dipakai bila `app_settings.daily_report_limit` belum di-set. Divalidasi server-side; laporan ke-6 ditolak tanpa membuat record/attachment/history.
 - **Identity (NIK/HP/Alamat):** kolom `users.nik` (char 16, unique, immutable), `users.phone_number` (unique, local+international, dinormalisasi ke bentuk lokal `08…`), `users.address` (text, free text tanpa batas bisnis). Wajib di **registrasi & profil** (server-side). NIK **tidak dapat diubah** (ditolak di model layer & tidak ada input editable di profil). Kolom ditambahkan **nullable** untuk non-destruksi (tanpa NIK palsu untuk user lama).
 - **Attachment:** opsional, maks **10 file**, maks **20 MB/file**, format **JPG/JPEG/PNG/PDF/MP4**. Tanpa malware scanning. Lampiran tetap privat & terotorisasi.
-- **Category ↔ Dinas/Unit:** relasi **many-to-many** (`dinas_units` + pivot `category_dinas_unit`). `complaint_categories.dinas_name` (legacy) dipertahankan sebagai kompatibilitas, **bukan sumber resmi routing**. **Data Dinas/Unit resmi tidak di-seed**; **CRUD Dinas/Unit + Category + mapping oleh Super Admin sudah tersedia** (Prompt 5C & 6) — daftar resmi tetap menunggu input Super Admin.
+- **Category ↔ Dinas/Unit:** relasi **many-to-many** (`dinas_units` + pivot `category_dinas_unit`). `complaint_categories.dinas_name` (legacy) **DIPERTAHANKAN** (PHASE 6C Decision 8) sebagai nilai historis/label tampilan, **bukan sumber resmi routing**. **Data Dinas/Unit resmi tidak di-seed**; **CRUD Dinas/Unit + Category + mapping oleh Super Admin sudah tersedia** (Prompt 5C & 6) — daftar resmi tetap menunggu input Super Admin.
 - **Public tracking:** tidak diperlukan MVP — tidak ada endpoint/route; guest tidak dapat mengakses data laporan.
-- **Notification:** tidak diperlukan MVP — tidak ada implementasi.
+- **Notification:** **eksternal** (email/SMS/WhatsApp) tidak diperlukan MVP — tidak ada implementasi. **PHASE N4:** *notifikasi in-app* **diimplementasikan** — tabel `notifications` + `NotificationService` eksplisit (bukan observer/event), dibuat di dalam transaksi aksi bisnis, idempoten via UNIQUE `(recipient_user_id, complaint_id, type, source_event_id)`. Penerima aktif saja (bukan aktor/Admin/Petugas); Operator dari `dinas_unit_id → DinasUnit::operator()`. Bell + halaman `/notifikasi` (read/unread, hapus owner-scoped). Hanya in-app (tanpa email/queue/broadcast). Retensi: notifikasi dihapus sebelum complaint.
 - **Privacy:** masyarakat hanya melihat laporan miliknya; guest dilarang; internal note/audit tersembunyi (diverifikasi test).
 - **Retention:** **DONE (Prompt 5B.1)** — 5 tahun sejak `complaints.submitted_at` → **permanent deletion**. Lihat §10.
 
@@ -235,10 +241,11 @@ Audit log   = terkait complaint → ikut dihapus; tidak terkait → dipertahanka
 - `super-admin/kategori/{category}/mapping` (`SuperAdminCategoryMappingController`) — edit + update (`sync`).
 - Menghapus/mengubah mapping **tidak** mengubah complaint lama (tujuan aktual tersimpan pada complaint).
 
-**Routing Operator (actual destination):**
-- `complaints.dinas_unit_id` (nullable, FK → `dinas_units.id`, **ON DELETE SET NULL**) menyimpan **tujuan aktual** (Prompt 5C). Migration non-destruktif.
-- Operator menetapkan tujuan dari Dinas/Unit yang **terhubung dengan kategori** complaint dan **aktif** (untuk penugasan baru). Route: `PATCH operator/laporan/{complaint}/tujuan`.
-- Validasi server-side: tujuan harus ter-mapping ke kategori; nonaktif ditolak kecuali merupakan tujuan yang sudah tersimpan (histori). `null`/kosong = hapus tujuan.
+**Routing Dinas/Unit (actual destination) — DIPUTUSKAN SUPER ADMIN (PHASE 2R):**
+- `complaints.dinas_unit_id` (nullable, FK → `dinas_units.id`, **ON DELETE SET NULL**) menyimpan **tujuan aktual**. Migration non-destruktif.
+- **Routing (kategori + tujuan Dinas/Unit + penugasan Operator) ditetapkan oleh Super Admin pada validasi awal**, bukan oleh Operator. Operator akhirnya diresolusi otomatis dari `complaint.dinas_unit_id` (`DinasUnit::operator()`); `complaints.assigned_to` **DEPRECATED** (tidak lagi ditulis oleh workflow aktif) dan **tidak** dipakai sebagai mekanisme routing.
+- **PHASE 2R (frozen):** endpoint Operator `PATCH operator/laporan/{complaint}/kategori`, `.../tujuan`, dan `.../tugaskan` telah **dihapus seluruhnya** (tidak ada route → 404 untuk semua aktor). Halaman detail Operator menampilkan field tersebut sebagai **read-only**.
+- Validasi server-side pada permukaan Super Admin: tujuan harus ter-mapping ke kategori via `category_dinas_unit` dan **aktif** serta memiliki Operator. Dinas/Unit nonaktif ditolak untuk routing baru; tujuan historis yang sudah tersimpan tetap dipertahankan.
 - Audit log memakai konvensi existing (`subject_type` string: `dinas_unit`, `complaint_category`, `complaint`).
 
 **Data sample:** seed mengisi **4 Dinas/Unit sample** + 5 mapping (ditandai jelas sebagai *development sample*, bukan daftar resmi). Super Admin mengelola data resmi via dashboard.
@@ -257,7 +264,7 @@ Audit log   = terkait complaint → ikut dihapus; tidak terkait → dipertahanka
 - Kategori **aktif** → tersedia untuk laporan baru (Masyarakat memilih kategori).
 - Kategori **nonaktif** → **ditolak server-side** saat pembuatan laporan (bukan hanya disembunyikan di UI). Validasi di `StoreComplaintRequest` (`exists` + cek `is_active`).
 - Kategori **tidak ditemukan** → ditolak server-side.
-- Masyarakat **tidak** memilih Dinas/Unit pada form laporan; `dinas_unit_id` pada request diabaikan (tujuan ditentukan Operator lewat workflow internal).
+- Masyarakat **tidak** memilih Dinas/Unit pada form laporan; `dinas_unit_id` pada request diabaikan (tujuan ditetapkan Super Admin saat validasi awal, bukan oleh Masyarakat maupun Operator).
 
 **Historical safety (Category):**
 - Menonaktifkan kategori **tidak mengubah** complaint lama: `category_id`, status, timeline, audit, dan tujuan Dinas/Unit aktual tetap.
@@ -272,7 +279,7 @@ Audit log   = terkait complaint → ikut dihapus; tidak terkait → dipertahanka
 
 ---
 
-## 13. Catatan Implementasi Prompt 6 (Bagian 2) — Integrasi Category ↔ Dinas/Unit, UI Super Admin & Operator Routing
+## 13. Catatan Implementasi Prompt 6 (Bagian 2) — Integrasi Category ↔ Dinas/Unit & UI Super Admin (Routing oleh Super Admin)
 
 **Mapping management (Super Admin saja):**
 - `super-admin/kategori/{category}/mapping` — `SuperAdminCategoryMappingController` (edit + update/sync). View: `super-admin/categories/mapping.blade.php`.
@@ -287,12 +294,12 @@ Category  ↕ (many-to-many, tabel category_dinas_unit) ↕  Dinas/Unit
 - Satu kategori ↔ banyak Dinas/Unit; satu Dinas/Unit ↔ banyak kategori. `UNIQUE(category_id, dinas_unit_id)`.
 
 **Tujuan aktual complaint (BUKAN pivot):**
-- `complaints.dinas_unit_id` menyimpan **tujuan aktual** yang dipilih Operator — **bukan** `category_dinas_unit`. Pivot = mapping saat ini; `complaints.dinas_unit_id` = histori. **mapping ≠ historical destination.**
-- Operator memilih tujuan dari: kategori complaint → mapping → **filter `is_active = true`** → pilih. Validasi server-side: `exists` + `is_active` + **ter-mapping ke kategori complaint** (bukan sekadar `find`).
+- `complaints.dinas_unit_id` menyimpan **tujuan aktual** — **bukan** `category_dinas_unit`. Pivot = mapping saat ini; `complaints.dinas_unit_id` = histori. **mapping ≠ historical destination.**
+- **Tujuan ditetapkan oleh Super Admin saat validasi awal** (PHASE 2R), bukan oleh Operator. Validasi server-side: `exists` + `is_active` + **ter-mapping ke kategori complaint** (bukan sekadar `find`) + memiliki Operator. Endpoint Operator untuk mengubah kategori/tujuan/penugasan sudah **dihapus**.
 - Complaint dengan tujuan Dinas/Unit nonaktif **tetap** dapat dibuka/diproses; tujuan historis tidak diubah.
 
 **Legacy `dinas_name`:**
-- Hanya **label tampilan** (fallback). **Bukan** sumber routing/validasi/assignment. Form citizen kini menampilkan instansi penanggung jawab dari **mapping** (`category_dinas_unit`, aktif) dengan fallback `dinas_name`; dropdown kategori tidak lagi menempelkan `dinas_name`. Field DB legacy **tidak dihapus**.
+- Hanya **label tampilan** (fallback). **Bukan** sumber routing/validasi/assignment. Form citizen kini menampilkan instansi penanggung jawab dari **mapping** (`category_dinas_unit`, aktif) dengan fallback `dinas_name`; dropdown kategori tidak lagi menempelkan `dinas_name`. Field DB legacy **DIPERTAHANKAN** (PHASE 6C Decision 8) — **tidak dihapus**.
 
 **Citizen form:** hanya memilih **Kategori**; tidak ada input Dinas/Unit; `dinas_unit_id` pada request diabaikan.
 

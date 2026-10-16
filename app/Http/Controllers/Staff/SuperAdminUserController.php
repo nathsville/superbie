@@ -9,6 +9,7 @@ use App\Models\AuditLog;
 use App\Models\DinasUnit;
 use App\Models\User;
 use App\Services\UserManagementService;
+use App\Support\QueryInput;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -36,10 +37,13 @@ class SuperAdminUserController extends Controller
 
     public function index(Request $request): View
     {
+        // Coerce raw input to scalars BEFORE it reaches the service or the view:
+        // a crafted array (`?search[]=x`) would otherwise be echoed by `{{ }}`
+        // and raise "Array to string conversion".
         $filters = [
-            'search' => $request->get('search'),
-            'role'   => $request->get('role'),
-            'status' => $request->get('status'),
+            'search' => QueryInput::string($request->get('search')),
+            'role'   => QueryInput::string($request->get('role')),
+            'status' => QueryInput::string($request->get('status')),
         ];
 
         $users = $this->users->listQuery($filters);
@@ -81,6 +85,15 @@ class SuperAdminUserController extends Controller
                 'is_active' => $user->is_active,
                 'dinas_unit_id' => $user->dinas_unit_id,
             ]);
+
+            // PHASE 1 §19 — explicit Operator ↔ Dinas/Unit ownership event.
+            if ($user->role === 'operator' && $user->dinas_unit_id !== null) {
+                $this->audit($request, 'operator.dinas_assigned', $user, [
+                    'operator_user_id' => $user->id,
+                    'old_dinas_unit_id' => null,
+                    'new_dinas_unit_id' => $user->dinas_unit_id,
+                ]);
+            }
 
             return $user;
         });
@@ -154,6 +167,35 @@ class SuperAdminUserController extends Controller
                     'old_dinas_unit_id' => $oldDinasUnitId,
                     'new_dinas_unit_id' => $newDinasUnitId,
                 ]);
+
+                // PHASE 1 §19 — explicit Operator ↔ Dinas/Unit ownership events.
+                // `operator.dinas_assigned`  : an Operator gains a unit (none → X)
+                // `operator.dinas_reassigned`: an Operator moves units  (X → Y)
+                // `operator.dinas_unassigned`: an Operator loses a unit (X → none)
+                //
+                // The GAIN case keys on the NEW role (only an Operator may hold a
+                // unit); the RELEASE case keys on the OLD role, because demoting a
+                // unit-holding Operator to a non-operator role clears the unit and
+                // must still be audited as a release.
+                if ($oldDinasUnitId === null && $newDinasUnitId !== null && $newRole === 'operator') {
+                    $this->audit($request, 'operator.dinas_assigned', $user, [
+                        'operator_user_id' => $user->id,
+                        'old_dinas_unit_id' => null,
+                        'new_dinas_unit_id' => $newDinasUnitId,
+                    ]);
+                } elseif ($oldDinasUnitId !== null && $newDinasUnitId !== null) {
+                    $this->audit($request, 'operator.dinas_reassigned', $user, [
+                        'operator_user_id' => $user->id,
+                        'old_dinas_unit_id' => $oldDinasUnitId,
+                        'new_dinas_unit_id' => $newDinasUnitId,
+                    ]);
+                } elseif ($oldDinasUnitId !== null && $newDinasUnitId === null && $oldRole === 'operator') {
+                    $this->audit($request, 'operator.dinas_unassigned', $user, [
+                        'operator_user_id' => $user->id,
+                        'old_dinas_unit_id' => $oldDinasUnitId,
+                        'new_dinas_unit_id' => null,
+                    ]);
+                }
             }
 
             if ($oldIsActive !== $newIsActive) {

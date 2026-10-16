@@ -21,6 +21,15 @@
 /storage/*.key
 /storage/pail
 /vendor
+# Working folders, not part of the app: _ui_audit holds the before/after
+# screenshots used to check the brand rollout, and .taste-skill is where the
+# design inspector writes its screenshots and report.
+/_ui_audit/
+/.taste-skill/
+
+# Local database dumps carry real rows (e-mail addresses and password
+# hashes), so they stay on this machine and never travel to a remote.
+/_db_backups/
 _ide_helper.php
 Homestead.json
 Homestead.yaml

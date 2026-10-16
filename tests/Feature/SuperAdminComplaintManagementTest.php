@@ -216,6 +216,34 @@ class SuperAdminComplaintManagementTest extends TestCase
         $response->assertViewHas('complaints', fn ($c) => $c->total() === 1 && $c->first()->id === $inA->id);
     }
 
+    public function test_category_filter_dropdown_lists_every_category_globally(): void
+    {
+        // Super Admin sees the COMPLETE, global category list — no per-Dinas/Unit
+        // narrowing. Both mapped and unmapped categories are offered.
+        $unitA = DinasUnit::factory()->create();
+        $unitB = DinasUnit::factory()->create();
+
+        $catA = ComplaintCategory::factory()->create();
+        $catB = ComplaintCategory::factory()->create();
+        $catUnmapped = ComplaintCategory::factory()->create();
+
+        $catA->dinasUnits()->attach($unitA->id);
+        $catB->dinasUnits()->attach($unitB->id);
+        // catUnmapped intentionally has no mapping.
+
+        $html = $this->actingAs($this->superAdmin)
+            ->get(route('super-admin.complaints.index'))
+            ->assertOk()
+            ->getContent();
+
+        preg_match('/<select id="category".*?<\/select>/s', $html, $m);
+        $dropdown = $m[0] ?? '';
+
+        $this->assertStringContainsString('value="' . $catA->id . '"', $dropdown);
+        $this->assertStringContainsString('value="' . $catB->id . '"', $dropdown);
+        $this->assertStringContainsString('value="' . $catUnmapped->id . '"', $dropdown);
+    }
+
     public function test_dinas_unit_filter_works(): void
     {
         $unitA = DinasUnit::factory()->create();

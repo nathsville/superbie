@@ -11,7 +11,7 @@
     <x-slot:header>Tambah Kategori</x-slot:header>
     <x-slot:breadcrumb>Master Kategori</x-slot:breadcrumb>
 
-    <div class="max-w-2xl">
+    <div class="w-full max-w-full">
         @include('super-admin.categories._form', ['category' => null])
     </div>
 </x-layouts.dashboard>

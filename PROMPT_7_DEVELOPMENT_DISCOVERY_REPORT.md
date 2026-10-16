@@ -1,5 +1,7 @@
 # PROMPT 7 — DEVELOPMENT DISCOVERY REPORT
 
+> **LC-2 CORRECTION NOTE (added by LC-2D, later than this document):** This is a dated read-only discovery report. Its lifecycle graph (§ with `waiting_for_information → in_progress / resolved` and the 7-status/11-transition model) is **superseded** by LC-2: active lifecycle = `submitted → in_progress → {resolved | rejected}` (3 transitions); `under_review`, `waiting_for_information`, `closed` are **legacy** (history only). See `schema.md` §6. Historical content retained unchanged.
+
 **Project:** SuperBie / Lapor Pak Wali
 **Type:** Read-only discovery, architecture audit & next-module recommendation
 **Baseline:** Prompt 6 (Category & Master Data Management) — status **PASS WITH NOTES**

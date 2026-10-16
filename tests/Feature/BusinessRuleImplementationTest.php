@@ -12,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Tests\Concerns\CreatesLocationFixtures;
 use Tests\TestCase;
 
 /**
@@ -31,6 +32,7 @@ use Tests\TestCase;
 class BusinessRuleImplementationTest extends TestCase
 {
     use RefreshDatabase;
+    use CreatesLocationFixtures;
 
     private User $citizen;
     private User $otherCitizen;
@@ -82,7 +84,7 @@ class BusinessRuleImplementationTest extends TestCase
             'category_id' => $this->category->id,
             'title'       => 'Jalan berlubang di Jl. Uji 5B',
             'description' => 'Lubang cukup dalam membahayakan pengendara sepeda motor.',
-        ], $overrides);
+        ], $this->locationPayload(), $overrides);
     }
 
     // =========================================================================

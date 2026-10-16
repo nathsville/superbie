@@ -116,4 +116,32 @@ class DashboardCachingTest extends TestCase
         User::factory()->create(['role' => 'masyarakat']);
         $this->assertFalse(Cache::has($cacheKey));
     }
+
+    public function test_admin_dashboard_cache_is_cleared_when_category_changes(): void
+    {
+        $cacheKey = 'dashboard:admin';
+        Cache::forget($cacheKey);
+
+        $this->actingAs($this->admin)->get('/admin/dashboard');
+        $this->assertTrue(Cache::has($cacheKey));
+
+        // Master Category change -> ComplaintCategoryObserver clears staff caches.
+        $this->category->update(['name' => 'Infrastruktur Jalan (diperbarui)']);
+        $this->assertFalse(Cache::has($cacheKey));
+    }
+
+    public function test_admin_dashboard_cache_is_cleared_when_dinas_unit_changes(): void
+    {
+        $cacheKey = 'dashboard:admin';
+        Cache::forget($cacheKey);
+
+        $this->actingAs($this->admin)->get('/admin/dashboard');
+        $this->assertTrue(Cache::has($cacheKey));
+
+        // Master Dinas/Unit change -> DinasUnitObserver clears staff caches.
+        $unit = DinasUnit::create(['name' => 'Dinas Observer Uji', 'code' => 'OBS-1', 'is_active' => true, 'sort_order' => 9]);
+        $unit->update(['name' => 'Dinas Observer Uji (diperbarui)']);
+
+        $this->assertFalse(Cache::has($cacheKey));
+    }
 }

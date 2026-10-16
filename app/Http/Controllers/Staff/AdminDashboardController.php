@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditLog;
 use App\Models\Complaint;
 use App\Models\ComplaintCategory;
 use App\Enums\ComplaintStatus;
@@ -11,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 use App\Services\DashboardCacheService;
+use App\Services\RatingAnalyticsService;
 
 /**
  * Admin dashboard — MONITORING ONLY.
@@ -19,21 +19,33 @@ use App\Services\DashboardCacheService;
  */
 class AdminDashboardController extends Controller
 {
-    public function index(Request $request, DashboardCacheService $cacheService): View
-    {
+    public function index(
+        Request $request,
+        DashboardCacheService $cacheService,
+        RatingAnalyticsService $ratingAnalyticsService,
+    ): View {
         $user = $request->user();
         $refresh = $request->boolean('refresh');
 
         $data = $cacheService->getAdminData($refresh);
 
+        // PHASE 4 — Bagian 2 — Rating Analytics (D-4.1: Admin = GLOBAL).
+        // Filters are read from the query string and validated server-side.
+        $ratingAnalytics = $ratingAnalyticsService->getRatingAnalytics(
+            $user,
+            $request->only(['period', 'start_date', 'end_date', 'dinas_unit_id', 'category_id', 'kecamatan_id', 'kelurahan_id']),
+            $refresh,
+        );
+
         return view('admin.dashboard', array_merge([
             'user' => $user,
+            'ratingAnalytics' => $ratingAnalytics,
         ], $data));
     }
 
     public function complaints(Request $request): View
     {
-        $query = Complaint::with(['reporter', 'category', 'assignee']);
+        $query = Complaint::with(['reporter', 'category', 'dinasUnit']);
 
         // ── Search (reference_code, title, reporter name) ───────────────────
         if ($request->filled('q')) {
@@ -55,6 +67,17 @@ class AdminDashboardController extends Controller
             $query->where('category_id', (int) $request->category);
         }
 
+        // ── Routing filter (belum ditentukan Dinas/Unit) ──────────────────────
+        // PHASE 6C — Decision 3: redefined from `assigned_to IS NULL`
+        // ("belum ditugaskan") to `dinas_unit_id IS NULL`
+        // ("belum ditentukan Dinas/Unit"). The query param name is kept stable
+        // for the existing Attention Center link, but its SEMANTICS are now
+        // Dinas/Unit-based (assigned_to is deprecated).
+        if ($request->filled('assigned') && $request->assigned === 'unassigned') {
+            $query->whereNull('dinas_unit_id')
+                  ->whereNotIn('status', ['resolved', 'rejected', 'closed']);
+        }
+
         // ── Sort ──────────────────────────────────────────────────────────────
         $sort = $request->get('sort', 'newest');
         match ($sort) {
@@ -73,22 +96,19 @@ class AdminDashboardController extends Controller
         $kpi = [
             'total'          => Complaint::count(),
             'baru'           => Complaint::byStatus('submitted')->count(),
-            'sedang_diproses'=> Complaint::whereIn('status', ['under_review', 'in_progress', 'waiting_for_information'])->count(),
-            'belum_ditugaskan' => Complaint::whereNull('assigned_to')
-                                         ->whereNotIn('status', ['resolved', 'rejected', 'closed'])
+            // LC-2C: "Sedang Diproses" = the ACTIVE `in_progress` stage only.
+            // Legacy under_review / waiting_for_information are history-only and
+            // must not be counted as active processing.
+            'sedang_diproses'=> Complaint::byStatus('in_progress')->count(),
+            // PHASE 6C — Decision 3: "Belum Ditentukan Dinas/Unit" is now based
+            // on the routing destination (`dinas_unit_id IS NULL`), NOT the
+            // deprecated `assigned_to` column. LC-2C: restricted to the ACTIVE
+            // workflow so legacy rows are never counted as pending routing.
+            'belum_dinas_unit' => Complaint::whereNull('dinas_unit_id')
+                                         ->whereIn('status', ['submitted', 'in_progress'])
                                          ->count(),
         ];
 
         return view('admin.complaints', compact('laporan', 'categories', 'kpi'));
-    }
-
-    public function auditLog(Request $request): View
-    {
-        $logs = AuditLog::with('actor')
-            ->orderByDesc('created_at')
-            ->paginate(30)
-            ->withQueryString();
-
-        return view('admin.audit-log', compact('logs'));
     }
 }

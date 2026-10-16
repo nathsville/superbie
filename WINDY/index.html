@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="id" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#050914">
+  <meta name="description" content="Dashboard monitoring cuaca dan dukungan keputusan Pemerintah Kota Parepare.">
+  <title>Parepare Weather Intelligence Dashboard</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <?!= include('style'); ?>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Lewati ke konten utama</a>
+
+  <div class="ambient-layer" aria-hidden="true">
+    <span class="ambient-orb ambient-orb--one"></span>
+    <span class="ambient-orb ambient-orb--two"></span>
+  </div>
+
+  <header class="command-header">
+    <div class="brand-block">
+      <div class="brand-emblem">
+        <?!= include('logo'); ?>
+      </div>
+      <div class="brand-copy">
+        <div class="brand-kicker"><span class="brand-kicker__dot"></span>Executive Command Center · Kota Parepare</div>
+        <h1>Parepare Weather <span>Intelligence</span></h1>
+        <p>Executive Weather Monitoring &amp; Decision Support System</p>
+      </div>
+    </div>
+
+    <div class="header-operations">
+      <div class="system-health d-none d-xl-flex" title="Sistem monitoring aktif">
+        <span class="system-health__pulse"></span>
+        <span><small>Status Sistem</small><strong>Operasional</strong></span>
+      </div>
+      <div class="time-console">
+        <div class="time-console__clock" id="clock-wita">--:--:--</div>
+        <div class="time-console__meta">
+          <span id="date-wita">Waktu Indonesia Tengah</span>
+          <span>Pembaruan: <strong id="last-update-text" aria-live="polite">Memuat...</strong></span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn-command btn-command--primary" type="button" onclick="triggerManualRefresh()" id="btn-refresh">
+          <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i><span>Sinkronkan</span>
+        </button>
+        <button class="btn-command btn-command--ghost" type="button" onclick="window.print()" aria-label="Cetak laporan cuaca">
+          <i class="fa-solid fa-file-arrow-down" aria-hidden="true"></i><span class="d-none d-xxl-inline">Laporan</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="dashboard-shell" id="main-content">
+    <section class="context-strip" aria-label="Konteks pemantauan">
+      <div class="context-strip__item">
+        <span class="context-icon"><i class="fa-solid fa-location-dot"></i></span>
+        <span><small>Wilayah Pantau</small><strong>Kota Parepare, Sulawesi Selatan</strong></span>
+      </div>
+      <span class="context-divider" aria-hidden="true"></span>
+      <div class="context-strip__item context-strip__item--compact">
+        <span class="context-icon"><i class="fa-solid fa-satellite-dish"></i></span>
+        <span><small>Sumber Data</small><strong id="data-source-label">BMKG · OpenWeather</strong></span>
+      </div>
+      <span class="context-divider d-none d-lg-block" aria-hidden="true"></span>
+      <div class="context-strip__item context-strip__item--compact d-none d-lg-flex">
+        <span class="context-icon"><i class="fa-solid fa-crosshairs"></i></span>
+        <span><small>Koordinat</small><strong>4.0167° LS · 119.6236° BT</strong></span>
+      </div>
+      <div class="freshness-pill ms-auto" id="freshness-pill"><span></span>Data terkini</div>
+    </section>
+
+    <div id="ews-alert-container" class="ews-region" aria-live="assertive"></div>
+
+    <nav class="dashboard-nav-wrap" aria-label="Navigasi dashboard">
+      <ul class="nav dashboard-nav" id="dashboardTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="tab-exec" data-bs-toggle="pill" data-bs-target="#panel-exec" type="button" role="tab" aria-controls="panel-exec" aria-selected="true"><i class="fa-solid fa-table-cells-large" aria-hidden="true"></i><span>Ringkasan Eksekutif</span></button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-map" data-bs-toggle="pill" data-bs-target="#panel-map" type="button" role="tab" aria-controls="panel-map" aria-selected="false"><i class="fa-solid fa-earth-asia" aria-hidden="true"></i><span>Peta Cuaca</span></button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-forecast" data-bs-toggle="pill" data-bs-target="#panel-forecast" type="button" role="tab" aria-controls="panel-forecast" aria-selected="false"><i class="fa-solid fa-chart-simple" aria-hidden="true"></i><span>Prakiraan &amp; Analitik</span></button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-dss" data-bs-toggle="pill" data-bs-target="#panel-dss" type="button" role="tab" aria-controls="panel-dss" aria-selected="false"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span>Dukungan Keputusan</span></button>
+        </li>
+      </ul>
+    </nav>
+
+    <div class="tab-content dashboard-content" id="dashboardTabContent">
+      <section class="tab-pane show active" id="panel-exec" role="tabpanel" aria-labelledby="tab-exec" tabindex="0">
+        <div class="overview-grid">
+          <article class="command-card weather-hero">
+            <div class="weather-hero__topline">
+              <div><span class="section-eyebrow">Kondisi Saat Ini</span><p class="weather-location"><i class="fa-solid fa-location-arrow"></i> Parepare · WITA</p></div>
+              <span class="live-chip"><i></i> Live monitoring</span>
+            </div>
+            <div class="weather-hero__content">
+              <div class="weather-symbol" id="weather-symbol" aria-hidden="true"><span class="weather-symbol__halo"></span><i class="fa-solid fa-cloud-sun" id="weather-icon"></i></div>
+              <div class="temperature-block">
+                <div class="temperature-value" id="val-temp">--<sup>°C</sup></div>
+                <h2 id="val-desc">Menghubungkan data cuaca...</h2>
+                <p>Observasi atmosfer permukaan Kota Parepare</p>
+              </div>
+            </div>
+            <div class="weather-hero__footer">
+              <div class="atmosphere-stat"><span><i class="fa-solid fa-cloud"></i> Tutupan awan</span><strong id="val-clouds">--%</strong></div>
+              <div class="atmosphere-stat"><span><i class="fa-regular fa-eye"></i> Jarak pandang</span><strong id="val-visibility-hero">-- km</strong></div>
+              <div class="atmosphere-stat"><span><i class="fa-solid fa-water"></i> Gelombang</span><strong id="val-wave">-- m</strong></div>
+            </div>
+          </article>
+
+          <article class="command-card risk-console" id="card-risk" data-risk="normal">
+            <div class="risk-console__header">
+              <div><span class="section-eyebrow">Status Risiko Wilayah</span><p>Early Warning System</p></div>
+              <span class="risk-signal"><i></i> EWS Aktif</span>
+            </div>
+            <div class="risk-console__body">
+              <div class="risk-orbit" aria-hidden="true"><span class="risk-orbit__ring"></span><span class="risk-orbit__core"><i class="fa-solid fa-shield" id="icon-risk"></i></span></div>
+              <div><span class="risk-label">Level kesiapsiagaan</span><h2 id="val-risk-status">NORMAL</h2><p id="val-risk-sub">Parameter dalam ambang aman</p></div>
+            </div>
+            <div class="risk-scale" aria-label="Skala risiko Normal, Waspada, Siaga">
+              <span data-level="normal"><i></i>Normal</span><span data-level="waspada"><i></i>Waspada</span><span data-level="siaga"><i></i>Siaga</span>
+            </div>
+          </article>
+        </div>
+
+        <div class="metric-grid" aria-label="Parameter cuaca utama">
+          <article class="metric-card metric-card--humidity"><div class="metric-card__icon"><i class="fa-solid fa-droplet"></i></div><div class="metric-card__copy"><span>Kelembapan</span><strong id="val-humidity">--<small>%</small></strong><p>Kelembapan relatif</p></div><span class="metric-card__trend"><i class="fa-solid fa-wave-square"></i></span></article>
+          <article class="metric-card metric-card--wind"><div class="metric-card__icon"><i class="fa-solid fa-wind"></i></div><div class="metric-card__copy"><span>Kecepatan angin</span><strong id="val-wind">--<small> km/h</small></strong><p id="val-wind-dir">Angin permukaan</p></div><span class="metric-card__trend"><i class="fa-solid fa-arrow-trend-up"></i></span></article>
+          <article class="metric-card metric-card--pressure"><div class="metric-card__icon"><i class="fa-solid fa-gauge-high"></i></div><div class="metric-card__copy"><span>Tekanan udara</span><strong id="val-pressure">--<small> hPa</small></strong><p>Barometrik permukaan</p></div><span class="metric-card__trend"><i class="fa-solid fa-minus"></i></span></article>
+          <article class="metric-card metric-card--visibility"><div class="metric-card__icon"><i class="fa-regular fa-eye"></i></div><div class="metric-card__copy"><span>Jarak pandang</span><strong id="val-visibility">--<small> km</small></strong><p>Visibilitas horizontal</p></div><span class="metric-card__trend"><i class="fa-solid fa-binoculars"></i></span></article>
+          <article class="metric-card metric-card--rain"><div class="metric-card__icon"><i class="fa-solid fa-cloud-showers-heavy"></i></div><div class="metric-card__copy"><span>Curah hujan</span><strong id="val-rain">--<small> mm</small></strong><p>Akumulasi terpantau</p></div><span class="metric-card__trend"><i class="fa-solid fa-chart-column"></i></span></article>
+        </div>
+
+        <section class="command-card forecast-panel">
+          <div class="panel-heading">
+            <div><span class="section-eyebrow">Outlook Meteorologi</span><h2>Prakiraan 7 Hari Kota Parepare</h2></div>
+            <div class="panel-heading__meta"><i class="fa-solid fa-circle-info"></i><span>Diperbarui otomatis setiap 30 menit</span></div>
+          </div>
+          <div class="forecast-scroll" id="forecast-7d-row">
+            <div class="forecast-loading"><span class="loading-spinner"></span><span>Menghubungkan ke data meteorologi...</span></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="tab-pane" id="panel-map" role="tabpanel" aria-labelledby="tab-map" tabindex="0">
+        <article class="command-card map-panel">
+          <div class="panel-heading panel-heading--map">
+            <div>
+              <span class="section-eyebrow">Live Atmospheric Intelligence</span>
+              <h2>Radar &amp; Lapisan Cuaca Interaktif</h2>
+              <p class="map-meta-line">
+                <span><i class="fa-solid fa-location-crosshairs"></i>Fokus Kota Parepare · 4.0167° LS, 119.6236° BT</span>
+                <span class="map-data-attribution"><i class="fa-solid fa-draw-polygon"></i>Diadaptasi dari <a href="https://www.geoboundaries.org/api/current/gbOpen/IDN/ADM2/" target="_blank" rel="noopener noreferrer">geoBoundaries</a> · BPS/WFP/OCHA · batas 2020 · <a href="https://creativecommons.org/licenses/by/3.0/igo/" target="_blank" rel="noopener noreferrer">CC BY 3.0 IGO</a></span>
+              </p>
+            </div>
+            <div class="layer-switcher" role="group" aria-label="Pilih lapisan peta Windy">
+              <button type="button" class="layer-button active" data-windy-layer="rain" onclick="switchWindyLayer('rain', this)" aria-pressed="true"><i class="fa-solid fa-cloud-rain"></i>Hujan</button>
+              <button type="button" class="layer-button" data-windy-layer="wind" onclick="switchWindyLayer('wind', this)" aria-pressed="false"><i class="fa-solid fa-wind"></i>Angin</button>
+              <button type="button" class="layer-button" data-windy-layer="clouds" onclick="switchWindyLayer('clouds', this)" aria-pressed="false"><i class="fa-solid fa-cloud"></i>Awan</button>
+              <button type="button" class="layer-button" data-windy-layer="temp" onclick="switchWindyLayer('temp', this)" aria-pressed="false"><i class="fa-solid fa-temperature-half"></i>Suhu</button>
+              <button type="button" class="layer-button" data-windy-layer="waves" onclick="switchWindyLayer('waves', this)" aria-pressed="false"><i class="fa-solid fa-water"></i>Gelombang</button>
+              <button type="button" class="layer-button layer-button--boundary active" id="boundary-toggle" onclick="toggleParepareBoundary(this)" aria-controls="parepare-boundary-overlay windy-frame" aria-pressed="true" aria-label="Sembunyikan batas dan aktifkan interaksi peta" title="Sembunyikan batas dan aktifkan interaksi peta"><i class="fa-solid fa-draw-polygon"></i>Batas Kota</button>
+            </div>
+          </div>
+          <div class="map-stage is-boundary-locked" id="map-stage">
+            <div class="map-loading" id="map-loading" aria-live="polite"><span class="loading-spinner"></span><span>Memuat lapisan cuaca...</span></div>
+            <iframe id="windy-frame" title="Peta cuaca interaktif Windy untuk Kota Parepare" src="https://embed.windy.com/embed2.html?lat=-4.0203292&amp;lon=119.6661219&amp;detailLat=-4.0167&amp;detailLon=119.6236&amp;width=100%25&amp;height=560&amp;zoom=12&amp;level=surface&amp;overlay=rain&amp;product=ecmwf&amp;menu=&amp;message=true&amp;marker=true&amp;calendar=now&amp;pressure=&amp;type=map&amp;location=coordinates&amp;detail=&amp;metricWind=km%2Fh&amp;metricTemp=%C2%B0C&amp;radarRange=-1" loading="lazy" tabindex="-1" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+            <svg class="map-boundary-overlay" id="parepare-boundary-overlay" aria-hidden="true" preserveAspectRatio="none">
+              <path class="map-boundary-glow" id="parepare-boundary-glow"></path>
+              <path class="map-boundary-shape" id="parepare-boundary-shape"></path>
+            </svg>
+            <div class="map-boundary-label" id="parepare-boundary-label" aria-hidden="true"><i class="fa-solid fa-location-dot"></i><span>Kota Parepare</span></div>
+            <div class="map-boundary-mode" aria-hidden="true"><i class="fa-solid fa-lock"></i><span>Batas administratif terkunci</span></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="tab-pane" id="panel-forecast" role="tabpanel" aria-labelledby="tab-forecast" tabindex="0">
+        <div class="analytics-summary">
+          <article class="analytics-kpi"><span class="analytics-kpi__icon analytics-kpi__icon--temp"><i class="fa-solid fa-temperature-three-quarters"></i></span><span><small>Suhu Tertinggi</small><strong id="chart-temp-high">--°C</strong><em>7 hari ke depan</em></span></article>
+          <article class="analytics-kpi"><span class="analytics-kpi__icon analytics-kpi__icon--rain"><i class="fa-solid fa-cloud-rain"></i></span><span><small>Peluang Hujan</small><strong id="chart-rain-peak">--%</strong><em>Probabilitas puncak</em></span></article>
+          <article class="analytics-kpi"><span class="analytics-kpi__icon analytics-kpi__icon--wind"><i class="fa-solid fa-wind"></i></span><span><small>Angin Maksimum</small><strong id="chart-wind-max">-- km/h</strong><em>Proyeksi permukaan</em></span></article>
+        </div>
+        <div class="chart-grid">
+          <article class="command-card chart-panel chart-panel--wide">
+            <div class="panel-heading panel-heading--compact"><div><span class="section-eyebrow">Forecast Composite</span><h2>Tren Suhu &amp; Probabilitas Hujan</h2></div><span class="chart-legend-hint"><i></i> Proyeksi harian</span></div>
+            <div class="chart-stage"><canvas id="forecastChart" role="img" aria-label="Grafik tren suhu dan probabilitas hujan tujuh hari"></canvas></div>
+          </article>
+          <article class="command-card chart-panel">
+            <div class="panel-heading panel-heading--compact"><div><span class="section-eyebrow">Wind Dynamics</span><h2>Kecepatan Angin</h2></div><span class="chart-legend-hint chart-legend-hint--blue"><i></i> km/jam</span></div>
+            <div class="chart-stage"><canvas id="windChart" role="img" aria-label="Grafik dinamika kecepatan angin tujuh hari"></canvas></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="tab-pane" id="panel-dss" role="tabpanel" aria-labelledby="tab-dss" tabindex="0">
+        <div class="dss-intro command-card">
+          <div class="dss-intro__icon"><i class="fa-solid fa-brain"></i></div>
+          <div><span class="section-eyebrow">Decision Support System</span><h2>Rekomendasi Operasional Pemerintah</h2><p>Analisis otomatis parameter hidrometeorologi untuk mendukung koordinasi lintas perangkat daerah.</p></div>
+          <div class="dss-status" id="dss-status-chip"><span></span>Analisis aktif</div>
+        </div>
+        <div class="dss-grid">
+          <article class="command-card dss-panel">
+            <div class="panel-heading panel-heading--compact"><div><span class="section-eyebrow">Risk Signals</span><h2>Parameter Pemicu</h2></div><i class="fa-solid fa-triangle-exclamation panel-heading__icon"></i></div>
+            <div class="risk-reasons" id="dss-reasons-list"><div class="content-loading"><span class="loading-spinner"></span> Memuat data risiko...</div></div>
+          </article>
+          <article class="command-card dss-panel dss-panel--recommendations">
+            <div class="panel-heading panel-heading--compact"><div><span class="section-eyebrow">Recommended Actions</span><h2>Prioritas Tindakan</h2></div><i class="fa-solid fa-list-check panel-heading__icon"></i></div>
+            <div class="recommendation-list" id="dss-recommendations-list"><div class="content-loading"><span class="loading-spinner"></span> Menyusun rekomendasi...</div></div>
+          </article>
+        </div>
+      </section>
+    </div>
+
+    <footer class="dashboard-footer">
+      <span><i class="fa-solid fa-shield"></i> PWID · Executive Command Center Pemerintah Kota Parepare</span>
+      <span>Data meteorologi bersifat pendukung keputusan dan perlu dikonfirmasi dengan peringatan resmi BMKG.</span>
+    </footer>
+  </main>
+
+  <div class="dashboard-toast" id="dashboard-toast" role="status" aria-live="polite"><i class="fa-solid fa-circle-exclamation"></i><span id="dashboard-toast-message"></span></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>var SERVER_INITIAL_DATA = <?!= initialDataJson ?>;</script>
+  <?!= include('boundary'); ?>
+  <?!= include('dashboard'); ?>
+</body>
+</html>

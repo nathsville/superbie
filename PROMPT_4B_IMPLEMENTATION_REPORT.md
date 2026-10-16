@@ -1,6 +1,8 @@
 # SUPERBIE — PROMPT 4B IMPLEMENTATION REPORT
 ## Finalize Citizen Experience After Business Decision Freeze
 
+> **LC-2 CORRECTION NOTE (added by LC-2D, later than this document):** This is a dated implementation artifact. The `waiting_for_information` status it discusses is now **legacy** under LC-2 — no active transition enters or leaves it; the transitions `waiting_for_information → in_progress` / `→ resolved` referenced below are no longer available. The citizen-response decision itself (no citizen reply mechanism) is unchanged. See `schema.md` §6. Historical content retained unchanged.
+
 - **Jenis prompt:** Audit + Finalisasi Citizen Experience (business decision H1–H12 sudah FINAL = "Tidak").
 - **Prinsip:** NO-GUESSING, tidak ada fitur baru, tidak ada business rule tebak-tebakan, tidak ada refactor besar, tidak ada perubahan schema.
 - **Hasil:** Implementasi existing SUDAH sepenuhnya sesuai keputusan H1–H12 = Tidak. Prompt 4B = **audit + dokumentasi + test pengunci (lock-in)**; nol perubahan kode produksi.

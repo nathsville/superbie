@@ -30,14 +30,24 @@ class DashboardAuthorizationTest extends TestCase
         $this->citizen2   = User::factory()->create(['role' => 'masyarakat', 'is_active' => true]);
 
         // Prompt 15 — operators are scoped to a Dinas/Unit.
+        // PHASE 1 — a Dinas/Unit is owned by AT MOST ONE Operator, so each test
+        // operator is given its own unit.
         $unit = DinasUnit::create([
             'name' => 'Dinas Uji Dashboard', 'code' => 'UJI-DASH',
             'is_active' => true, 'sort_order' => 1,
         ]);
+        $unit2 = DinasUnit::create([
+            'name' => 'Dinas Uji Dashboard 2', 'code' => 'UJI-DASH-2',
+            'is_active' => true, 'sort_order' => 2,
+        ]);
+        $unit3 = DinasUnit::create([
+            'name' => 'Dinas Uji Dashboard 3', 'code' => 'UJI-DASH-3',
+            'is_active' => true, 'sort_order' => 3,
+        ]);
 
         $this->operator1  = User::factory()->create(['role' => 'operator', 'is_active' => true, 'dinas_unit_id' => $unit->id]);
-        $this->operator2  = User::factory()->create(['role' => 'operator', 'is_active' => true, 'dinas_unit_id' => $unit->id]);
-        $this->operator   = User::factory()->create(['role' => 'operator', 'is_active' => true, 'dinas_unit_id' => $unit->id]);
+        $this->operator2  = User::factory()->create(['role' => 'operator', 'is_active' => true, 'dinas_unit_id' => $unit2->id]);
+        $this->operator   = User::factory()->create(['role' => 'operator', 'is_active' => true, 'dinas_unit_id' => $unit3->id]);
         $this->admin      = User::factory()->create(['role' => 'admin', 'is_active' => true]);
         $this->superAdmin = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Staff;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Services\AuditLogService;
+use App\Support\QueryInput;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -31,12 +32,12 @@ class SuperAdminAuditController extends Controller
     public function index(Request $request): View
     {
         $filters = [
-            'search'    => $request->get('search'),
-            'action'    => $request->get('action'),
-            'subject'   => $request->get('subject'),
-            'actor'     => $request->get('actor'),
-            'date_from' => $request->get('date_from'),
-            'date_to'   => $request->get('date_to'),
+            'search'    => QueryInput::string($request->get('search')),
+            'action'    => QueryInput::string($request->get('action')),
+            'subject'   => QueryInput::string($request->get('subject')),
+            'actor'     => QueryInput::string($request->get('actor')),
+            'date_from' => QueryInput::string($request->get('date_from')),
+            'date_to'   => QueryInput::string($request->get('date_to')),
         ];
 
         $logs   = $this->audit->paginate($filters);

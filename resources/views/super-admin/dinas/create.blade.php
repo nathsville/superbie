@@ -11,7 +11,7 @@
     <x-slot:header>Tambah Dinas/Unit</x-slot:header>
     <x-slot:breadcrumb>Master Dinas/Unit</x-slot:breadcrumb>
 
-    <div class="max-w-2xl">
+    <div class="w-full max-w-full">
         @include('super-admin.dinas._form', ['dinasUnit' => null])
     </div>
 </x-layouts.dashboard>

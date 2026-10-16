@@ -3,10 +3,10 @@
 
 ## 1. Design direction
 
-Create a civic-service interface that feels clear, trustworthy, calm, modern, and approachable. The primary user task is submitting or tracking a complaint; decoration must never compete with that task. Use Indonesian copy, plain language, strong visual hierarchy, and generous whitespace.
+Create a civic-service interface that feels clear, trustworthy, calm, modern, and approachable. The primary user task is submitting a complaint or reviewing the status of one's own complaint after login; decoration must never compete with that task. Use Indonesian copy, plain language, strong visual hierarchy, and generous whitespace.
 
 - **Brand context:** part of SuperBie, a planned integrated portal for public services.
-- **MVP scope:** Lapor Pak Wali only. Do not design active screens for SIPHP, weather dashboard, or JDIH; they may appear only as disabled/future navigation placeholders if explicitly approved.
+- **MVP scope:** Lapor Pak Wali **plus the approved WINDY public weather dashboard** (read-only public weather information on the landing page; Phase 3, O-1). Do not design active screens for **SIPHP** or **JDIH** — they remain disabled/future navigation placeholders only. WINDY must not include a GIS/wilayah boundary map, must respect `prefers-reduced-motion`, and must never present synthetic/hardcoded/default values as real measurements. **Phase 4E (D-11…D-17):** show a **3-day** forecast; display times in **`Asia/Makassar` (WITA)**; when a value is unavailable show **"Data tidak tersedia"** (never a default/synthetic value); the Windy.com embed stays as a separate interactive map and is **conditional** on the CSP/privacy decision (O-8); include required **BMKG/OpenWeatherMap attribution**.
 - **Density:** low-to-medium; forms and case details must be easy to scan.
 - **Responsive:** mobile-first; form controls full-width on mobile.
 - **Tone:** respectful, neutral, non-partisan, public-service oriented.
@@ -18,28 +18,95 @@ Use CSS custom properties or Tailwind theme tokens; avoid random hard-coded valu
 
 ### Color palette
 
-| Token | HEX | Usage |
+The palette is derived from the official SuperBie logo: brand blue `#013FF6`
+(the "Super" wordmark and the bee) and brand yellow `#FFC14D` (the "Bie"
+wordmark and the sparkle). Every intermediate step is an HSL sibling of one of
+those two colours, so the whole scale stays inside the logo's hue family.
+
+Tokens are declared in `@theme` in `resources/css/app.css` — Tailwind v4 only
+turns `@theme` variables into utilities. A token declared on `:root` produces no
+`bg-*`/`text-*` class at all, which is what previously forced raw hex values into
+96 of 106 Blade files. **Never hardcode a hex in markup.** The only two
+exceptions are SVG presentation attributes and PHP chart palettes; both are
+listed at the end of this section.
+
+#### Brand scales
+
+| Token | 50 | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `primary-*` | `#F0F4FF` | `#DBE4FF` | `#C2D1FF` | `#99B3FF` | `#5C85FF` | `#2A5FFE` | `#013FF6` | `#0131C1` | `#01248E` | `#011C70` |
+| `accent-*` | `#FFFBF5` | `#FFF1D6` | `#FFE8BD` | `#FFD88F` | `#FFCB6B` | `#FFC14D` | `#996300` | `#8A5A00` | `#704900` | `#573800` |
+
+`primary-600` and `accent-500` are the logo colours exactly. `primary-700` is
+the pressed/interactive state, `primary-100` the soft badge surface.
+
+The accent scale is deliberately discontinuous between 500 and 600: yellow is a
+fill. Nothing at 500 or lighter may carry text — `accent-600` (5.1:1 on white)
+and `accent-700` (5.9:1) exist for warning text and icons, and `accent-500` and
+lighter are backgrounds, borders and fills only.
+
+#### Neutral scale
+
+| Token | HEX | Role |
 |---|---|---|
-| `--color-primary-700` | `#1D4ED8` | Main action / links |
-| `--color-primary-600` | `#2563EB` | Interactive primary |
-| `--color-primary-100` | `#DBEAFE` | Soft primary surface |
-| `--color-secondary-700` | `#0F766E` | Supporting accents |
-| `--color-secondary-100` | `#CCFBF1` | Soft supporting surface |
-| `--color-accent-500` | `#F59E0B` | Attention accent, sparingly |
-| `--color-bg` | `#F8FAFC` | App background |
-| `--color-surface` | `#FFFFFF` | Cards/forms |
-| `--color-text` | `#0F172A` | Primary text |
-| `--color-text-muted` | `#475569` | Secondary text |
-| `--color-border` | `#E2E8F0` | Borders |
-| `--color-success` | `#15803D` | Success state |
-| `--color-warning` | `#B45309` | Warning state |
-| `--color-error` | `#B91C1C` | Error state |
-| `--color-info` | `#0369A1` | Informational state |
+| `--color-ink-strong` | `#1E293B` | Strongest heading |
+| `--color-ink-body` | `#334155` | Body copy |
+| `--color-ink` | `#0F172A` | Primary text / headings |
+| `--color-ink-soft` | `#475569` | Secondary text, labels |
+| `--color-ink-faint` | `#64748B` | Meta text, helper |
+| `--color-ink-ghost` | `#94A3B8` | Placeholder, disabled |
+| `--color-line-strong` | `#CBD5E1` | Emphasised divider |
+| `--color-line` | `#E2E8F0` | Default border |
+| `--color-page` | `#F8FAFC` | App / page background |
+| `--color-surface` | `#FFFFFF` | Cards, forms, panels |
+| `--color-surface-sunken` | `#F1F5F9` | Wells, table head, chips |
+| `--color-canvas` | `#F0F1EE` | Internal dashboard shell only |
+
+`--color-bg`, `--color-text`, `--color-text-muted` and `--color-border` remain as
+canonical aliases of `page`, `ink`, `ink-soft` and `line`; prefer the readable
+name in new markup.
+
+#### Status colours — deliberately NOT brand colours
+
+| Token | HEX | Meaning |
+|---|---|---|
+| `--color-success` | `#15803D` | Selesai / normal |
+| `--color-warning` | `#B45309` | Perlu perhatian |
+| `--color-error` | `#B91C1C` | Ditolak / gagal |
+| `--color-error-soft` | `#FEF2F2` | Error surface |
+| `--color-info` | `#0369A1` | Informational |
+
+A citizen has to read complaint status at a glance, so green means selesai and
+red means ditolak. Do not re-tint these to the brand. The seven complaint
+statuses keep seven distinguishable hues — `primary` (Diajukan), `accent`
+(Ditinjau), `violet` (Diproses), `orange` (Menunggu informasi), `green`
+(Selesai), `red` (Ditolak), neutral (Ditutup) — see
+`App\Enums\ComplaintStatus::tailwindBadge()`.
+
+#### Utility names — the old default names are gone
+
+| Old | New |
+|---|---|
+| `blue-*`, `-[#2563EB]` | `primary-*` |
+| `amber-*`, `yellow-*`, `teal-*`, `-[#F59E0B]`, `-[#0F766E]` | `accent-*` |
+| `indigo-*` | `violet-*` |
+| `slate-*`, `gray-*`, `-[#64748B]` | `ink-*` / `line-*` / `surface-*` / `page` |
+
+#### Literal hex — the only permitted cases
+
+1. SVG presentation attributes, which cannot take `var()`:
+   `stroke="#013FF6"`, `fill="#FFFFFF"`.
+2. Chart palettes in PHP arrays under `resources/views/components/dashboard/`,
+   passed to inline styles. Those series colours stay visually distinct by
+   design (green `#22C55E`, red `#EF4444`, orange `#F97316`, violet `#7C3AED`);
+   only the brand-family entries moved onto brand values.
+3. Blade `<style>` blocks can and should use `var(--color-*)`;
+   `admin/complaints.blade.php` is already converted this way.
 
 Check actual contrast in rendered components; do not assume every pairing is accessible. Color must not be the only way to communicate status.
 
 ### Typography
-- Primary: `Inter`, fallback `ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif`.
+- Primary: `Poppins`, fallback `ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif`.
 - Body base: 16px / 1.5.
 - Small/help: 14px / 1.45.
 - H1: clamp(2rem, 4vw, 3.25rem), weight 700, line-height 1.1.
@@ -69,22 +136,22 @@ Check actual contrast in rendered components; do not assume every pairing is acc
 ## 3. Layouts and pages
 
 ### Public and masyarakat/pelapor
-1. **Landing page:** accessible header, service hero, clear “Kirim Pengaduan” primary CTA, “Lacak Pengaduan” secondary CTA, short steps, privacy reminder, footer with only approved contact/official information.
+1. **Landing page:** accessible header, service hero, clear “Kirim Pengaduan” primary CTA, short steps, privacy reminder, footer with only approved contact/official information. (No “Lacak Pengaduan” — public tracking does not exist.)
 2. **Registration page:** clear account fields, password guidance, validation feedback, and accessible success/error states.
 3. **Login page:** login form, link to registration and reset password, generic authentication errors.
 4. **Citizen dashboard:** ringkasan laporan milik pengguna, akses riwayat, laporan terbaru, and primary “Buat Pengaduan” CTA.
-5. **Submission form:** authenticated-only; category selector shows the related dinas/unit; clear labels; attachment guidance; privacy notice before submit; error summary and field-level errors. Daily-limit feedback must be clear without exposing internal rules beyond the configured limit message.
-6. **Receipt page:** reference code, one-time tracking secret if used, copy action, next steps, warning to save the code securely, and related dinas/unit. Do not put tracking secret in URL.
-7. **Tracking page:** reference/verification form, loading feedback, generic invalid result, public status timeline, no private notes or PII.
+5. **Submission form:** authenticated-only; category selector shows the related dinas/unit; **Kecamatan + Kelurahan are required** (coordinates optional via map/GPS); clear labels; attachment guidance; privacy notice before submit; error summary and field-level errors. Daily-limit feedback must be clear without exposing internal rules beyond the configured limit message.
+6. **Receipt/detail page:** reference code, next steps, and related dinas/unit. Authenticated owner-only; there is no one-time tracking secret flow and no public tracking. Do not put internal data in the URL.
+7. **Complaint detail (owner):** status timeline, public responses, attachments; internal notes never shown.
 8. **Profile page:** view/edit allowed account information.
 9. **Not found/error pages:** plain language and safe way back.
 
 ### Internal panel
 - Sidebar/navigation collapses on mobile.
 - Dashboard uses real database values only.
-- **Operator dashboard:** operational complaint management (review, category, assignment, status, notes, responses).
+- **Operator dashboard:** operational complaint management for the Operator's own Dinas/Unit (review, status, notes, responses, location, completion submission). Category / Dinas-Unit / assignment are read-only (decided by Super Admin during initial validation). While the complaint awaits Super Admin completion validation (`pending_completion_validation`), the "Perbarui Status" options are hidden and the panel shows an informative message instead; they reappear after the Super Admin returns the submission (`completion_returned_to_operator`). This is a UX convenience — the server enforces it (PHASE N6A / F-1).
 - **Admin dashboard:** monitoring only; no management actions.
-- **Super Admin dashboard:** full management navigation.
+- **Super Admin dashboard:** full management navigation, including initial validation and completion validation queues. The completion-validation queue shows a complaint only when `status = in_progress` AND `review_state = pending_completion_validation` (PHASE N6C / N6B-1); a frozen G7 direct resolve leaves `review_state` untouched, so such a row drops out of the queue because its status is no longer `in_progress`. Approve/Return actions are only offered for an actionable row; a stale non-`in_progress` row's completion-validation detail page is rendered read-only (no Approve/Return form, a "Tidak Lagi Dapat Divalidasi" notice) while staying reachable so the M5 deep-link never 404s (PHASE N6E / N6D-1).
 - Complaint list has filter/search, clear status badges, pagination, and responsive table-to-card transformation on narrow screens.
 - Complaint detail separates reporter data, complaint text, attachments, status timeline, internal notes, and public responses visually and semantically.
 - Category controls show the related dinas/unit.
@@ -113,6 +180,9 @@ Use semantic status, readable copy, close action if appropriate, and sufficient 
 
 ### Modal/dialog/dropdown
 Manage focus, Escape behavior, click-outside behavior where appropriate, and focus return. Do not animate a dialog in a way that delays user input.
+
+### Notification bell + dropdown (PHASE N4)
+The dashboard shell header shows an **enabled** notification bell (a real button, `aria-label="Notifikasi"`, `aria-haspopup="true"`, `aria-expanded` bound to Alpine state, keyboard/Escape + click-outside to close). It carries an **unread badge** that is **hidden at 0** and shows **9+** for large counts (never a fabricated count). The dropdown lists the ≤10 latest notifications and a “Lihat semua” link to `/notifikasi`. A notification row (`x-notification-item`) is a clickable link (through `notifications.open`, which marks it read and redirects to a safe, access-checked target) plus a separate delete form (a form cannot nest inside an anchor). Unread rows are visually distinct; the page (`notifications.index`) is paginated 20/page, newest first, with a “Tandai semua dibaca” action when unread items exist. All text is escaped (`{{ }}`). On narrow screens the bell is hidden (`hidden sm:block`) so it never breaks the mobile layout.
 
 ### Table, pagination, filters
 Use semantic table markup on desktop; on mobile transform to labelled cards when that improves readability. Preserve query/filter state in links/forms when practical.
@@ -197,7 +267,7 @@ Do not globally force every element to animate on every rerender. Use reusable c
 ## 7. Content design
 
 - Use concise Bahasa Indonesia.
-- Prefer specific labels: “Kirim Pengaduan”, “Lacak Pengaduan”, “Simpan Perubahan”.
+- Prefer specific labels: “Kirim Pengaduan”, “Lihat Riwayat Laporan”, “Simpan Perubahan”.
 - Error copy should say what went wrong and how to fix it, without exposing internal exceptions.
 - Avoid claims such as “pasti ditindaklanjuti dalam 24 jam” unless an official SLA is provided.
 - Do not invent official seals, agency names, addresses, phone numbers, stats, or service guarantees.

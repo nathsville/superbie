@@ -121,7 +121,7 @@ class P0RemediationRegressionTest extends TestCase
         $reporter = User::factory()->create(['role' => 'masyarakat', 'is_active' => true]);
 
         $this->makeComplaint($reporter, 'submitted');
-        $this->makeComplaint($reporter, 'under_review');
+        $this->makeComplaint($reporter, 'in_progress');
         $this->makeComplaint($reporter, 'resolved');
 
         $response = $this->actingAs($admin)->get('/admin/dashboard');
@@ -131,7 +131,7 @@ class P0RemediationRegressionTest extends TestCase
 
         // Controller must pass the real, derived-from-DB metrics.
         $response->assertViewHas('totalLaporan', 3);
-        $response->assertViewHas('laporanAktif', 2);   // submitted + under_review
+        $response->assertViewHas('laporanAktif', 2);   // submitted + in_progress
         $response->assertViewHas('laporanSelesai', 1); // resolved
     }
 
@@ -143,9 +143,9 @@ class P0RemediationRegressionTest extends TestCase
 
         $response->assertOk();
         $response->assertViewHas('totalLaporan', 0);
-        // Honest empty states (not fabricated content).
-        $response->assertSee('Belum ada laporan masuk.');
-        $response->assertSee('Belum ada laporan yang perlu perhatian.');
+        // Honest empty states (not fabricated content) for the retained cards.
+        $response->assertSee('Belum ada data historis laporan.');
+        $response->assertSee('Belum ada data kategori.');
     }
 
     public function test_admin_dashboard_does_not_contain_fabricated_data(): void
@@ -213,6 +213,158 @@ class P0RemediationRegressionTest extends TestCase
         $kpi = $response->viewData('kpi');
         $this->assertIsArray($kpi);
         $this->assertArrayNotHasKey('sla_risk', $kpi);
-        $this->assertArrayHasKey('belum_ditugaskan', $kpi);
+        // PHASE 6C — Decision 3: the KPI is now "Belum Ditentukan Dinas/Unit"
+        // (routing destination missing), NOT the deprecated "belum ditugaskan".
+        $this->assertArrayHasKey('belum_dinas_unit', $kpi);
+        $this->assertArrayNotHasKey('belum_ditugaskan', $kpi);
+    }
+
+    // =========================================================================
+    // Admin complaints table — readability / layout contract (visual hardening)
+    // =========================================================================
+
+    public function test_admin_complaints_table_has_readable_layout_hooks(): void
+    {
+        $admin    = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $reporter = User::factory()->create(['role' => 'masyarakat', 'is_active' => true]);
+
+        $this->makeComplaint($reporter, 'submitted');
+
+        $html = $this->actingAs($admin)->get('/admin/laporan')->assertOk()->getContent();
+
+        // Filter bar is a single tidy grid (not the old wrapping flex row).
+        $this->assertStringContainsString('filter-grid', $html);
+
+        // Row typography + spacing hooks (clearer secondary-text contrast).
+        $this->assertStringContainsString('ml-ref', $html);
+        $this->assertStringContainsString('ml-title', $html);
+        $this->assertStringContainsString('ml-reporter', $html);
+
+        // Aksi column is the clean ghost button (no literal "Detail >").
+        $this->assertStringContainsString('btn-detail', $html);
+        $this->assertStringNotContainsString('Detail', $html);
+    }
+
+    public function test_admin_complaints_action_is_not_a_dead_link(): void
+    {
+        // Admin is monitoring-only with NO detail route, so the Aksi affordance
+        // must never be a hyperlink (no dead link / no false UI).
+        $admin    = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $reporter = User::factory()->create(['role' => 'masyarakat', 'is_active' => true]);
+
+        $complaint = $this->makeComplaint($reporter, 'submitted');
+
+        $html = $this->actingAs($admin)->get('/admin/laporan')->assertOk()->getContent();
+
+        $this->assertFalse(\Illuminate\Support\Facades\Route::has('admin.complaints.show'));
+        $this->assertStringNotContainsString('/admin/laporan/'.$complaint->id, $html);
+    }
+
+    public function test_admin_complaints_unassigned_filter_is_real(): void
+    {
+        // The Attention Center's "belum ditentukan Dinas/Unit" signal links to a
+        // REAL filter — it must return only reports with no routing destination
+        // (dinas_unit_id IS NULL) that are still active (no dead/fake filter).
+        //
+        // PHASE 6C — Decision 3: the filter semantics are Dinas/Unit-based, NOT
+        // the deprecated `assigned_to` column.
+        $admin    = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $reporter = User::factory()->create(['role' => 'masyarakat', 'is_active' => true]);
+        $unit     = \App\Models\DinasUnit::create([
+            'name'       => 'Dinas PUPR Filter',
+            'code'       => 'PUPR-FILTER',
+            'is_active'  => true,
+            'sort_order' => 1,
+        ]);
+
+        $unrouted = $this->makeComplaint($reporter, 'submitted', ['dinas_unit_id' => null]);
+        $routed   = $this->makeComplaint($reporter, 'submitted', ['dinas_unit_id' => $unit->id]);
+        $resolved = $this->makeComplaint($reporter, 'resolved', ['dinas_unit_id' => null]);
+
+        $response = $this->actingAs($admin)->get('/admin/laporan?assigned=unassigned');
+
+        $response->assertOk();
+        $response->assertSee($unrouted->reference_code);
+        $response->assertDontSee($routed->reference_code);
+        $response->assertDontSee($resolved->reference_code);
+
+        // The active filter is preserved + reflected honestly.
+        $response->assertSee('name="assigned"', false);
+        $response->assertSee('value="unassigned"', false);
+    }
+
+    public function test_admin_complaints_category_filter_is_global(): void
+    {
+        // Admin is a GLOBAL monitoring role with NO Dinas/Unit (the User model
+        // forces dinas_unit_id = NULL for non-operator roles). Its Kategori
+        // dropdown therefore intentionally lists EVERY category — no per-unit
+        // narrowing, unlike the Operator "Kelola Laporan" surface.
+        $admin    = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $reporter = User::factory()->create(['role' => 'masyarakat', 'is_active' => true]);
+
+        $unitA = \App\Models\DinasUnit::create([
+            'name' => 'Dinas Global A', 'code' => 'GLOBAL-A', 'is_active' => true, 'sort_order' => 1,
+        ]);
+        $unitB = \App\Models\DinasUnit::create([
+            'name' => 'Dinas Global B', 'code' => 'GLOBAL-B', 'is_active' => true, 'sort_order' => 2,
+        ]);
+
+        $catA = ComplaintCategory::create([
+            'name' => 'Kategori Global A', 'slug' => 'kategori-global-a', 'is_active' => true, 'sort_order' => 1,
+        ]);
+        $catB = ComplaintCategory::create([
+            'name' => 'Kategori Global B', 'slug' => 'kategori-global-b', 'is_active' => true, 'sort_order' => 2,
+        ]);
+        $catA->dinasUnits()->attach($unitA->id);
+        $catB->dinasUnits()->attach($unitB->id);
+
+        $this->makeComplaint($reporter, 'submitted', ['category_id' => $catA->id]);
+
+        $response = $this->actingAs($admin)->get('/admin/laporan')->assertOk();
+
+        $html = $response->getContent();
+        preg_match('/<select id="filter-category".*?<\/select>/s', $html, $m);
+        $dropdown = $m[0] ?? '';
+
+        $this->assertStringContainsString('value="' . $catA->id . '"', $dropdown);
+        $this->assertStringContainsString('value="' . $catB->id . '"', $dropdown);
+    }
+
+    public function test_admin_complaints_select_styles_do_not_emit_a_relative_url(): void
+    {
+        // Regression guard for the spurious `GET /admin/%EF%BF%BD` 404.
+        //
+        // The native <select> chevrons previously carried an inline
+        // `style="...url(\"data:...\")"`. HTML does not treat `\"` as an
+        // escape, so the attribute value was truncated at the first `"`,
+        // leaving the CSS fragment `url(\` in the document. A trailing
+        // backslash in CSS is an escape that yields U+FFFD, which the browser
+        // then resolved as a RELATIVE url against `/admin/` -> `GET
+        // /admin/%EF%BF%BD` -> 404.
+        //
+        // The chevron now lives in the page stylesheet (`.filter-select`), so
+        // the rendered HTML must never contain a truncated `url(` + backslash.
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        $html = $this->actingAs($admin)->get('/admin/laporan')->assertOk()->getContent();
+
+        // The malformed, backslash-terminated CSS value must be gone.
+        $this->assertStringNotContainsString('url(\\', $html);
+
+        // Every filter <select> opts into the stylesheet-driven chevron.
+        $this->assertSame(3, substr_count($html, 'filter-input filter-select'));
+
+        // The chevron data-URI is declared once, in the page stylesheet.
+        $this->assertStringContainsString('.filter-select', $html);
+
+        // The page stylesheet must be pushed into <head> — never emitted before
+        // <!DOCTYPE html>, which would force the document into quirks mode and
+        // break the bento grid layout.
+        $this->assertStringStartsWith('<!DOCTYPE html>', ltrim($html));
+        $this->assertLessThan(
+            strpos($html, '<style>'),
+            strpos($html, '<!DOCTYPE html>'),
+            'The page stylesheet must not render before the doctype.',
+        );
     }
 }

@@ -47,6 +47,7 @@ class OperatorDinasScopeTest extends TestCase
 
     private DinasUnit $unitA;
     private DinasUnit $unitB;
+    private DinasUnit $unitC;
 
     private ComplaintCategory $categoryA;
     private ComplaintCategory $categoryB;
@@ -66,6 +67,11 @@ class OperatorDinasScopeTest extends TestCase
         ]);
         $this->unitB = DinasUnit::create([
             'name' => 'Dinas B', 'code' => 'SCOPE-B', 'is_active' => true, 'sort_order' => 2,
+        ]);
+        // PHASE 1 — a Dinas/Unit is owned by AT MOST ONE Operator. This third
+        // unit stays FREE so create/reassign flows have a valid target.
+        $this->unitC = DinasUnit::create([
+            'name' => 'Dinas C', 'code' => 'SCOPE-C', 'is_active' => true, 'sort_order' => 3,
         ]);
 
         $this->operatorA = User::factory()->create([
@@ -175,6 +181,102 @@ class OperatorDinasScopeTest extends TestCase
     }
 
     // =========================================================================
+    // §4 — CATEGORY FILTER OPTIONS are scoped to the viewer's Dinas/Unit
+    // =========================================================================
+
+    public function test_operator_category_filter_offers_only_own_unit_categories(): void
+    {
+        // A real in-scope complaint so the table also renders a category name.
+        $this->makeComplaint([
+            'category_id' => $this->categoryA->id, 'dinas_unit_id' => $this->unitA->id, 'title' => 'SCOPE_CAT_A',
+        ]);
+
+        $response = $this->actingAs($this->operatorA)
+            ->get(route('operator.complaint.index'))
+            ->assertOk();
+
+        $response->assertViewHas('categories', function ($categories) {
+            $ids = $categories->pluck('id')->all();
+
+            return in_array($this->categoryA->id, $ids, true)
+                && ! in_array($this->categoryB->id, $ids, true)       // other unit's category
+                && ! in_array($this->categoryUnmapped->id, $ids, true); // never mapped
+        });
+
+        // Inspect the filter dropdown itself: it must not offer the other
+        // Dinas/Unit's category nor an unmapped one as an <option>.
+        $html = $response->getContent();
+        preg_match('/<select id="filter-category".*?<\/select>/s', $html, $m);
+        $dropdown = $m[0] ?? '';
+
+        $this->assertStringContainsString('value="' . $this->categoryA->id . '"', $dropdown);
+        $this->assertStringNotContainsString('value="' . $this->categoryB->id . '"', $dropdown);
+        $this->assertStringNotContainsString('value="' . $this->categoryUnmapped->id . '"', $dropdown);
+    }
+
+    public function test_operator_without_unit_gets_no_category_filter_options(): void
+    {
+        $response = $this->actingAs($this->operatorNoUnit)
+            ->get(route('operator.complaint.index'))
+            ->assertOk();
+
+        // BDR-3 — a unit-less Operator is denied scope: NO global fallback.
+        $response->assertViewHas('categories', fn ($categories) => $categories->isEmpty());
+
+        $html = $response->getContent();
+        preg_match('/<select id="filter-category".*?<\/select>/s', $html, $m);
+        $dropdown = $m[0] ?? '';
+
+        // Only the neutral "Semua Kategori" option remains.
+        $this->assertStringNotContainsString('value="' . $this->categoryA->id . '"', $dropdown);
+        $this->assertStringNotContainsString('value="' . $this->categoryB->id . '"', $dropdown);
+    }
+
+    public function test_super_admin_category_filter_offers_the_full_global_list(): void
+    {
+        $response = $this->actingAs($this->superAdmin)
+            ->get(route('operator.complaint.index'))
+            ->assertOk();
+
+        $response->assertViewHas('categories', function ($categories) {
+            $ids = $categories->pluck('id')->all();
+
+            return in_array($this->categoryA->id, $ids, true)
+                && in_array($this->categoryB->id, $ids, true)
+                && in_array($this->categoryUnmapped->id, $ids, true);
+        });
+
+        $html = $response->getContent();
+        preg_match('/<select id="filter-category".*?<\/select>/s', $html, $m);
+        $dropdown = $m[0] ?? '';
+
+        $this->assertStringContainsString('value="' . $this->categoryA->id . '"', $dropdown);
+        $this->assertStringContainsString('value="' . $this->categoryB->id . '"', $dropdown);
+        $this->assertStringContainsString('value="' . $this->categoryUnmapped->id . '"', $dropdown);
+    }
+
+    public function test_category_filter_options_exclude_inactive_categories(): void
+    {
+        $inactive = ComplaintCategory::create([
+            'name' => 'Kategori Nonaktif', 'slug' => 'scope-kategori-inactive',
+            'is_active' => false, 'sort_order' => 9,
+        ]);
+        $inactive->dinasUnits()->attach($this->unitA->id);
+
+        $response = $this->actingAs($this->operatorA)
+            ->get(route('operator.complaint.index'))
+            ->assertOk();
+
+        $response->assertViewHas('categories', fn ($categories) => ! in_array($inactive->id, $categories->pluck('id')->all(), true));
+
+        $html = $response->getContent();
+        preg_match('/<select id="filter-category".*?<\/select>/s', $html, $m);
+        $dropdown = $m[0] ?? '';
+
+        $this->assertStringNotContainsString('value="' . $inactive->id . '"', $dropdown);
+    }
+
+    // =========================================================================
     // §4 — SHOW SCOPING
     // =========================================================================
 
@@ -240,8 +342,10 @@ class OperatorDinasScopeTest extends TestCase
     {
         $complaint = $this->makeComplaint(['dinas_unit_id' => $this->unitB->id]);
 
+        // PHASE 2R — the category-mutation route is REMOVED (404 for every actor),
+        // so it can never be used even against an in-scope complaint.
         $this->actingAs($this->operatorA)
-            ->patch(route('operator.complaint.update-category', $complaint), [
+            ->patch('/operator/laporan/' . $complaint->id . '/kategori', [
                 'category_id' => $this->categoryA->id,
             ])
             ->assertNotFound();
@@ -253,8 +357,9 @@ class OperatorDinasScopeTest extends TestCase
     {
         $complaint = $this->makeComplaint(['dinas_unit_id' => $this->unitB->id]);
 
+        // PHASE 2R — the destination-mutation route is REMOVED (404 for every actor).
         $this->actingAs($this->operatorA)
-            ->patch(route('operator.complaint.update-destination', $complaint), [
+            ->patch('/operator/laporan/' . $complaint->id . '/tujuan', [
                 'dinas_unit_id' => $this->unitA->id,
             ])
             ->assertNotFound();
@@ -266,8 +371,9 @@ class OperatorDinasScopeTest extends TestCase
     {
         $complaint = $this->makeComplaint(['dinas_unit_id' => $this->unitB->id]);
 
+        // PHASE 2R — the assignment route is REMOVED (404 for every actor).
         $this->actingAs($this->operatorA)
-            ->patch(route('operator.complaint.assign', $complaint), [
+            ->patch('/operator/laporan/' . $complaint->id . '/tugaskan', [
                 'assigned_to' => $this->operatorA->id,
             ])
             ->assertNotFound();
@@ -349,10 +455,10 @@ class OperatorDinasScopeTest extends TestCase
         $complaint = $this->makeComplaint(['dinas_unit_id' => $this->unitA->id]);
 
         $this->actingAs($this->operatorA)
-            ->patch(route('operator.complaint.update-status', $complaint), ['status' => 'under_review'])
+            ->patch(route('operator.complaint.update-status', $complaint), ['status' => 'in_progress'])
             ->assertRedirect(route('operator.complaint.show', $complaint));
 
-        $this->assertSame('under_review', $complaint->fresh()->status->value);
+        $this->assertSame('in_progress', $complaint->fresh()->status->value);
     }
 
     public function test_operator_can_download_attachment_in_scope(): void
@@ -382,10 +488,10 @@ class OperatorDinasScopeTest extends TestCase
         $complaint = $this->makeComplaint(['dinas_unit_id' => $this->unitB->id]);
 
         $this->actingAs($this->superAdmin)
-            ->patch(route('operator.complaint.update-status', $complaint), ['status' => 'under_review'])
+            ->patch(route('operator.complaint.update-status', $complaint), ['status' => 'in_progress'])
             ->assertRedirect(route('operator.complaint.show', $complaint));
 
-        $this->assertSame('under_review', $complaint->fresh()->status->value);
+        $this->assertSame('in_progress', $complaint->fresh()->status->value);
     }
 
     // =========================================================================
@@ -500,13 +606,13 @@ class OperatorDinasScopeTest extends TestCase
                 'password_confirmation' => 'RahasiaKuat123!',
                 'role' => 'operator',
                 'is_active' => '1',
-                'dinas_unit_id' => $this->unitA->id,
+                'dinas_unit_id' => $this->unitC->id,
             ])
             ->assertRedirect(route('super-admin.users.index'));
 
         $this->assertDatabaseHas('users', [
             'email' => 'operator.berunit@superbie.local',
-            'dinas_unit_id' => $this->unitA->id,
+            'dinas_unit_id' => $this->unitC->id,
         ]);
     }
 
@@ -556,11 +662,11 @@ class OperatorDinasScopeTest extends TestCase
                 'email' => $this->operatorA->email,
                 'role' => 'operator',
                 'is_active' => '1',
-                'dinas_unit_id' => $this->unitB->id,
+                'dinas_unit_id' => $this->unitC->id,
             ])
             ->assertRedirect(route('super-admin.users.index'));
 
-        $this->assertSame($this->unitB->id, $this->operatorA->fresh()->dinas_unit_id);
+        $this->assertSame($this->unitC->id, $this->operatorA->fresh()->dinas_unit_id);
         $this->assertDatabaseHas('audit_logs', [
             'action' => 'user.dinas_unit_changed',
             'subject_type' => 'user',

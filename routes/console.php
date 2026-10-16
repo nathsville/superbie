@@ -23,3 +23,21 @@ Artisan::command('inspire', function () {
 |
 */
 Schedule::command('complaints:purge-expired')->dailyAt('02:00');
+
+/*
+|--------------------------------------------------------------------------
+| WINDY weather sync (owner decision D-16: scheduled + manual)
+|--------------------------------------------------------------------------
+|
+| Scheduled sync of BMKG forecast data every 3 hours (the source's own slot
+| interval). The SAME service also backs the Super Admin manual sync button,
+| so scheduled and manual paths share identical logic and locking.
+|
+| In production, `weather:sync` requires `--force`; the scheduler passes it so
+| the automated run is intentional. `withoutOverlapping` prevents a slow run
+| from stacking on the next tick (in addition to the service's own lock).
+|
+*/
+Schedule::command('weather:sync --force')
+    ->everyThreeHours()
+    ->withoutOverlapping();

@@ -32,6 +32,14 @@ const CONFIG = {
 const AUTH_PATHS = ['/login', '/register', '/forgot-password', '/reset-password'];
 const NON_HTML_EXT = /\.(pdf|xlsx?|csv|zip|rar|docx?|pptx?|png|jpe?g|gif|webp|svg|mp4|mp3|txt)$/i;
 
+// The public weather surface (`/cuaca`, `/cuaca/{location}`) is a DISTINCT
+// full-page layout: its own dark header/footer and its own Alpine scopes. This
+// layer only swaps `#main-content`'s innerHTML, which would inject that page's
+// markup WITHOUT its Alpine `x-data` wrapper and leave the previous page's
+// header in place. Never intercept navigation to or from it — a normal browser
+// navigation keeps the chrome and Alpine initialization correct.
+const WEATHER_PATH = /^\/cuaca(?:\/|$)/;
+
 const DEBUG = Boolean(import.meta && import.meta.env && import.meta.env.DEV);
 const log = (...args) => { if (DEBUG) console.debug('[nav]', ...args); };
 
@@ -66,10 +74,15 @@ function isAuthPath(pathname) {
     return AUTH_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
 }
 
+function isWeatherPath(pathname) {
+    return WEATHER_PATH.test(pathname);
+}
+
 function isExcluded(url) {
     if (url.origin !== window.location.origin) return true;
     const p = url.pathname;
     if (isAuthPath(p)) return true;
+    if (isWeatherPath(p)) return true;
     if (p === '/logout') return true;
     if (p.includes('/lampiran/')) return true; // attachment downloads (binary)
     if (NON_HTML_EXT.test(p)) return true;
@@ -203,7 +216,18 @@ function applySnapshot(snapshot) {
     // (`::view-transition-*` in app.css) drives the animation. Never required.
     if (typeof document.startViewTransition === 'function' && !prefersReducedMotion()) {
         try {
-            document.startViewTransition(swap);
+            // `startViewTransition()` returns a ViewTransition whose `ready` /
+            // `finished` promises REJECT whenever the browser SKIPS the
+            // transition (e.g. Chromium aborts a script-initiated same-document
+            // transition while a cross-document `@view-transition` navigation
+            // is active, reported as "ViewTransition opt-in disabled"). The
+            // synchronous try/catch cannot see an async rejection, so an
+            // unhandled rejection would leak to the console. A skipped
+            // transition still runs `swap`, so swallowing the abort is correct
+            // and keeps this layer strictly optional.
+            const transition = document.startViewTransition(swap);
+            transition.ready.catch(() => {});
+            transition.finished.catch(() => {});
             return;
         } catch {
             /* fall through to a plain swap */
@@ -370,6 +394,11 @@ async function navigate(url, options) {
 function onDocumentClick(event) {
     if (event.defaultPrevented || event.button !== 0) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+    // Never intercept while ON the weather surface: this layer only swaps
+    // `#main-content`, which would leave the weather page's own header/footer in
+    // place around another page's content. Let the browser do a full navigation.
+    if (isWeatherPath(window.location.pathname)) return;
 
     const anchor = event.target && event.target.closest ? event.target.closest('a[href]') : null;
     if (!anchor) return;

@@ -1,0 +1,738 @@
+<script>
+  var forecastChartInstance = null;
+  var windChartInstance = null;
+  var dashboardToastTimer = null;
+  var dashboardInitialized = false;
+  var AUTO_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
+  var PAREPARE_MAP_VIEW = {
+    centerLat: -4.0203292,
+    centerLon: 119.6661219,
+    markerLat: -4.0167,
+    markerLon: 119.6236,
+    zoom: 12
+  };
+  var parepareBoundaryGeoJSON = null;
+  var boundaryResizeFrame = null;
+
+  function getElement(id) {
+    return document.getElementById(id);
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function toFiniteNumber(value, fallback) {
+    var parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  function formatNumber(value, maximumFractionDigits) {
+    var parsed = Number(value);
+    if (!Number.isFinite(parsed)) return '--';
+    return new Intl.NumberFormat('id-ID', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: maximumFractionDigits == null ? 1 : maximumFractionDigits
+    }).format(parsed);
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function setText(id, value) {
+    var element = getElement(id);
+    if (element) element.textContent = value;
+  }
+
+  function setMetricValue(id, value, unit) {
+    var element = getElement(id);
+    if (!element) return;
+    element.innerHTML = escapeHtml(value) + '<small>' + escapeHtml(unit) + '</small>';
+  }
+
+  function updateLiveClock() {
+    try {
+      var now = new Date();
+      var timeFormatter = new Intl.DateTimeFormat('id-ID', {
+        timeZone: 'Asia/Makassar',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hourCycle: 'h23'
+      });
+      var dateFormatter = new Intl.DateTimeFormat('id-ID', {
+        timeZone: 'Asia/Makassar',
+        weekday: 'long',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      });
+      setText('clock-wita', timeFormatter.format(now).replace(/\./g, ':'));
+      setText('date-wita', dateFormatter.format(now));
+    } catch (error) {
+      var fallback = new Date();
+      setText('clock-wita', String(fallback.getHours()).padStart(2, '0') + ':' + String(fallback.getMinutes()).padStart(2, '0') + ':' + String(fallback.getSeconds()).padStart(2, '0'));
+    }
+  }
+
+  function initializeDashboard() {
+    if (dashboardInitialized) return;
+    dashboardInitialized = true;
+
+    updateLiveClock();
+    window.setInterval(updateLiveClock, 1000);
+    initializeMapLoadingState();
+    initializeParepareBoundary();
+    initializeTabChartResize();
+
+    if (typeof SERVER_INITIAL_DATA !== 'undefined' && SERVER_INITIAL_DATA && SERVER_INITIAL_DATA.current) {
+      renderDashboard(SERVER_INITIAL_DATA);
+    } else {
+      loadDashboardData();
+    }
+
+    window.setInterval(function() {
+      if (!document.hidden) loadDashboardData(true);
+    }, AUTO_REFRESH_INTERVAL_MS);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeDashboard, { once: true });
+  } else {
+    initializeDashboard();
+  }
+
+  function hasAppsScriptRuntime() {
+    return typeof google !== 'undefined' && google.script && google.script.run;
+  }
+
+  function setRefreshState(isLoading, label) {
+    var button = getElement('btn-refresh');
+    if (!button) return;
+    button.disabled = Boolean(isLoading);
+    button.innerHTML = '<i class="fa-solid fa-arrows-rotate' + (isLoading ? ' fa-spin' : '') + '" aria-hidden="true"></i><span>' + escapeHtml(label || 'Sinkronkan') + '</span>';
+  }
+
+  function setFreshnessState(isCached, label) {
+    var pill = getElement('freshness-pill');
+    if (!pill) return;
+    pill.classList.toggle('is-cached', Boolean(isCached));
+    pill.innerHTML = '<span></span>' + escapeHtml(label || (isCached ? 'Data cache terakhir' : 'Data terkini'));
+  }
+
+  function loadDashboardData(isBackgroundRefresh) {
+    if (!hasAppsScriptRuntime()) {
+      if (!isBackgroundRefresh) showDashboardToast('Runtime Google Apps Script tidak tersedia pada pratinjau lokal.');
+      return;
+    }
+
+    if (!isBackgroundRefresh) setRefreshState(true, 'Memuat...');
+    setFreshnessState(false, 'Menyinkronkan data...');
+
+    google.script.run
+      .withSuccessHandler(function(data) {
+        setRefreshState(false, 'Sinkronkan');
+        renderDashboard(data);
+      })
+      .withFailureHandler(function(error) {
+        setRefreshState(false, 'Coba Lagi');
+        setFreshnessState(true, 'Sinkronisasi gagal');
+        showDashboardToast('Data belum dapat diperbarui. Menampilkan informasi terakhir yang tersedia.');
+        console.error('Gagal memuat dashboard:', error);
+      })
+      .fetchDashboardData();
+  }
+
+  function triggerManualRefresh() {
+    if (!hasAppsScriptRuntime()) {
+      showDashboardToast('Sinkronisasi manual hanya tersedia pada Google Apps Script Web App.');
+      return;
+    }
+
+    setRefreshState(true, 'Sinkronisasi...');
+    setFreshnessState(false, 'Mengambil data terbaru...');
+
+    google.script.run
+      .withSuccessHandler(function(data) {
+        setRefreshState(false, 'Sinkronkan');
+        renderDashboard(data);
+      })
+      .withFailureHandler(function(error) {
+        setRefreshState(false, 'Coba Lagi');
+        setFreshnessState(true, 'Sinkronisasi gagal');
+        showDashboardToast('Sinkronisasi gagal. Silakan periksa koneksi API dan coba kembali.');
+        console.error('Gagal menyinkronkan data:', error);
+      })
+      .forceRefreshData();
+  }
+
+  function renderDashboard(data) {
+    if (!data || !data.current) {
+      showDashboardToast('Payload cuaca tidak valid atau belum tersedia.');
+      return;
+    }
+
+    var current = data.current;
+    var risk = data.risk || { status: 'NORMAL', reasons: [], recommendations: [] };
+    var forecasts = Array.isArray(data.forecast_7d) ? data.forecast_7d : [];
+
+    setText('last-update-text', data.timestamp || '-');
+    setText('data-source-label', data.is_cached ? 'Cache meteorologi terakhir' : 'BMKG · OpenWeather');
+    setFreshnessState(Boolean(data.is_cached), data.is_cached ? 'Data cache terakhir' : 'Data terkini');
+
+    renderCurrentWeather(current);
+    renderRiskState(risk);
+    renderForecastCards(forecasts);
+    renderDecisionSupport(risk);
+    renderForecastSummary(forecasts);
+
+    if (forecasts.length && typeof Chart !== 'undefined') {
+      renderCharts(forecasts);
+    }
+  }
+
+  function renderCurrentWeather(current) {
+    var tempValue = formatNumber(current.temp_c, 1);
+    var tempElement = getElement('val-temp');
+    if (tempElement) tempElement.innerHTML = escapeHtml(tempValue) + '<sup>°C</sup>';
+
+    setText('val-desc', current.weather_desc || 'Kondisi cuaca tidak tersedia');
+    setMetricValue('val-humidity', formatNumber(current.humidity, 0), '%');
+    setMetricValue('val-wind', formatNumber(current.wind_speed_kmh, 1), ' km/h');
+    setMetricValue('val-pressure', formatNumber(current.pressure_hpa, 0), ' hPa');
+    setMetricValue('val-visibility', formatNumber(current.visibility_km, 1), ' km');
+    setMetricValue('val-rain', formatNumber(current.rain_mm, 1), ' mm');
+
+    setText('val-clouds', formatNumber(current.clouds_pct, 0) + '%');
+    setText('val-visibility-hero', formatNumber(current.visibility_km, 1) + ' km');
+    setText('val-wave', formatNumber(current.wave_meter, 1) + ' m');
+    setText('val-wind-dir', current.wind_dir ? 'Arah ' + current.wind_dir : 'Angin permukaan');
+
+    var visual = getWeatherVisual(current.weather_desc, current.rain_mm);
+    var icon = getElement('weather-icon');
+    var symbol = getElement('weather-symbol');
+    if (icon) icon.className = 'fa-solid ' + visual.icon;
+    if (symbol) {
+      symbol.classList.remove('is-rain', 'is-storm', 'is-clear', 'is-cloud');
+      symbol.classList.add(visual.className);
+    }
+  }
+
+  function getWeatherVisual(description, rainAmount) {
+    var text = String(description || '').toLowerCase();
+    var rain = toFiniteNumber(rainAmount, 0);
+
+    if (text.indexOf('petir') >= 0 || text.indexOf('badai') >= 0) return { icon: 'fa-cloud-bolt', className: 'is-storm' };
+    if (text.indexOf('hujan') >= 0) return { icon: 'fa-cloud-showers-heavy', className: 'is-rain' };
+    if (text.indexOf('cerah') >= 0 && text.indexOf('berawan') < 0) return { icon: 'fa-sun', className: 'is-clear' };
+    if (text.indexOf('kabut') >= 0 || text.indexOf('asap') >= 0) return { icon: 'fa-smog', className: 'is-cloud' };
+    if (!text && rain >= 1) return { icon: 'fa-cloud-showers-heavy', className: 'is-rain' };
+    return { icon: 'fa-cloud-sun', className: 'is-cloud' };
+  }
+
+  function normalizeRiskStatus(status) {
+    var normalized = String(status || 'NORMAL').toUpperCase();
+    if (normalized === 'SIAGA') return 'siaga';
+    if (normalized === 'WASPADA') return 'waspada';
+    return 'normal';
+  }
+
+  function renderRiskState(risk) {
+    var status = String(risk.status || 'NORMAL').toUpperCase();
+    var riskKey = normalizeRiskStatus(status);
+    var riskCard = getElement('card-risk');
+    var icon = getElement('icon-risk');
+    var subtitleMap = {
+      normal: 'Parameter dalam ambang aman',
+      waspada: 'Peningkatan kewaspadaan diperlukan',
+      siaga: 'Respons lintas perangkat daerah diperlukan'
+    };
+    var iconMap = {
+      normal: 'fa-solid fa-shield',
+      waspada: 'fa-solid fa-shield-halved',
+      siaga: 'fa-solid fa-triangle-exclamation'
+    };
+
+    if (riskCard) riskCard.setAttribute('data-risk', riskKey);
+    document.body.setAttribute('data-risk', riskKey);
+    setText('val-risk-status', status);
+    setText('val-risk-sub', subtitleMap[riskKey]);
+    if (icon) icon.className = iconMap[riskKey];
+
+    renderEarlyWarning(risk, riskKey);
+  }
+
+  function renderEarlyWarning(risk, riskKey) {
+    var container = getElement('ews-alert-container');
+    if (!container) return;
+
+    if (riskKey === 'normal') {
+      container.innerHTML = '';
+      return;
+    }
+
+    var reasons = Array.isArray(risk.reasons) ? risk.reasons : [];
+    var title = riskKey === 'siaga'
+      ? 'Peringatan dini: Status SIAGA aktif untuk Kota Parepare'
+      : 'Status WASPADA: Pemantauan parameter cuaca ditingkatkan';
+    var iconClass = riskKey === 'siaga' ? 'fa-triangle-exclamation' : 'fa-circle-exclamation';
+    var reasonText = reasons.length ? reasons.join(' · ') : 'Terjadi peningkatan parameter hidrometeorologi.';
+
+    container.innerHTML =
+      '<div class="ews-banner ews-banner--' + riskKey + '">' +
+        '<span class="ews-banner__icon"><i class="fa-solid ' + iconClass + '"></i></span>' +
+        '<div class="ews-banner__copy"><strong>' + escapeHtml(title) + '</strong><p>' + escapeHtml(reasonText) + '</p></div>' +
+      '</div>';
+  }
+
+  function renderForecastCards(forecasts) {
+    var container = getElement('forecast-7d-row');
+    if (!container) return;
+
+    if (!forecasts.length) {
+      container.innerHTML = '<div class="forecast-loading"><i class="fa-regular fa-calendar-xmark"></i><span>Prakiraan tujuh hari belum tersedia.</span></div>';
+      return;
+    }
+
+    container.innerHTML = forecasts.map(function(item, index) {
+      var rainProbability = clamp(toFiniteNumber(item.rain_prob_pct, 0), 0, 100);
+      var visual = getWeatherVisual(item.condition, rainProbability > 50 ? 1 : 0);
+      var isRain = visual.className === 'is-rain' || visual.className === 'is-storm';
+      var todayClass = index === 0 ? ' is-today' : '';
+
+      return '<article class="forecast-card' + todayClass + '">' +
+        '<div class="forecast-card__head">' +
+          '<div><span class="forecast-card__day">' + escapeHtml(item.day || '-') + '</span><span class="forecast-card__date">' + escapeHtml(item.date || '-') + '</span></div>' +
+          '<span class="forecast-card__icon' + (isRain ? ' is-rain' : '') + '"><i class="fa-solid ' + visual.icon + '"></i></span>' +
+        '</div>' +
+        '<div class="forecast-card__temp">' + escapeHtml(formatNumber(item.temp_max, 0)) + '° <small>/ ' + escapeHtml(formatNumber(item.temp_min, 0)) + '°</small></div>' +
+        '<span class="forecast-card__condition">' + escapeHtml(item.condition || 'Prakiraan cuaca') + '</span>' +
+        '<div class="forecast-card__rain"><span><i class="fa-solid fa-droplet"></i> Hujan</span><strong>' + escapeHtml(formatNumber(rainProbability, 0)) + '%</strong></div>' +
+        '<div class="rain-track" aria-hidden="true"><span style="width:' + rainProbability + '%"></span></div>' +
+      '</article>';
+    }).join('');
+  }
+
+  function renderDecisionSupport(risk) {
+    var reasonsContainer = getElement('dss-reasons-list');
+    var recommendationsContainer = getElement('dss-recommendations-list');
+    var statusChip = getElement('dss-status-chip');
+    var reasons = Array.isArray(risk.reasons) && risk.reasons.length ? risk.reasons : ['Belum ada parameter pemicu yang teridentifikasi.'];
+    var recommendations = Array.isArray(risk.recommendations) && risk.recommendations.length ? risk.recommendations : ['Lanjutkan monitoring berkala kondisi cuaca Kota Parepare.'];
+    var status = String(risk.status || 'NORMAL').toUpperCase();
+
+    if (statusChip) {
+      statusChip.setAttribute('data-risk', normalizeRiskStatus(status));
+      statusChip.innerHTML = '<span></span>Analisis ' + escapeHtml(status);
+    }
+
+    if (reasonsContainer) {
+      reasonsContainer.innerHTML = reasons.map(function(reason, index) {
+        return '<div class="risk-reason' + (status === 'NORMAL' ? ' risk-reason--normal' : '') + '">' +
+          '<span class="risk-reason__icon"><i class="fa-solid ' + (status === 'NORMAL' ? 'fa-shield' : 'fa-wave-square') + '"></i></span>' +
+          '<span><small>Parameter ' + String(index + 1).padStart(2, '0') + '</small><p>' + escapeHtml(reason) + '</p></span>' +
+        '</div>';
+      }).join('');
+    }
+
+    if (recommendationsContainer) {
+      recommendationsContainer.innerHTML = recommendations.map(function(recommendation, index) {
+        var parsed = parseRecommendation(recommendation);
+        return '<div class="recommendation-item">' +
+          '<span class="recommendation-item__number">' + String(index + 1).padStart(2, '0') + '</span>' +
+          '<div><small>' + escapeHtml(parsed.agency) + '</small><p>' + escapeHtml(parsed.action) + '</p></div>' +
+        '</div>';
+      }).join('');
+    }
+  }
+
+  function parseRecommendation(recommendation) {
+    var text = String(recommendation || '');
+    var separatorIndex = text.indexOf(':');
+    if (separatorIndex > 0 && separatorIndex < 48) {
+      return {
+        agency: text.slice(0, separatorIndex),
+        action: text.slice(separatorIndex + 1).trim()
+      };
+    }
+    return { agency: 'Tindakan Prioritas', action: text };
+  }
+
+  function renderForecastSummary(forecasts) {
+    if (!forecasts.length) return;
+    var temperatures = forecasts.map(function(item) { return toFiniteNumber(item.temp_max, 0); });
+    var rains = forecasts.map(function(item) { return toFiniteNumber(item.rain_prob_pct, 0); });
+    var winds = forecasts.map(function(item) { return toFiniteNumber(item.wind_kmh, 0); });
+    setText('chart-temp-high', formatNumber(Math.max.apply(Math, temperatures), 0) + '°C');
+    setText('chart-rain-peak', formatNumber(Math.max.apply(Math, rains), 0) + '%');
+    setText('chart-wind-max', formatNumber(Math.max.apply(Math, winds), 0) + ' km/h');
+  }
+
+  function getCssColor(variableName, fallback) {
+    var value = getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
+    return value || fallback;
+  }
+
+  function renderCharts(forecasts) {
+    try {
+      var forecastCanvas = getElement('forecastChart');
+      var windCanvas = getElement('windChart');
+      if (!forecastCanvas || !windCanvas) return;
+
+      var labels = forecasts.map(function(item) { return item.day; });
+      var temperatures = forecasts.map(function(item) { return toFiniteNumber(item.temp_max, null); });
+      var rains = forecasts.map(function(item) { return toFiniteNumber(item.rain_prob_pct, null); });
+      var winds = forecasts.map(function(item) { return toFiniteNumber(item.wind_kmh, null); });
+      var textColor = getCssColor('--text-soft', '#c4d2df');
+      var mutedColor = getCssColor('--muted', '#8fa6ba');
+      var cyanColor = getCssColor('--cyan', '#45dcff');
+      var blueColor = getCssColor('--blue', '#6684ff');
+      var gridColor = 'rgba(143, 166, 186, 0.08)';
+
+      var tempContext = forecastCanvas.getContext('2d');
+      var temperatureGradient = tempContext.createLinearGradient(0, 0, 0, 340);
+      temperatureGradient.addColorStop(0, 'rgba(255, 108, 124, 0.24)');
+      temperatureGradient.addColorStop(1, 'rgba(255, 108, 124, 0.01)');
+
+      if (forecastChartInstance) forecastChartInstance.destroy();
+      forecastChartInstance = new Chart(tempContext, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Suhu maksimum (°C)',
+              data: temperatures,
+              borderColor: '#ff7885',
+              backgroundColor: temperatureGradient,
+              borderWidth: 2,
+              pointRadius: 3,
+              pointHoverRadius: 6,
+              pointBackgroundColor: '#ff8994',
+              pointBorderColor: '#102033',
+              pointBorderWidth: 2,
+              yAxisID: 'yTemp',
+              tension: 0.42,
+              fill: true
+            },
+            {
+              label: 'Probabilitas hujan (%)',
+              data: rains,
+              borderColor: cyanColor,
+              backgroundColor: 'rgba(69, 220, 255, 0.18)',
+              borderWidth: 0,
+              borderRadius: 7,
+              borderSkipped: false,
+              maxBarThickness: 30,
+              yAxisID: 'yRain',
+              type: 'bar'
+            }
+          ]
+        },
+        options: buildChartOptions(textColor, mutedColor, gridColor, true)
+      });
+
+      var windContext = windCanvas.getContext('2d');
+      var windGradient = windContext.createLinearGradient(0, 0, 0, 340);
+      windGradient.addColorStop(0, 'rgba(69, 220, 255, 0.26)');
+      windGradient.addColorStop(1, 'rgba(69, 220, 255, 0.01)');
+
+      if (windChartInstance) windChartInstance.destroy();
+      windChartInstance = new Chart(windContext, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Kecepatan angin (km/jam)',
+            data: winds,
+            borderColor: cyanColor,
+            backgroundColor: windGradient,
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            pointBackgroundColor: cyanColor,
+            pointBorderColor: '#102033',
+            pointBorderWidth: 2,
+            fill: true,
+            tension: 0.42
+          }]
+        },
+        options: buildChartOptions(textColor, mutedColor, gridColor, false, blueColor)
+      });
+    } catch (error) {
+      console.warn('Grafik tidak dapat dirender:', error);
+    }
+  }
+
+  function buildChartOptions(textColor, mutedColor, gridColor, dualAxis, accentColor) {
+    var scales = {
+      x: {
+        border: { display: false },
+        grid: { display: false },
+        ticks: { color: mutedColor, font: { family: 'Manrope', size: 9, weight: 600 }, padding: 8 }
+      },
+      yTemp: {
+        display: dualAxis,
+        position: 'left',
+        border: { display: false },
+        grid: { color: gridColor, drawTicks: false },
+        ticks: { color: mutedColor, font: { family: 'Manrope', size: 9 }, padding: 9, callback: function(value) { return value + '°'; } }
+      }
+    };
+
+    if (dualAxis) {
+      scales.yRain = {
+        position: 'right',
+        min: 0,
+        max: 100,
+        border: { display: false },
+        grid: { drawOnChartArea: false, drawTicks: false },
+        ticks: { color: mutedColor, stepSize: 25, font: { family: 'Manrope', size: 9 }, padding: 9, callback: function(value) { return value + '%'; } }
+      };
+    } else {
+      scales.y = {
+        beginAtZero: true,
+        border: { display: false },
+        grid: { color: gridColor, drawTicks: false },
+        ticks: { color: mutedColor, font: { family: 'Manrope', size: 9 }, padding: 9, callback: function(value) { return value + ' km/h'; } }
+      };
+      delete scales.yTemp;
+    }
+
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      animation: { duration: 700, easing: 'easeOutQuart' },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          align: 'start',
+          labels: { color: textColor, usePointStyle: true, pointStyle: 'circle', boxWidth: 6, boxHeight: 6, padding: 18, font: { family: 'Manrope', size: 9, weight: 600 } }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(5, 17, 30, 0.96)',
+          titleColor: '#f4f9ff',
+          bodyColor: textColor,
+          borderColor: 'rgba(110, 215, 255, 0.2)',
+          borderWidth: 1,
+          padding: 11,
+          cornerRadius: 10,
+          titleFont: { family: 'Manrope', size: 10, weight: 700 },
+          bodyFont: { family: 'Manrope', size: 9 },
+          usePointStyle: true
+        }
+      },
+      scales: scales
+    };
+  }
+
+  function switchWindyLayer(layer, triggerButton) {
+    var supportedLayers = ['rain', 'wind', 'clouds', 'temp', 'waves'];
+    var selectedLayer = supportedLayers.indexOf(layer) >= 0 ? layer : 'rain';
+    var frame = getElement('windy-frame');
+    var mapStage = getElement('map-stage');
+    var buttons = document.querySelectorAll('[data-windy-layer]');
+
+    buttons.forEach(function(button) {
+      var isActive = button === triggerButton || button.getAttribute('data-windy-layer') === selectedLayer;
+      button.classList.toggle('active', isActive);
+      button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+
+    if (!frame) return;
+    if (mapStage) {
+      mapStage.classList.add('is-loading');
+      window.setTimeout(function() { mapStage.classList.remove('is-loading'); }, 8000);
+    }
+
+    frame.src = buildWindyEmbedUrl(selectedLayer);
+    scheduleParepareBoundaryRender();
+  }
+
+  function buildWindyEmbedUrl(layer) {
+    return 'https://embed.windy.com/embed2.html?lat=' + PAREPARE_MAP_VIEW.centerLat +
+      '&lon=' + PAREPARE_MAP_VIEW.centerLon +
+      '&detailLat=' + PAREPARE_MAP_VIEW.markerLat +
+      '&detailLon=' + PAREPARE_MAP_VIEW.markerLon +
+      '&width=100%25&height=560&zoom=' + PAREPARE_MAP_VIEW.zoom +
+      '&level=surface&overlay=' + encodeURIComponent(layer) +
+      '&product=ecmwf&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1';
+  }
+
+  function initializeParepareBoundary() {
+    var dataElement = getElement('parepare-boundary-geojson');
+    var mapStage = getElement('map-stage');
+    var toggleButton = getElement('boundary-toggle');
+    var frame = getElement('windy-frame');
+    if (!mapStage) return;
+    if (!dataElement) {
+      disableParepareBoundary(mapStage, toggleButton, frame);
+      return;
+    }
+
+    try {
+      var parsedBoundary = JSON.parse(dataElement.textContent);
+      var boundaryGeometry = parsedBoundary && parsedBoundary.geometry;
+      var supportedGeometry = boundaryGeometry && ['Polygon', 'MultiPolygon'].indexOf(boundaryGeometry.type) >= 0;
+      if (!supportedGeometry || !Array.isArray(boundaryGeometry.coordinates) || !boundaryGeometry.coordinates.length) {
+        throw new Error('Geometri batas harus berupa Polygon atau MultiPolygon yang valid.');
+      }
+      parepareBoundaryGeoJSON = parsedBoundary;
+    } catch (error) {
+      console.warn('GeoJSON batas Kota Parepare tidak dapat dibaca:', error);
+      disableParepareBoundary(mapStage, toggleButton, frame);
+      return;
+    }
+
+    if (frame) frame.setAttribute('tabindex', mapStage.classList.contains('is-boundary-locked') ? '-1' : '0');
+
+    scheduleParepareBoundaryRender();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      var boundaryObserver = new ResizeObserver(scheduleParepareBoundaryRender);
+      boundaryObserver.observe(mapStage);
+    } else {
+      window.addEventListener('resize', scheduleParepareBoundaryRender);
+    }
+  }
+
+  function disableParepareBoundary(mapStage, toggleButton, frame) {
+    mapStage.classList.remove('is-boundary-locked');
+    if (frame) frame.setAttribute('tabindex', '0');
+    if (toggleButton) {
+      toggleButton.hidden = true;
+      toggleButton.classList.remove('active');
+      toggleButton.setAttribute('aria-pressed', 'false');
+    }
+  }
+
+  function scheduleParepareBoundaryRender() {
+    if (boundaryResizeFrame) window.cancelAnimationFrame(boundaryResizeFrame);
+    boundaryResizeFrame = window.requestAnimationFrame(function() {
+      boundaryResizeFrame = null;
+      renderParepareBoundary();
+    });
+  }
+
+  function renderParepareBoundary() {
+    var stage = getElement('map-stage');
+    var overlay = getElement('parepare-boundary-overlay');
+    var shape = getElement('parepare-boundary-shape');
+    var glow = getElement('parepare-boundary-glow');
+    var label = getElement('parepare-boundary-label');
+    if (!stage || !overlay || !shape || !glow || !parepareBoundaryGeoJSON) return;
+
+    var width = stage.clientWidth;
+    var height = stage.clientHeight;
+    if (width < 1 || height < 1) return;
+
+    var geometry = parepareBoundaryGeoJSON.geometry;
+    var polygons = geometry.type === 'MultiPolygon' ? geometry.coordinates : [geometry.coordinates];
+    var centerPoint = projectWebMercator(PAREPARE_MAP_VIEW.centerLon, PAREPARE_MAP_VIEW.centerLat, PAREPARE_MAP_VIEW.zoom);
+    var pathSegments = [];
+
+    polygons.forEach(function(polygon) {
+      polygon.forEach(function(ring) {
+        if (!Array.isArray(ring) || !ring.length) return;
+        ring.forEach(function(coordinate, index) {
+          var projected = projectWebMercator(coordinate[0], coordinate[1], PAREPARE_MAP_VIEW.zoom);
+          var screenX = projected.x - centerPoint.x + width / 2;
+          var screenY = projected.y - centerPoint.y + height / 2;
+          pathSegments.push((index === 0 ? 'M' : 'L') + screenX.toFixed(1) + ' ' + screenY.toFixed(1));
+        });
+        pathSegments.push('Z');
+      });
+    });
+
+    var pathData = pathSegments.join(' ');
+    overlay.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+    shape.setAttribute('d', pathData);
+    glow.setAttribute('d', pathData);
+
+    if (label) {
+      var labelPoint = projectWebMercator(119.6661219, -4.0203292, PAREPARE_MAP_VIEW.zoom);
+      label.style.left = (labelPoint.x - centerPoint.x + width / 2) + 'px';
+      label.style.top = (labelPoint.y - centerPoint.y + height / 2) + 'px';
+    }
+  }
+
+  function projectWebMercator(longitude, latitude, zoom) {
+    var scale = 256 * Math.pow(2, zoom);
+    var constrainedLatitude = clamp(latitude, -85.05112878, 85.05112878);
+    var latitudeRadians = constrainedLatitude * Math.PI / 180;
+    var sinLatitude = Math.sin(latitudeRadians);
+    return {
+      x: (longitude + 180) / 360 * scale,
+      y: (0.5 - Math.log((1 + sinLatitude) / (1 - sinLatitude)) / (4 * Math.PI)) * scale
+    };
+  }
+
+  function toggleParepareBoundary(triggerButton) {
+    var mapStage = getElement('map-stage');
+    var frame = getElement('windy-frame');
+    if (!mapStage) return;
+
+    var shouldLock = !mapStage.classList.contains('is-boundary-locked');
+    mapStage.classList.toggle('is-boundary-locked', shouldLock);
+    if (frame) frame.setAttribute('tabindex', shouldLock ? '-1' : '0');
+
+    if (triggerButton) {
+      var accessibleLabel = shouldLock
+        ? 'Sembunyikan batas dan aktifkan interaksi peta'
+        : 'Tampilkan batas dan kunci posisi peta';
+      triggerButton.classList.toggle('active', shouldLock);
+      triggerButton.setAttribute('aria-pressed', shouldLock ? 'true' : 'false');
+      triggerButton.setAttribute('aria-label', accessibleLabel);
+      triggerButton.title = accessibleLabel;
+    }
+
+    if (shouldLock) {
+      var activeLayerButton = document.querySelector('[data-windy-layer].active');
+      var activeLayer = activeLayerButton ? activeLayerButton.getAttribute('data-windy-layer') : 'rain';
+      switchWindyLayer(activeLayer, activeLayerButton);
+      scheduleParepareBoundaryRender();
+    }
+  }
+
+  function initializeMapLoadingState() {
+    var frame = getElement('windy-frame');
+    var mapStage = getElement('map-stage');
+    if (!frame || !mapStage) return;
+
+    mapStage.classList.add('is-loading');
+    frame.addEventListener('load', function() {
+      window.setTimeout(function() { mapStage.classList.remove('is-loading'); }, 260);
+    });
+    window.setTimeout(function() { mapStage.classList.remove('is-loading'); }, 8000);
+  }
+
+  function initializeTabChartResize() {
+    document.querySelectorAll('[data-bs-toggle="pill"]').forEach(function(tab) {
+      tab.addEventListener('shown.bs.tab', function(event) {
+        var target = event.target.getAttribute('data-bs-target');
+        if (target === '#panel-forecast') {
+          if (forecastChartInstance) forecastChartInstance.resize();
+          if (windChartInstance) windChartInstance.resize();
+        }
+        if (target === '#panel-map') scheduleParepareBoundaryRender();
+      });
+    });
+  }
+
+  function showDashboardToast(message) {
+    var toast = getElement('dashboard-toast');
+    var text = getElement('dashboard-toast-message');
+    if (!toast || !text) return;
+    text.textContent = message;
+    toast.classList.add('show');
+    if (dashboardToastTimer) window.clearTimeout(dashboardToastTimer);
+    dashboardToastTimer = window.setTimeout(function() { toast.classList.remove('show'); }, 5200);
+  }
+</script>

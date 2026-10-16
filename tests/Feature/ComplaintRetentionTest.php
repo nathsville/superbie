@@ -12,6 +12,7 @@ use App\Models\DinasUnit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Tests\Concerns\CreatesLocationFixtures;
 use Tests\TestCase;
 
 /**
@@ -29,6 +30,7 @@ use Tests\TestCase;
 class ComplaintRetentionTest extends TestCase
 {
     use RefreshDatabase;
+    use CreatesLocationFixtures;
 
     private User $citizen;
     private ComplaintCategory $category;
@@ -576,6 +578,7 @@ class ComplaintRetentionTest extends TestCase
             'category_id' => $this->category->id,
             'title'       => 'Laporan untuk lock-in subject_type',
             'description' => 'Memastikan nilai subject_type audit log benar.',
+            ...$this->locationPayload(),
         ])->assertSessionHasNoErrors();
 
         $complaint = Complaint::where('reporter_id', $this->citizen->id)->firstOrFail();

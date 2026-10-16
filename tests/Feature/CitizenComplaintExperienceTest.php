@@ -13,6 +13,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Tests\Concerns\CreatesLocationFixtures;
 use Tests\TestCase;
 
 /**
@@ -43,6 +44,7 @@ use Tests\TestCase;
 class CitizenComplaintExperienceTest extends TestCase
 {
     use RefreshDatabase;
+    use CreatesLocationFixtures;
 
     private User $citizenA;
     private User $citizenB;
@@ -131,6 +133,7 @@ class CitizenComplaintExperienceTest extends TestCase
             'category_id' => $this->category->id,
             'title'       => 'Jalan berlubang di Jl. Bau Massepe',
             'description' => 'Lubang cukup dalam membahayakan pengendara motor saat malam.',
+            ...$this->locationPayload(),
         ]);
 
         $complaint = Complaint::where('reporter_id', $this->citizenA->id)->first();
@@ -151,6 +154,7 @@ class CitizenComplaintExperienceTest extends TestCase
             'category_id' => $this->category->id,
             'title'       => 'Laporan kepemilikan',
             'description' => 'Memastikan reporter_id berasal dari session, bukan input.',
+            ...$this->locationPayload(),
         ]);
 
         $complaint = Complaint::latest('id')->first();
@@ -163,6 +167,7 @@ class CitizenComplaintExperienceTest extends TestCase
             'category_id' => $this->category->id,
             'title'       => 'Laporan riwayat awal',
             'description' => 'Memastikan history awal submitted tercatat.',
+            ...$this->locationPayload(),
         ]);
 
         $complaint = Complaint::latest('id')->first();
@@ -192,6 +197,79 @@ class CitizenComplaintExperienceTest extends TestCase
         $response->assertOk();
         $response->assertSee('LAPORAN SAYA SENDIRI');
         $response->assertDontSee('LAPORAN MILIK CITIZEN B');
+    }
+
+    // ── History filters: functional server-side, still OWN-scoped ─────────────
+
+    public function test_history_search_filters_by_reference_and_title(): void
+    {
+        $alpha = $this->makeComplaint($this->citizenA);
+        $alpha->update(['title' => 'Jalan Rusak Alpha', 'reference_code' => 'LPW-SEARCH-ALPHA']);
+
+        $beta = $this->makeComplaint($this->citizenA);
+        $beta->update(['title' => 'Lampu Mati Beta', 'reference_code' => 'LPW-SEARCH-BETA']);
+
+        $byTitle = $this->actingAs($this->citizenA)
+            ->get(route('citizen.history', ['q' => 'Jalan Rusak']));
+
+        $byTitle->assertOk();
+        $byTitle->assertSee('Jalan Rusak Alpha');
+        $byTitle->assertDontSee('Lampu Mati Beta');
+
+        $byRef = $this->actingAs($this->citizenA)
+            ->get(route('citizen.history', ['q' => 'LPW-SEARCH-BETA']));
+
+        $byRef->assertOk();
+        $byRef->assertSee('Lampu Mati Beta');
+        $byRef->assertDontSee('Jalan Rusak Alpha');
+    }
+
+    public function test_history_status_filter_only_matches_selected_status(): void
+    {
+        $resolved = $this->makeComplaint($this->citizenA, ComplaintStatus::Resolved);
+        $resolved->update(['title' => 'Laporan Selesai']);
+        $submitted = $this->makeComplaint($this->citizenA, ComplaintStatus::Submitted);
+        $submitted->update(['title' => 'Laporan Diajukan']);
+
+        $response = $this->actingAs($this->citizenA)
+            ->get(route('citizen.history', ['status' => ComplaintStatus::Resolved->value]));
+
+        $response->assertOk();
+        $response->assertSee('Laporan Selesai');
+        $response->assertDontSee('Laporan Diajukan');
+    }
+
+    public function test_history_filters_never_widen_the_reporter_scope(): void
+    {
+        // A filter value that MATCHES another citizen's complaint must still
+        // never surface it — the own-complaints scope is applied first.
+        $theirs = $this->makeComplaint($this->citizenB, ComplaintStatus::Resolved);
+        $theirs->update(['title' => 'RAHASIA MILIK CITIZEN B', 'reference_code' => 'LPW-SCOPE-LEAK']);
+
+        $this->makeComplaint($this->citizenA, ComplaintStatus::Resolved);
+
+        $bySearch = $this->actingAs($this->citizenA)
+            ->get(route('citizen.history', ['q' => 'LPW-SCOPE-LEAK']));
+        $bySearch->assertOk();
+        $bySearch->assertDontSee('RAHASIA MILIK CITIZEN B');
+
+        $byStatus = $this->actingAs($this->citizenA)
+            ->get(route('citizen.history', ['status' => ComplaintStatus::Resolved->value]));
+        $byStatus->assertOk();
+        $byStatus->assertDontSee('RAHASIA MILIK CITIZEN B');
+    }
+
+    public function test_history_ignores_unknown_filter_values(): void
+    {
+        $this->makeComplaint($this->citizenA)->update(['title' => 'Laporan Tetap Tampil']);
+
+        // An invalid status / non-numeric category must be ignored, not 500 or
+        // silently drop the list.
+        $response = $this->actingAs($this->citizenA)
+            ->get(route('citizen.history', ['status' => 'bogus', 'category' => 'abc']));
+
+        $response->assertOk();
+        $response->assertSee('Laporan Tetap Tampil');
     }
 
     // =========================================================================
@@ -503,6 +581,7 @@ class CitizenComplaintExperienceTest extends TestCase
             'reporter_id' => $this->citizenB->id,
             'role'        => 'super_admin',
             'visibility'  => 'internal',
+            ...$this->locationPayload(),
         ]);
 
         $complaint = Complaint::latest('id')->first();
@@ -556,9 +635,10 @@ class CitizenComplaintExperienceTest extends TestCase
     {
         $complaint = $this->makeComplaint($this->citizenA);
 
+        // PHASE 2R — the operator assignment route is REMOVED (404 for every actor).
         $this->actingAs($this->citizenA)
-            ->patch(route('operator.complaint.assign', $complaint), ['assigned_to' => $this->operator->id])
-            ->assertForbidden();
+            ->patch('/operator/laporan/' . $complaint->id . '/tugaskan', ['assigned_to' => $this->operator->id])
+            ->assertNotFound();
     }
 
     public function test_citizen_cannot_add_note_as_staff(): void
@@ -577,11 +657,12 @@ class CitizenComplaintExperienceTest extends TestCase
     {
         $complaint = $this->makeComplaint($this->citizenA);
 
+        // PHASE 2R — the operator category-mutation route is REMOVED (404 for all).
         $this->actingAs($this->citizenA)
-            ->patch(route('operator.complaint.update-category', $complaint), [
+            ->patch('/operator/laporan/' . $complaint->id . '/kategori', [
                 'category_id' => $this->category->id,
             ])
-            ->assertForbidden();
+            ->assertNotFound();
     }
 
     public function test_citizen_cannot_access_staff_dashboards(): void

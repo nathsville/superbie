@@ -5,20 +5,16 @@
         <div class="max-w-md w-full">
             {{-- Logo --}}
             <div class="text-center mb-8">
-                <a href="{{ route('home') }}" class="inline-flex items-center gap-3 mb-4">
-                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#2563EB] to-[#0F766E] flex items-center justify-center shadow-md">
-                        <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-                        </svg>
-                    </div>
+                <a href="{{ route('home') }}" class="inline-block" aria-label="SuperBie - beranda">
+                    <img src="/brand/superbie-logo.svg" alt="SuperBie" class="h-10 w-auto sm:h-11">
                 </a>
-                <h1 class="text-2xl font-bold text-[#0F172A]">Atur Ulang Password</h1>
-                <p class="text-sm text-[#475569] mt-1">Masukkan password baru untuk akun Anda</p>
+                <h1 class="text-2xl font-bold text-ink">Atur Ulang Password</h1>
+                <p class="text-sm text-ink-soft mt-1">Masukkan password baru untuk akun Anda</p>
             </div>
 
-            <div class="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-8 card-enter">
+            <div class="bg-white rounded-2xl border border-line shadow-sm p-8 card-enter">
                 @if (session('status'))
-                    <div class="mb-5 p-4 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-800">
+                    <div class="mb-5 p-4 rounded-xl bg-primary-50 border border-primary-200 text-sm text-primary-800">
                         {{ session('status') }}
                     </div>
                 @endif
@@ -30,8 +26,8 @@
                     <input type="hidden" name="token" value="{{ $token }}">
 
                     <div>
-                        <label for="email" class="block text-sm font-semibold text-[#0F172A] mb-1.5">
-                            Alamat Email <span class="text-[#B91C1C]">*</span>
+                        <label for="email" class="block text-sm font-semibold text-ink mb-1.5">
+                            Alamat Email <span class="text-error">*</span>
                         </label>
                         <input
                             type="email"
@@ -42,16 +38,16 @@
                             autocomplete="email"
                             autofocus
                             placeholder="nama@email.com"
-                            class="w-full px-4 py-2.5 rounded-xl border {{ $errors->has('email') ? 'border-[#B91C1C]' : 'border-[#E2E8F0]' }} text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ui-animated"
+                            class="w-full px-4 py-2.5 rounded-xl border {{ $errors->has('email') ? 'border-error' : 'border-line' }} text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600 ui-animated"
                         >
                         @error('email')
-                            <p class="mt-1.5 text-xs text-[#B91C1C]">{{ $message }}</p>
+                            <p class="mt-1.5 text-xs text-error">{{ $message }}</p>
                         @enderror
                     </div>
 
                     <div>
-                        <label for="password" class="block text-sm font-semibold text-[#0F172A] mb-1.5">
-                            Password Baru <span class="text-[#B91C1C]">*</span>
+                        <label for="password" class="block text-sm font-semibold text-ink mb-1.5">
+                            Password Baru <span class="text-error">*</span>
                         </label>
                         <input
                             type="password"
@@ -60,16 +56,16 @@
                             required
                             autocomplete="new-password"
                             placeholder="••••••••"
-                            class="w-full px-4 py-2.5 rounded-xl border {{ $errors->has('password') ? 'border-[#B91C1C]' : 'border-[#E2E8F0]' }} text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ui-animated"
+                            class="w-full px-4 py-2.5 rounded-xl border {{ $errors->has('password') ? 'border-error' : 'border-line' }} text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600 ui-animated"
                         >
                         @error('password')
-                            <p class="mt-1.5 text-xs text-[#B91C1C]">{{ $message }}</p>
+                            <p class="mt-1.5 text-xs text-error">{{ $message }}</p>
                         @enderror
                     </div>
 
                     <div>
-                        <label for="password_confirmation" class="block text-sm font-semibold text-[#0F172A] mb-1.5">
-                            Konfirmasi Password Baru <span class="text-[#B91C1C]">*</span>
+                        <label for="password_confirmation" class="block text-sm font-semibold text-ink mb-1.5">
+                            Konfirmasi Password Baru <span class="text-error">*</span>
                         </label>
                         <input
                             type="password"
@@ -78,23 +74,23 @@
                             required
                             autocomplete="new-password"
                             placeholder="••••••••"
-                            class="w-full px-4 py-2.5 rounded-xl border {{ $errors->has('password_confirmation') ? 'border-[#B91C1C]' : 'border-[#E2E8F0]' }} text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ui-animated"
+                            class="w-full px-4 py-2.5 rounded-xl border {{ $errors->has('password_confirmation') ? 'border-error' : 'border-line' }} text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600 ui-animated"
                         >
                         @error('password_confirmation')
-                            <p class="mt-1.5 text-xs text-[#B91C1C]">{{ $message }}</p>
+                            <p class="mt-1.5 text-xs text-error">{{ $message }}</p>
                         @enderror
                     </div>
 
                     <button
                         type="submit"
-                        class="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold text-sm py-3 px-4 rounded-xl shadow-sm hover:shadow-md ui-animated active:scale-[0.98]"
+                        class="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm py-3 px-4 rounded-xl shadow-sm hover:shadow-md ui-animated active:scale-[0.98]"
                     >
                         Simpan Password Baru
                     </button>
                 </form>
 
-                <div class="mt-6 pt-6 border-t border-[#E2E8F0] text-center">
-                    <a href="{{ route('login') }}" class="text-sm text-[#2563EB] hover:underline font-medium">
+                <div class="mt-6 pt-6 border-t border-line text-center">
+                    <a href="{{ route('login') }}" class="text-sm text-primary-600 hover:underline font-medium">
                         ← Kembali ke halaman login
                     </a>
                 </div>

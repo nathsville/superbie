@@ -20,10 +20,14 @@ use Tests\TestCase;
  *     Dinas/Unit (through the existing Super Admin User Management surface).
  *   - An Operator does NOT self-assign and does NOT modify another Operator.
  *
+ * PHASE 1 — the relationship is ONE-TO-ONE: a Dinas/Unit is owned by AT MOST ONE
+ * Operator. The DB UNIQUE index on `users.dinas_unit_id`, the Form Request rule,
+ * and the model-layer guard all reject assigning an already-owned unit; the
+ * Super Admin must release the current Operator first.
+ *
  * This suite proves the D-2 invariant server-side (never UI-only), audits every
  * mutation path, and pins the Prompt 15 complaint-scoping behaviour it must not
- * break. It does NOT invent any additional rule (no cross-unit assignment
- * restriction, no one-operator-per-unit rule, etc. — see Prompt 21 §3).
+ * break.
  */
 class OperatorLifecycleAuthorizationTest extends TestCase
 {
@@ -37,6 +41,8 @@ class OperatorLifecycleAuthorizationTest extends TestCase
 
     private DinasUnit $unitA;
     private DinasUnit $unitB;
+    private DinasUnit $unitC;
+    private DinasUnit $unitD;
 
     protected function setUp(): void
     {
@@ -51,6 +57,15 @@ class OperatorLifecycleAuthorizationTest extends TestCase
         ]);
         $this->unitB = DinasUnit::create([
             'name' => 'Dinas Lifecycle B', 'code' => 'LC-B', 'is_active' => true, 'sort_order' => 2,
+        ]);
+        // PHASE 1 — a Dinas/Unit is owned by AT MOST ONE Operator. unitA/unitB
+        // are owned by operatorA/operatorB, so these two stay FREE for
+        // create / reassign / promotion flows.
+        $this->unitC = DinasUnit::create([
+            'name' => 'Dinas Lifecycle C', 'code' => 'LC-C', 'is_active' => true, 'sort_order' => 3,
+        ]);
+        $this->unitD = DinasUnit::create([
+            'name' => 'Dinas Lifecycle D', 'code' => 'LC-D', 'is_active' => true, 'sort_order' => 4,
         ]);
 
         $this->operatorA = User::factory()->create([
@@ -71,7 +86,7 @@ class OperatorLifecycleAuthorizationTest extends TestCase
             'password_confirmation' => 'RahasiaKuat123!',
             'role'                  => 'operator',
             'is_active'             => '1',
-            'dinas_unit_id'         => $this->unitA->id,
+            'dinas_unit_id'         => $this->unitC->id,
         ], $overrides);
     }
 
@@ -88,12 +103,12 @@ class OperatorLifecycleAuthorizationTest extends TestCase
         $this->assertDatabaseHas('users', [
             'email'         => 'operator.baru@superbie.local',
             'role'          => 'operator',
-            'dinas_unit_id' => $this->unitA->id,
+            'dinas_unit_id' => $this->unitC->id,
         ]);
 
         // Assignment is audited (Prompt 21 §23).
         $log = AuditLog::where('action', 'user.created')->firstOrFail();
-        $this->assertSame($this->unitA->id, (int) $log->metadata['dinas_unit_id']);
+        $this->assertSame($this->unitC->id, (int) $log->metadata['dinas_unit_id']);
     }
 
     public function test_super_admin_can_change_an_operators_unit(): void
@@ -104,15 +119,15 @@ class OperatorLifecycleAuthorizationTest extends TestCase
                 'email'         => $this->operatorA->email,
                 'role'          => 'operator',
                 'is_active'     => '1',
-                'dinas_unit_id' => $this->unitB->id,
+                'dinas_unit_id' => $this->unitC->id,
             ])
             ->assertRedirect(route('super-admin.users.index'));
 
-        $this->assertSame($this->unitB->id, $this->operatorA->fresh()->dinas_unit_id);
+        $this->assertSame($this->unitC->id, $this->operatorA->fresh()->dinas_unit_id);
 
         $log = AuditLog::where('action', 'user.dinas_unit_changed')->firstOrFail();
         $this->assertSame($this->unitA->id, (int) $log->metadata['old_dinas_unit_id']);
-        $this->assertSame($this->unitB->id, (int) $log->metadata['new_dinas_unit_id']);
+        $this->assertSame($this->unitC->id, (int) $log->metadata['new_dinas_unit_id']);
     }
 
     public function test_assigning_a_nonexistent_unit_is_rejected(): void
@@ -228,13 +243,13 @@ class OperatorLifecycleAuthorizationTest extends TestCase
         $this->actingAs($this->superAdmin)
             ->put(route('super-admin.users.update', $this->citizen), [
                 'name' => $this->citizen->name, 'email' => $this->citizen->email,
-                'role' => 'operator', 'is_active' => '1', 'dinas_unit_id' => $this->unitB->id,
+                'role' => 'operator', 'is_active' => '1', 'dinas_unit_id' => $this->unitC->id,
             ])
             ->assertRedirect(route('super-admin.users.index'));
 
         $promoted = $this->citizen->fresh();
         $this->assertSame('operator', $promoted->role);
-        $this->assertSame($this->unitB->id, $promoted->dinas_unit_id);
+        $this->assertSame($this->unitC->id, $promoted->dinas_unit_id);
     }
 
     public function test_demoting_an_operator_clears_the_unit(): void
@@ -312,14 +327,14 @@ class OperatorLifecycleAuthorizationTest extends TestCase
     public function test_model_keeps_exactly_one_unit_for_an_operator(): void
     {
         $operator = User::factory()->create([
-            'role' => 'operator', 'is_active' => true, 'dinas_unit_id' => $this->unitA->id,
+            'role' => 'operator', 'is_active' => true, 'dinas_unit_id' => $this->unitC->id,
         ]);
 
-        $this->assertSame($this->unitA->id, $operator->fresh()->dinas_unit_id);
+        $this->assertSame($this->unitC->id, $operator->fresh()->dinas_unit_id);
 
         // Reassignment through the model replaces the single value.
-        $operator->forceFill(['dinas_unit_id' => $this->unitB->id])->save();
-        $this->assertSame($this->unitB->id, $operator->fresh()->dinas_unit_id);
+        $operator->forceFill(['dinas_unit_id' => $this->unitD->id])->save();
+        $this->assertSame($this->unitD->id, $operator->fresh()->dinas_unit_id);
     }
 
     public function test_model_does_not_force_a_unit_onto_an_operator(): void
@@ -376,7 +391,7 @@ class OperatorLifecycleAuthorizationTest extends TestCase
         $this->actingAs($this->superAdmin)
             ->put(route('super-admin.users.update', $this->operatorA), [
                 'name' => $this->operatorA->name, 'email' => $this->operatorA->email,
-                'role' => 'operator', 'is_active' => '1', 'dinas_unit_id' => $this->unitB->id,
+                'role' => 'operator', 'is_active' => '1', 'dinas_unit_id' => $this->unitC->id,
             ]);
 
         $log = AuditLog::where('action', 'user.dinas_unit_changed')
@@ -387,7 +402,7 @@ class OperatorLifecycleAuthorizationTest extends TestCase
         $this->assertSame($this->superAdmin->id, $log->actor_id);
         $this->assertNotNull($log->created_at);
         $this->assertSame($this->unitA->id, (int) $log->metadata['old_dinas_unit_id']);
-        $this->assertSame($this->unitB->id, (int) $log->metadata['new_dinas_unit_id']);
+        $this->assertSame($this->unitC->id, (int) $log->metadata['new_dinas_unit_id']);
     }
 
     // =========================================================================
@@ -401,7 +416,7 @@ class OperatorLifecycleAuthorizationTest extends TestCase
         $this->actingAs($this->superAdmin)
             ->put(route('super-admin.users.update', $this->operatorA), [
                 'name' => $this->operatorA->name, 'email' => $this->operatorA->email,
-                'role' => 'operator', 'is_active' => '1', 'dinas_unit_id' => $this->unitB->id,
+                'role' => 'operator', 'is_active' => '1', 'dinas_unit_id' => $this->unitC->id,
             ]);
 
         $this->assertSame($original, $this->operatorA->fresh()->password);

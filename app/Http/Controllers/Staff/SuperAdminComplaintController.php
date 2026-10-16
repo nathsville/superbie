@@ -38,8 +38,10 @@ class SuperAdminComplaintController extends Controller
     public function index(Request $request): View
     {
         // Eager-load every relation rendered by the list to avoid N+1 queries.
+        // PHASE 6C — Decision 2: `assignee` (assigned_to) is deprecated; the
+        // handling Operator is resolved from the Dinas/Unit (`dinasUnit.operator`).
         $query = Complaint::query()
-            ->with(['reporter', 'category', 'dinasUnit', 'assignee']);
+            ->with(['reporter', 'category', 'dinasUnit.operator']);
 
         // ── Search (reference_code, title, description) ──────────────────────
         $search = $request->get('q');
@@ -92,21 +94,27 @@ class SuperAdminComplaintController extends Controller
 
         $complaints = $query->paginate(20)->withQueryString();
 
+        // Coerce every echoed filter value to a STRING (or null). A crafted
+        // array query string (e.g. `?q[]=x`, `?category[]=x`) must never reach
+        // the view, where it would blow up as "Array to string conversion" /
+        // htmlspecialchars(TypeError). Non-scalars degrade to null and are
+        // simply not echoed — the list still renders (HTTP 200).
+        $asString = static fn (mixed $value): ?string => is_scalar($value) ? (string) $value : null;
+
         return view('super-admin.complaints.index', [
             'complaints' => $complaints,
-            'statuses'   => ComplaintStatus::cases(),
             // Filter options come from ACTUAL master data (including inactive
             // rows, so historical complaints remain filterable).
             'categories' => ComplaintCategory::orderBy('name')->get(['id', 'name']),
             'dinasUnits' => DinasUnit::orderBy('name')->get(['id', 'name']),
             'filters'    => [
-                'q'          => $request->get('q'),
-                'status'     => $status,
-                'category'   => $request->get('category'),
-                'dinas_unit' => $request->get('dinas_unit'),
-                'date_from'  => $request->get('date_from'),
-                'date_to'    => $request->get('date_to'),
-                'sort'       => $sort,
+                'q'          => $asString($request->get('q')),
+                'status'     => $asString($status),
+                'category'   => $asString($request->get('category')),
+                'dinas_unit' => $asString($request->get('dinas_unit')),
+                'date_from'  => $asString($request->get('date_from')),
+                'date_to'    => $asString($request->get('date_to')),
+                'sort'       => $asString($sort),
             ],
         ]);
     }
@@ -126,6 +134,9 @@ class SuperAdminComplaintController extends Controller
             'statusHistories.changedBy',
             'internalNotes.author',
             'publicResponses.author',
+            // PHASE 3 — Bagian 2 — the reporter's satisfaction rating + optional
+            // written review, shown READ-ONLY to staff.
+            'rating',
         ]);
 
         // Read-only audit context for THIS complaint. Reuses the Prompt 10

@@ -9,6 +9,7 @@ use App\Models\ComplaintCategory;
 use App\Models\User;
 use App\Services\AppSettingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\CreatesLocationFixtures;
 use Tests\TestCase;
 
 /**
@@ -25,6 +26,7 @@ use Tests\TestCase;
 class SuperAdminConfigurationTest extends TestCase
 {
     use RefreshDatabase;
+    use CreatesLocationFixtures;
 
     private User $superAdmin;
     private User $admin;
@@ -283,6 +285,7 @@ class SuperAdminConfigurationTest extends TestCase
             'category_id' => $category->id,
             'title'       => 'Laporan kedua',
             'description'    => 'Deskripsi laporan kedua.',
+            ...$this->locationPayload(),
         ]);
 
         $response->assertSessionHasErrors('daily_limit');

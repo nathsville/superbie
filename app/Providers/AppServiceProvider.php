@@ -24,6 +24,9 @@ class AppServiceProvider extends ServiceProvider
     {
         \App\Models\Complaint::observe(\App\Observers\ComplaintObserver::class);
         \App\Models\User::observe(\App\Observers\UserObserver::class);
+        \App\Models\ComplaintCategory::observe(\App\Observers\ComplaintCategoryObserver::class);
+        \App\Models\DinasUnit::observe(\App\Observers\DinasUnitObserver::class);
+        \App\Models\ComplaintRating::observe(\App\Observers\ComplaintRatingObserver::class);
 
         $this->configureRateLimiting();
     }
@@ -53,6 +56,41 @@ class AppServiceProvider extends ServiceProvider
                 ->by($request->user()?->getAuthIdentifier())
                 ->response(function (Request $request, array $headers) {
                     $message = 'Anda telah mencapai batas pengiriman laporan sementara. '
+                        . 'Silakan coba lagi beberapa saat lagi.';
+
+                    if ($request->expectsJson()) {
+                        return response()->json(['message' => $message], 429, $headers);
+                    }
+
+                    return response()->view('errors.429', ['message' => $message], 429, $headers);
+                });
+        });
+
+        RateLimiter::for('help-desk-write', function (Request $request) {
+            $maxAttempts  = (int) config('business_rules.help_desk_write_rate_limit');
+            $decayMinutes = (int) config('business_rules.help_desk_write_rate_window_minutes');
+
+            return Limit::perMinutes($decayMinutes, $maxAttempts)
+                ->by($request->user()?->getAuthIdentifier())
+                ->response(function (Request $request, array $headers) {
+                    $message = 'Anda telah mencapai batas pengiriman pesan bantuan sementara. '
+                        . 'Silakan coba lagi beberapa saat lagi.';
+
+                    if ($request->expectsJson()) {
+                        return response()->json(['message' => $message], 429, $headers);
+                    }
+
+                    return response()->view('errors.429', ['message' => $message], 429, $headers);
+                });
+        });
+        RateLimiter::for('weather-sync', function (Request $request) {
+            $maxAttempts  = (int) config('weather.sync_rate.max_attempts');
+            $decayMinutes = (int) config('weather.sync_rate.decay_minutes');
+
+            return Limit::perMinutes($decayMinutes, $maxAttempts)
+                ->by($request->user()?->getAuthIdentifier())
+                ->response(function (Request $request, array $headers) {
+                    $message = 'Terlalu banyak permintaan sinkronisasi cuaca. '
                         . 'Silakan coba lagi beberapa saat lagi.';
 
                     if ($request->expectsJson()) {

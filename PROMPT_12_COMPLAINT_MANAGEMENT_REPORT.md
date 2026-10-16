@@ -2,6 +2,8 @@
 
 # Prompt 12 — Super Admin Complaint Management / "Semua Laporan" (READ-ONLY)
 
+> **LC-2 CORRECTION NOTE (added by LC-2D, later than this document):** This is a dated read-only report. Its statement "7 statuses, 11 transitions, `closed` terminal. Not modified." reflects the pre-LC-2 lifecycle and is **superseded**: LC-2 keeps 7 enum values but the active lifecycle is 4 statuses with **3 transitions** (`submitted → in_progress → {resolved | rejected}`); `under_review`, `waiting_for_information`, `closed` are **legacy** (history only). See `schema.md` §6. Historical content retained unchanged.
+
 **Project:** SuperBie — "Lapor Pak Wali" (Laravel monolith)
 **Phase:** Prompt 12 — Super Admin Complaint Management (read-only monitoring)
 **Prerequisite:** Prompt 11 — Configuration Management = PASS

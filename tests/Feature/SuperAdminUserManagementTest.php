@@ -34,6 +34,7 @@ class SuperAdminUserManagementTest extends TestCase
     private User $operator;
     private User $citizen;
     private DinasUnit $unit;
+    private DinasUnit $freeUnit;
 
     protected function setUp(): void
     {
@@ -43,6 +44,14 @@ class SuperAdminUserManagementTest extends TestCase
         $this->unit = DinasUnit::create([
             'name' => 'Dinas Uji UserMgmt', 'code' => 'UJI-UM',
             'is_active' => true, 'sort_order' => 1,
+        ]);
+
+        // PHASE 1 — a Dinas/Unit is owned by AT MOST ONE Operator. `$this->unit`
+        // is owned by `$this->operator`, so create-flow tests (which add another
+        // Operator) use this still-free unit.
+        $this->freeUnit = DinasUnit::create([
+            'name' => 'Dinas Uji UserMgmt 2', 'code' => 'UJI-UM-2',
+            'is_active' => true, 'sort_order' => 2,
         ]);
 
         $this->superAdmin = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
@@ -60,7 +69,7 @@ class SuperAdminUserManagementTest extends TestCase
             'password_confirmation' => 'RahasiaKuat123!',
             'role'                  => 'operator',
             'is_active'             => '1',
-            'dinas_unit_id'         => $this->unit->id,
+            'dinas_unit_id'         => $this->freeUnit->id,
         ], $overrides);
     }
 
@@ -358,7 +367,7 @@ class SuperAdminUserManagementTest extends TestCase
                 'email' => $this->citizen->email,
                 'role'  => 'operator',
                 'is_active' => '1',
-                'dinas_unit_id' => $this->unit->id,
+                'dinas_unit_id' => $this->freeUnit->id,
             ]
         )->assertRedirect();
 

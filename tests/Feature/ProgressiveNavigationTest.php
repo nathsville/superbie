@@ -71,9 +71,14 @@ class ProgressiveNavigationTest extends TestCase
 
     public function test_identity_differs_between_two_users_of_the_same_role(): void
     {
-        $unit = DinasUnit::factory()->create();
-        $a = $this->operator($unit);
-        $b = $this->operator($unit);
+        // PHASE 1 — a Dinas/Unit is owned by at most one Operator, so the two
+        // operators use distinct units. The navigation identity still varies by
+        // user id (the axis under test here); the unit axis is pinned separately
+        // by test_identity_changes_when_operator_unit_changes.
+        $unitA = DinasUnit::factory()->create();
+        $unitB = DinasUnit::factory()->create();
+        $a = $this->operator($unitA);
+        $b = $this->operator($unitB);
 
         $idA = $this->identityFrom($this->actingAs($a)->get('/operator/dashboard')->getContent());
         $idB = $this->identityFrom($this->actingAs($b)->get('/operator/dashboard')->getContent());
@@ -231,6 +236,27 @@ class ProgressiveNavigationTest extends TestCase
         $this->assertStringContainsString('create|edit|buat', $js);
     }
 
+    /**
+     * The public weather surface is a distinct full-page layout (its own dark
+     * header/footer and its own Alpine scopes). This layer only swaps
+     * `#main-content`'s innerHTML, so intercepting `/cuaca` would inject its
+     * markup without its Alpine scope ("tab is not defined") and leave the
+     * previous page's chrome in place. It must always full-navigate.
+     */
+    public function test_navigation_excludes_the_public_weather_surface(): void
+    {
+        $js = file_get_contents(resource_path('js/navigation.js'));
+
+        $this->assertStringContainsString('WEATHER_PATH', $js);
+        $this->assertStringContainsString('/^\\/cuaca', $js);
+        $this->assertStringContainsString('isWeatherPath', $js);
+
+        // Excluded as a destination AND never intercepted while the current page
+        // is the weather surface.
+        $this->assertStringContainsString('if (isWeatherPath(p)) return true;', $js);
+        $this->assertStringContainsString('if (isWeatherPath(window.location.pathname)) return;', $js);
+    }
+
     // ── Progressive enhancement: pages remain fully server-rendered ──────────
 
     public function test_pages_are_fully_server_rendered_without_javascript(): void
@@ -246,10 +272,59 @@ class ProgressiveNavigationTest extends TestCase
 
     public function test_route_inventory_is_unchanged(): void
     {
+        // 61 baseline routes + the approved staff self-service profile page
+        // (GET) + the approved staff self-service profile PATCH (edit)
+        // + the approved location master data (FINAL rule):
+        //     6 Kecamatan CRUD + 6 Kelurahan CRUD = 12
+        // + the approved Operator location update route = 1.
+        // + PHASE 2 (Super Admin initial validation) = 6:
+        //     4 Super Admin validation routes (index / show / approve / return)
+        //     + 2 citizen correction routes (edit GET / resubmit PUT).
+        // - PHASE 2R (Operator immutability remediation) = -3:
+        //     the operator category / destination / assignment mutation routes
+        //     were REMOVED (PATCH .../kategori, .../tujuan, .../tugaskan).
+        // + PHASE 3 (Completion Validation Gate — Operator submit) = +1:
+        //     PATCH /operator/laporan/{complaint}/ajukan-penyelesaian.
+        // + PHASE 3 (Completion Validation Gate — Super Admin decisions) = +4:
+        //     GET  /super-admin/validasi-penyelesaian               (index)
+        //     GET  /super-admin/validasi-penyelesaian/{complaint}   (show)
+        //     POST /super-admin/validasi-penyelesaian/{complaint}/setujui    (approve)
+        //     POST /super-admin/validasi-penyelesaian/{complaint}/kembalikan (return)
+        // + PHASE 3 (Bagian 2 — Citizen satisfaction rating) = +1:
+        //     POST /laporan/{complaint}/rating (citizen.rating.store)
+        // + PHASE N4 (in-app notifications) = +5:
+        //     GET    /notifikasi                          (notifications.index)
+        //     POST   /notifikasi/read-all                 (notifications.read-all)
+        //     GET    /notifikasi/{notification}/buka      (notifications.open)
+        //     PATCH  /notifikasi/{notification}/read      (notifications.read)
+        //     DELETE /notifikasi/{notification}           (notifications.destroy)
+        // + PROMPT TAHAP 2 (Help Desk / Pusat Bantuan) = +10:
+        //     GET    /bantuan                             (citizen.help.index)
+        //     GET    /bantuan/buat                        (citizen.help.create)
+        //     POST   /bantuan                             (citizen.help.store)
+        //     GET    /bantuan/{ticket}                    (citizen.help.show)
+        //     POST   /bantuan/{ticket}/pesan              (citizen.help.reply)
+        //     POST   /bantuan/{ticket}/buka-kembali       (citizen.help.reopen)
+        //     GET    /super-admin/bantuan                 (super-admin.help.index)
+        //     GET    /super-admin/bantuan/{ticket}        (super-admin.help.show)
+        //     POST   /super-admin/bantuan/{ticket}/balas  (super-admin.help.reply)
+        //     PATCH  /super-admin/bantuan/{ticket}/status (super-admin.help.status)
+        // + STAGE 3 (Official Super Admin reply to a review) = +1:
+        //     POST   /super-admin/balasan-ulasan/{complaint}
+        //                                                  (super-admin.review-response.store)
+        // + WINDY weather migration (owner-authorized) = +5:
+        //     GET    /cuaca                               (weather.index) — public, no login
+        //     GET    /cuaca/{location}                    (weather.location) — public, per-location
+        //     GET    /super-admin/cuaca                   (super-admin.weather.index)
+        //     POST   /super-admin/cuaca/sinkronisasi      (super-admin.weather.sync)
+        //     PUT    /super-admin/cuaca/ambang/{setting}  (super-admin.weather.setting.update)
+        // - Admin "Monitoring Audit Log" removal (owner-authorized) = -1:
+        //     GET    /admin/audit-log                     (admin.audit-log) — page removed
+        // No other route was added, renamed or removed.
         $this->assertSame(
-            61,
+            105,
             count(app('router')->getRoutes()->getRoutes()),
-            'Prompt 26 must not add/remove routes'
+            'Route inventory changed beyond the approved additions (location master data + operator location update + PHASE 2 validation - PHASE 2R removals + PHASE 3 completion submit + PHASE 3 completion validation + PHASE 3 citizen rating + PHASE N4 notifications + PROMPT TAHAP 2 help desk + STAGE 3 review response + WINDY weather - Admin audit-log removal).'
         );
     }
 }

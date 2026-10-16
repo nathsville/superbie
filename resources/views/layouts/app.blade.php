@@ -7,11 +7,11 @@
     <title>{{ $title ?? 'SuperBie' }} — Lapor Pak Wali</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('head')
 </head>
-<body class="h-full font-sans bg-[#F8FAFC] text-[#0F172A] antialiased">
+<body class="h-full font-sans bg-page text-ink antialiased">
     {{ $slot }}
 
     {{-- Toast notifications --}}
@@ -21,7 +21,7 @@
             role="alert"
             aria-live="assertive"
             aria-atomic="true"
-            class="fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-xl bg-[#15803D] text-white px-5 py-3.5 shadow-lg ui-animated"
+            class="fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-xl bg-success text-white px-5 py-3.5 shadow-lg ui-animated"
             x-data="{ show: true }"
             x-show="show"
             x-init="setTimeout(() => show = false, 5000)"
@@ -48,7 +48,7 @@
             role="alert"
             aria-live="assertive"
             aria-atomic="true"
-            class="fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-xl bg-[#B91C1C] text-white px-5 py-3.5 shadow-lg"
+            class="fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-xl bg-error text-white px-5 py-3.5 shadow-lg"
             x-data="{ show: true }"
             x-show="show"
             x-init="setTimeout(() => show = false, 7000)"

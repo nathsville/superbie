@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {{-- The `.js` gate keeps every [data-anim] entrance visible when scripting is
+         off or slow (motion.md: the hidden state exists only under `html.js`). --}}
+    <script>document.documentElement.classList.add('js');</script>
     <meta name="description" content="{{ $description ?? 'SuperBie — Lapor Pak Wali: Platform pengaduan masyarakat Kota Parepare' }}">
     @php
         // Page titles either OMIT the brand (this layout appends it) or already
@@ -84,6 +87,72 @@
             </button>
         </div>
     @endif
+
+    {{-- Section entrances: the parts of a section arrive in reading order, once.
+         Two rules hold this together:
+           · the hidden state is written HERE, never by the markup, so a section
+             the script never reaches — or one injected after a navigation swap —
+             is simply already visible;
+           · a slow net looks again every half second while anything is still
+             hidden, so an environment that never delivers the observer shows the
+             sections instead of hiding them. --}}
+    <script>
+        (function () {
+            if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                return; // the CSS hides nothing here, so there is nothing to choreograph
+            }
+
+            var pengamat = null;
+            if ('IntersectionObserver' in window) {
+                pengamat = new IntersectionObserver(function (catatan) {
+                    catatan.forEach(function (entri) {
+                        if (!entri.isIntersecting) { return; }
+                        entri.target.classList.add('is-in');
+                        pengamat.unobserve(entri.target);
+                    });
+                }, { rootMargin: '0px 0px -10% 0px', threshold: 0.08 });
+            }
+
+            var tertunda = [];
+            var pemeriksa = null;
+
+            var periksa = function () {
+                var tinggi = window.innerHeight || 800;
+                tertunda = tertunda.filter(function (el) {
+                    if (el.getBoundingClientRect().top > tinggi * 0.85) { return true; }
+                    el.classList.add('is-in');
+                    if (pengamat) { pengamat.unobserve(el); }
+                    return false;
+                });
+            };
+
+            var siapkan = function () {
+                document.querySelectorAll('[data-reveal]:not([data-anim])').forEach(function (el) {
+                    el.setAttribute('data-anim', el.getAttribute('data-reveal'));
+                    if (pengamat) { pengamat.observe(el); tertunda.push(el); } else { el.classList.add('is-in'); }
+                });
+
+                if (!tertunda.length || pemeriksa) { return; }
+                pemeriksa = window.setInterval(function () {
+                    periksa();
+                    if (tertunda.length) { return; }
+                    window.clearInterval(pemeriksa);
+                    pemeriksa = null;
+                }, 500);
+            };
+
+            siapkan();
+
+            if ('MutationObserver' in window) {
+                var menunggu = false;
+                new MutationObserver(function () {
+                    if (menunggu) { return; }
+                    menunggu = true;
+                    requestAnimationFrame(function () { menunggu = false; siapkan(); });
+                }).observe(document.body, { childList: true, subtree: true });
+            }
+        })();
+    </script>
 
     @stack('scripts')
 </body>

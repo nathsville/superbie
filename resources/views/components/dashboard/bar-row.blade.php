@@ -11,27 +11,29 @@
     $pct = $max > 0 ? (int) round(($count / $max) * 100) : 0;
     $bars = [
         'primary' => 'bg-primary-600',
-        'teal'    => 'bg-accent-700',
+        'teal'    => 'bg-success',
         'amber'   => 'bg-accent-500',
-        'rose'    => 'bg-rose-500',
+        'warning' => 'bg-warning',
+        'rose'    => 'bg-error',
         'slate'   => 'bg-ink-ghost',
     ];
     $bar = $bars[$tone] ?? $bars['primary'];
 @endphp
 
-{{-- Horizontal bar row — used for aging, category and Dinas/Unit distribution. --}}
+{{-- Horizontal bar row — used for aging, category and Dinas/Unit distribution.
+     Flat 6px bar on a sunken track; it grows once from the left, then still. --}}
 <div>
-    <div class="flex items-center justify-between gap-3 text-sm mb-1.5">
+    <div class="flex items-center justify-between gap-3 text-sm mb-2">
         <span class="font-medium text-ink truncate">
             {{ $label }}
             @if ($sublabel)
                 <span class="text-ink-faint font-normal">· {{ $sublabel }}</span>
             @endif
         </span>
-        <span class="font-semibold text-ink-soft tabular-nums shrink-0">{{ $count }}</span>
+        <span class="font-semibold text-ink tabular-nums shrink-0">{{ $count }}</span>
     </div>
-    <div class="h-2 rounded-full bg-surface-sunken overflow-hidden">
-        <div class="h-full rounded-full {{ $bar }} transition-all duration-500 ease-standard"
+    <div class="h-1.5 rounded-[3px] bg-surface-sunken overflow-hidden">
+        <div class="chart-bar-x h-full rounded-[3px] {{ $bar }}"
              style="width: {{ $pct }}%" role="presentation"></div>
     </div>
 </div>

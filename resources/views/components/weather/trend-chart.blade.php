@@ -23,8 +23,8 @@
     $nonNull = array_values(array_filter($values, static fn ($v) => $v !== null));
     $hasData = $n > 0 && count($nonNull) > 0;
 
-    $w = 720; $h = 240;
-    $padL = 46; $padR = 16; $padT = 16; $padB = 34;
+    $w = 560; $h = 220;
+    $padL = 56; $padR = 16; $padT = 16; $padB = 40;
     $plotW = $w - $padL - $padR;
     $plotH = $h - $padT - $padB;
 
@@ -106,13 +106,11 @@
 @if ($hasData)
     <div class="w-full">
         <div class="overflow-x-auto">
-            <svg viewBox="0 0 {{ $w }} {{ $h }}" class="w-full h-auto min-w-[560px]" role="img" aria-label="{{ $ariaLabel }}">
-                <defs>
-                    <linearGradient id="wtFill{{ md5($ariaLabel.$tone) }}" x1="0" x2="0" y1="0" y2="1">
-                        <stop offset="0%" stop-color="{{ $tone }}" stop-opacity="0.28"></stop>
-                        <stop offset="100%" stop-color="{{ $tone }}" stop-opacity="0"></stop>
-                    </linearGradient>
-                </defs>
+            <svg viewBox="0 0 {{ $w }} {{ $h }}" class="w-full h-auto" role="img" aria-label="{{ $ariaLabel }}">
+                {{-- No gradient wash and no shadow: the area under the line is one
+                     flat tone (printed-plot convention) and the structure comes
+                     from the hairline grid. Axis labels carry the value only; the
+                     unit is printed in the chart header, one line above. --}}
 
                 {{-- Grid + Y axis (real axis values) --}}
                 {{-- `wx-chart-*` classes are pure-CSS reveal helpers (defined in
@@ -121,9 +119,9 @@
                 <g class="wx-chart-area">
                 @foreach ($grid as $line)
                     <line x1="{{ $padL }}" y1="{{ $line['y'] }}" x2="{{ $w - $padR }}" y2="{{ $line['y'] }}"
-                          stroke="#E2E8F0" stroke-width="1"></line>
-                    <text x="{{ $padL - 10 }}" y="{{ $line['y'] + 4 }}" text-anchor="end"
-                          font-size="11" fill="#475569">{{ number_format($line['value'], $decimals, ',', '.') }}{{ $unit }}</text>
+                          class="stroke-line" stroke-width="1"></line>
+                    <text x="{{ $padL - 10 }}" y="{{ $line['y'] + 5 }}" text-anchor="end"
+                          class="fill-ink-soft" font-size="17">{{ number_format($line['value'], $decimals, ',', '.') }}</text>
                 @endforeach
 
                 @if ($variant === 'bar')
@@ -135,7 +133,7 @@
                 @else
                     @if ($n > 1)
                         <polygon points="{{ $padL }},{{ $padT + $plotH }} {{ $linePts }} {{ $w - $padR }},{{ $padT + $plotH }}"
-                                 fill="url(#wtFill{{ md5($ariaLabel.$tone) }})"></polygon>
+                                 fill="{{ $tone }}" fill-opacity="0.10"></polygon>
                     @endif
                     <polyline points="{{ $linePts }}" fill="none" stroke="{{ $tone }}" stroke-width="2.5"
                               stroke-linecap="round" stroke-linejoin="round" class="wx-chart-line"></polyline>
@@ -146,7 +144,7 @@
                                 $cy = $padT + $plotH * (1 - (((float) $v - $bottom) / $span));
                             @endphp
                             <circle cx="{{ round($cx, 1) }}" cy="{{ round($cy, 1) }}" r="2.6" fill="{{ $tone }}"
-                                    stroke="#FFFFFF" stroke-width="1.5" class="wx-chart-dot"
+                                    stroke-width="1.5" class="wx-chart-dot stroke-surface"
                                     style="animation-delay: {{ 220 + $i * 22 }}ms"></circle>
                         @endif
                     @endforeach
@@ -154,8 +152,8 @@
 
                 {{-- X axis labels --}}
                 @foreach ($xLabels as $xl)
-                    <text x="{{ $xl['x'] }}" y="{{ $padT + $plotH + 22 }}" text-anchor="middle"
-                          font-size="10.5" fill="#475569">{{ $xl['label'] }}</text>
+                    <text x="{{ $xl['x'] }}" y="{{ $padT + $plotH + 26 }}" text-anchor="middle"
+                          class="fill-ink-soft" font-size="17">{{ $xl['label'] }}</text>
                 @endforeach
                 </g>
             </svg>

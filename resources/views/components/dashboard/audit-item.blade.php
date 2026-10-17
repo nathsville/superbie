@@ -21,14 +21,14 @@
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="font-semibold text-ink text-sm truncate">{{ $actorName }}</span>
                 @if ($roleLabel)
-                    <span class="text-[10px] font-semibold uppercase tracking-wide text-ink-faint bg-surface-sunken px-1.5 py-0.5 rounded">
+                    <span class="text-xs text-ink-faint">
                         {{ $roleLabel }}
                     </span>
                 @endif
             </div>
 
             <div class="flex items-center gap-2 mt-1 flex-wrap">
-                <span class="font-mono text-[10px] bg-surface-sunken text-ink-body px-2 py-0.5 rounded">{{ $log->action }}</span>
+                <span class="font-mono text-xs bg-surface-sunken text-ink-body px-2 py-0.5 rounded-[4px]">{{ $log->action }}</span>
                 <span class="text-xs text-ink-soft">{{ $log->created_at?->diffForHumans() ?? '—' }}</span>
             </div>
         </div>

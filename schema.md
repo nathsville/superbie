@@ -3,7 +3,7 @@
 
 This file is the single source of truth for database entities and application-level data contracts. Migrations must implement this document. If an operational rule has not been approved, mark it `TODO: Define requirement` rather than silently turning an assumption into a permanent rule.
 
-> **Scope note (Phase 3 O-1 / Phase 4E D-11…D-17).** This schema describes the **Lapor Pak Wali** MVP, which is now joined by the approved **WINDY public weather dashboard** (read-only public weather information on the landing page; SIPHP/JDIH remain unbuilt; **no GIS / wilayah boundary map**). The WINDY data model is **not defined here yet** and is **not part of the current migrations**; it is specified separately in `_superbie_audit/WINDY_DATA_MAPPING.md` (all table/column names there are **[USULAN]** pending design gate F3). WINDY tables must be added only after their release gates are met and this document is updated first, keeping exactly the **four existing roles**. **Phase 4E owner decisions:** 3-day forecast from free BMKG, WITA display, **no historical Sheets import** (no import-batch tables), legacy thresholds as initial values only.
+> **Scope note (Phase 3 O-1 / Phase 4E D-11…D-17).** This schema describes the **Lapor Pak Wali** MVP, which is now joined by the approved **WINDY public weather dashboard** (read-only public weather information on the landing page; **JDIH remains unbuilt; SIPHP is now approved — PHASE S, see the note at the end of this scope note**; **no GIS / wilayah boundary map**). The WINDY data model is **not defined here yet** and is **not part of the current migrations**; it is specified separately in `_superbie_audit/WINDY_DATA_MAPPING.md` (all table/column names there are **[USULAN]** pending design gate F3). WINDY tables must be added only after their release gates are met and this document is updated first, keeping exactly the **four existing roles**. **Phase 4E owner decisions:** 3-day forecast from free BMKG, WITA display, **no historical Sheets import** (no import-batch tables), legacy thresholds as initial values only. **PHASE S (2026-10-17, D-S1…D-S7):** the **SIPHP market module** (market prices + retail directory; public read-only at `/siphp`, no login; **manual entry by Super Admin only**) is now in scope; its tables are specified in **§4.12–§4.16 below** and must be written here **before** the corresponding migrations are created/run. No scraping/iframe/data sync with the legacy site; exactly the four existing roles; no new technology.
 
 ## 1. Conventions
 
@@ -31,6 +31,11 @@ This file is the single source of truth for database entities and application-le
 | help_tickets | Help Desk support ticket (separate from complaints) | Business |
 | help_ticket_messages | Append-only Help Desk conversation messages | Business |
 | audit_logs | Sensitive staff/admin action log | Audit |
+| markets | Market (pasar) master data for the SIPHP market module | Business (PHASE S) |
+| market_item_categories | Item categories (barang pokok / subsidi / penting) | Supporting (PHASE S) |
+| market_items | Items (barang) priced in the market module | Business (PHASE S) |
+| market_prices | Manual price history per market × item × date | Business (PHASE S) |
+| market_stores | Retail store directory | Business (PHASE S) |
 
 Masyarakat/pelapor wajib memiliki baris pada `users` dan login sebelum membuat laporan. Dashboard/riwayat hanya menampilkan laporan milik akun tersebut.
 
@@ -56,6 +61,10 @@ erDiagram
     KECAMATAN ||--o{ KELURAHAN : contains
     KECAMATAN ||--o{ COMPLAINTS : located_in
     KELURAHAN ||--o{ COMPLAINTS : located_in
+    MARKETS ||--o{ MARKET_PRICES : "has prices"
+    MARKETS ||--o{ MARKET_STORES : "contains stores"
+    MARKET_ITEM_CATEGORIES ||--o{ MARKET_ITEMS : classifies
+    MARKET_ITEMS ||--o{ MARKET_PRICES : "priced at"
 ```
 
 `assigned_to` is nullable and is a **DEPRECATED legacy compatibility column** (see §4.3 and PHASE 2R/6C). `changed_by`/`authored_by` may be nullable only if system-generated events are supported; decide consistently in implementation. Masyarakat/pelapor adalah `users` dengan role `masyarakat`. **PHASE 6C — Decision 2:** `assigned_to` is **DEPRECATED** — it is **never written by any active workflow and is never used as a routing mechanism**; the handling Operator is resolved automatically from `complaints.dinas_unit_id` (`DinasUnit::operator()`). No new code path may write, filter, or display it as active assignment. Historical values are preserved untouched (no bulk migration, no nulling, no reassignment, no column drop). Baris historis yang masih menunjuk akun peran lama (`petugas`) juga dipertahankan tanpa remap otomatis.
@@ -352,6 +361,83 @@ Purpose: a **single official Super Admin reply** to the citizen's written review
 - **Retention:** since the reply lives on the rating row, the existing 5-year complaint purge deletes it together with `complaint_ratings` (no new retention mechanism, no change to the purge).
 - **Route:** `POST /super-admin/balasan-ulasan/{complaint}` (`super-admin.review-response.store`), intentionally OUTSIDE the read-only `/super-admin/laporan` prefix.
 
+### 4.12 `markets` (PHASE S — SIPHP)
+
+Purpose: market (pasar) master data for the SIPHP market module. Managed by **Super Admin only**; publicly readable at `/siphp` (no login).
+
+| Column | Type | Null | Default | Key/constraint | Notes |
+|---|---|---|---:|---|---|---|
+| id | BIGINT UNSIGNED | No | auto | PK | |
+| name | VARCHAR(150) | No | — | — | Market name (e.g. Lakessi) |
+| slug | VARCHAR(160) | No | — | UNIQUE | Stable, server-generated URL key |
+| address | VARCHAR(255) | Yes | NULL | — | Optional |
+| is_active | BOOLEAN | No | true | INDEX | Inactive markets are hidden from the public and rejected for new price rows (server-side) |
+| created_at / updated_at | TIMESTAMP | Yes | NULL | — | |
+
+Seed (PHASE S — observed facts from `ERD_SIPHP_PAREPARE.md`): Lakessi, Senggol, Labukkang, Sumpang Minangae, Wekke'e. Further rows are data (Super Admin), never invented in code.
+
+### 4.13 `market_item_categories` (PHASE S — SIPHP)
+
+Purpose: item category master (barang pokok / subsidi / penting). Managed by **Super Admin only**.
+
+| Column | Type | Null | Default | Key/constraint | Notes |
+|---|---|---|---:|---|---|---|
+| id | BIGINT UNSIGNED | No | auto | PK | |
+| name | VARCHAR(100) | No | — | UNIQUE | Display name |
+| slug | VARCHAR(120) | No | — | UNIQUE | Stable key (`barang-pokok`, `barang-subsidi`, `barang-penting`) |
+| sort_order | SMALLINT UNSIGNED | No | 0 | — | Presentation ordering |
+| created_at / updated_at | TIMESTAMP | Yes | NULL | — | |
+
+Seed: the three categories above (observed facts).
+
+### 4.14 `market_items` (PHASE S — SIPHP)
+
+Purpose: items (barang) priced in the market module. Managed by **Super Admin only**; the official list is **not** seeded (staff-entered, never invented).
+
+| Column | Type | Null | Default | Key/constraint | Notes |
+|---|---|---|---:|---|---|---|
+| id | BIGINT UNSIGNED | No | auto | PK | |
+| category_id | BIGINT UNSIGNED | No | — | FK → market_item_categories.id, ON DELETE RESTRICT | A category with items cannot be hard-deleted |
+| name | VARCHAR(150) | No | — | INDEX | Item name |
+| unit | VARCHAR(50) | Yes | NULL | — | Satuan (e.g. kg) — optional until confirmed |
+| is_active | BOOLEAN | No | true | INDEX | Inactive items are hidden from public lists and rejected for new price rows |
+| created_at / updated_at | TIMESTAMP | Yes | NULL | — | |
+
+### 4.15 `market_prices` (PHASE S — SIPHP)
+
+Purpose: **manual** price history — one row per (market × item × date) (D-S6). Written **only** by Super Admin through the panel; the public page reads the latest row per item.
+
+| Column | Type | Null | Default | Key/constraint | Notes |
+|---|---|---|---:|---|---|---|
+| id | BIGINT UNSIGNED | No | auto | PK | |
+| market_id | BIGINT UNSIGNED | No | — | FK → markets.id, ON DELETE RESTRICT | |
+| item_id | BIGINT UNSIGNED | No | — | FK → market_items.id, ON DELETE RESTRICT | |
+| price | DECIMAL(14,2) | No | — | — | Rupiah amount; validated numeric ≥ 0; never coerced from a missing value |
+| effective_date | DATE | No | — | INDEX | The date the price applies to (WITA calendar day) |
+| recorded_by | BIGINT UNSIGNED | Yes | NULL | FK → users.id, ON DELETE SET NULL | Staff member who entered the row (audit trail) |
+| created_at / updated_at | TIMESTAMP | Yes | NULL | — | |
+
+Constraints: **UNIQUE(`market_id`, `item_id`, `effective_date`)** (`market_prices_slot_unique`). A market/item referenced by prices cannot be hard-deleted (RESTRICT). No retention/cleanup policy yet — `TODO: Define requirement` (see §13).
+
+### 4.16 `market_stores` (PHASE S — SIPHP)
+
+Purpose: retail store directory (D-S4a). Managed by Super Admin; publicly readable.
+
+| Column | Type | Null | Default | Key/constraint | Notes |
+|---|---|---|---:|---|---|---|
+| id | BIGINT UNSIGNED | No | auto | PK | |
+| market_id | BIGINT UNSIGNED | Yes | NULL | FK → markets.id, ON DELETE SET NULL | Optional: a store may be listed without a market |
+| name | VARCHAR(150) | No | — | — | Store name |
+| type | VARCHAR(100) | Yes | NULL | — | Jenis (e.g. "Barang Campuran") |
+| address | VARCHAR(255) | Yes | NULL | — | |
+| phone | VARCHAR(30) | Yes | NULL | — | |
+| opening_hours | VARCHAR(100) | Yes | NULL | — | Free text (e.g. "11.26 – 16.26") |
+| photo_path | VARCHAR(255) | Yes | NULL | — | **Public disk** (D-S7); generated filename; MIME/size validated server-side; never a user-supplied path |
+| is_active | BOOLEAN | No | true | INDEX | Inactive stores are hidden from the public |
+| created_at / updated_at | TIMESTAMP | Yes | NULL | — | |
+
+**PHASE S scope rules:** exactly the **four existing roles**; every write path is **Super Admin only** (server-side `role:super_admin` + Form Request `authorize()`); the legacy market complaint form is **not** rebuilt (D-S4c — market complaints go through Lapor Pak Wali); no scraping/iframe/data sync with the legacy site.
+
 ## 5. Index strategy
 
 | Table | Index | Purpose |
@@ -375,6 +461,12 @@ Purpose: a **single official Super Admin reply** to the citizen's written review
 | help_tickets | (status, updated_at) | Super Admin panel list/filter |
 | help_tickets | (category) | Super Admin category filter |
 | help_ticket_messages | (help_ticket_id, created_at) | Conversation timeline |
+| markets | UNIQUE(slug) | Stable public URL key |
+| market_item_categories | UNIQUE(slug) | Stable category key |
+| market_items | (category_id), (name) | Public list/filter |
+| market_prices | UNIQUE(market_id, item_id, effective_date) | One price per market × item × day (idempotent manual entry) |
+| market_prices | (market_id, effective_date) | Public "latest per market" reads |
+| market_stores | (market_id) | Public directory per market |
 
 Validate indexes against actual queries and `EXPLAIN`; do not add duplicate indexes if a unique constraint already creates one.
 
@@ -567,6 +659,10 @@ Prefer VARCHAR plus PHP backed enums/validation for portability and controlled a
 | status | enum allowlist + transition rules | Never trust arbitrary client status |
 | visibility | `internal` or `public_response` | Only authorized staff can create |
 | file | approved MIME/extension, size/count limits | Values TODO; validate server-side |
+| market price `price` | required numeric, min 0 | Rupiah; reject negative; never coerce a missing value to 0 (PHASE S) |
+| `effective_date` | required date | The price's applicable day (PHASE S) |
+| market/item/store `slug` | generated server-side, unique | Never accepted from the request (PHASE S) |
+| store photo | image MIME allowlist (jpg/jpeg/png), max size from `config/siphp.php` | Generated filename; public disk (D-S7) |
 
 ## 9. Public tracking — NOT IMPLEMENTED
 
@@ -596,6 +692,7 @@ Consequently, do not define, document, or return any "public projection" of a co
 - Create one development-only admin account through environment-controlled seeding or a documented command. Never commit a production password.
 - Category seed values require approval; if using fixtures, mark them clearly as demo data.
 - **Location master (FINAL):** `kecamatan`/`kelurahan` are sourced from **BPS**. The official dataset is **NOT provided yet**, so the migration creates the **structure only** — **no Kecamatan/Kelurahan rows are seeded**, and wilayah names must never be invented. Once the official dataset is supplied, Super Admin manages the data via the dashboard.
+- **PHASE S (SIPHP):** seed **only the observed master facts** — the **5 markets** and the **3 item categories** (source: `ERD_SIPHP_PAREPARE.md`). **No items and no prices are seeded** — never invent them; staff enter them via the panel.
 - Migrations must be reversible where practical, ordered by FK dependencies, and tested on a clean database.
 - **Geographic dashboard (Prompt 5/5):** the Admin "Peta Wilayah Aduan" card adds **no schema change and no migration**. Administrative counts are `GROUP BY complaints.kecamatan_id / complaints.kelurahan_id`; map points are read ONLY from rows where `latitude` **and** `longitude` are both non-NULL (valid pair). `location_text` is never parsed as coordinates. No GIS/spatial column, index, polygon, or boundary table is introduced.
 - Production migrations run from version-controlled files after backup and review.
@@ -618,3 +715,4 @@ Consequently, do not define, document, or return any "public projection" of a co
 - **WINDY weather data model (Phase 3 O-1/O-16 / Phase 4E D-11…D-17 — NOT yet in `schema.md`):** the approved WINDY feature needs its own tables (observations / historical aggregates / forecasts / alerts / source metadata) and a config-storage decision (`app_settings` vs a dedicated table). All are **[USULAN]** in `_superbie_audit/WINDY_DATA_MAPPING.md` and must be validated at design gate F3 and written into this document **before** any WINDY migration. **No import-batch tables** — **no historical Google Sheets import (D-15)**. **No GIS/wilayah boundary tables**; exactly **four roles**; WINDY is read-only public + Super-Admin-managed config/sync; **3-day forecast (D-11)**; **WITA display, timestamp storage convention still open (D-12/O-15)**.
 - **PROMPT TAHAP 2 — Help Desk open items:** (a) retention/deletion policy for `help_tickets` (currently **none** — tickets are not purged); (b) content moderation for tickets/messages (currently **none**); (c) ticket notifications (currently **none** — the existing `notifications` table is complaint-anchored with a NOT NULL `complaint_id`, so reuse would change scope/schema); (d) SLA/escalation (currently **none**); (e) ticket attachments (currently **none**).
 - **STAGE 3 — official review reply open items:** (a) notification for the reply (currently **none** — deliberately out of scope; the existing `notifications` table is complaint-anchored with a NOT NULL `complaint_id`); (b) threaded follow-up conversation (currently **none** — exactly one create-once reply, no thread); (c) moderation of reviews/replies (still `TODO: Define requirement`, `prd.md` §4); (d) dedicated retention for the reply (currently **none needed** — it is a column on `complaint_ratings` and is purged with the complaint).
+- **PHASE S — SIPHP open items:** (a) retention/cleanup policy for `market_prices` and `market_stores` (currently **none** — `TODO: Define requirement`; market data is **not** part of the 5-year complaint purge); (b) official barang list + satuan (staff-entered; not yet provided); (c) public landing label & source note ("data diinput manual oleh petugas") — decided at phase S3.

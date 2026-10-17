@@ -29,6 +29,18 @@ Route::get('/cuaca', [\App\Http\Controllers\Weather\PublicWeatherController::cla
 Route::get('/cuaca/{location}', [\App\Http\Controllers\Weather\PublicWeatherController::class, 'show'])
     ->name('weather.location');
 
+// ─── Public SIPHP market info (PHASE S) — READ-ONLY, no login (D-S3) ─────────
+//
+// Native rebuild (D-S1): every row rendered here was entered MANUALLY by Super
+// Admin inside SuperBie — no scraping, no iframe, no sync with the legacy
+// siphp-parepare.com site. `/siphp/pasar/{market}` resolves an ACTIVE market by
+// slug (unknown or deactivated markets → 404). Setting `siphp.enabled=false`
+// takes the whole surface offline (404), never a half-rendered page.
+Route::get('/siphp', [\App\Http\Controllers\PublicMarketController::class, 'index'])
+    ->name('siphp.index');
+Route::get('/siphp/pasar/{market}', [\App\Http\Controllers\PublicMarketController::class, 'show'])
+    ->name('siphp.market');
+
 // ─── Auth routes ──────────────────────────────────────────────────────────────
 
 Route::middleware('guest')->group(function () {
@@ -354,4 +366,67 @@ Route::middleware(['auth', 'role:super_admin'])->prefix('super-admin')->name('su
         ->whereNumber('category')->name('categories.toggle');
     Route::delete('/kategori/{category}', [\App\Http\Controllers\Staff\SuperAdminCategoryController::class, 'destroy'])
         ->whereNumber('category')->name('categories.destroy');
+
+    // ─── PHASE S — SIPHP market module (native rebuild, manual entry) ────────
+    //
+    // Super Admin ONLY (server-side). The public read-only surface lives at
+    // `/siphp` OUTSIDE this group. Owner decisions D-S1…D-S7 — see
+    // SIPHP_INTEGRATION_PLAN.md. There is no scraping/iframe/data sync with
+    // the legacy siphp-parepare.com site; all data is entered manually here.
+
+    // Markets (pasar) master data + lifecycle. No hard-delete once a market
+    // has price history (deactivate instead).
+    Route::get('/pasar', [\App\Http\Controllers\Staff\SuperAdminMarketController::class, 'index'])->name('markets.index');
+    Route::get('/pasar/create', [\App\Http\Controllers\Staff\SuperAdminMarketController::class, 'create'])->name('markets.create');
+    Route::post('/pasar', [\App\Http\Controllers\Staff\SuperAdminMarketController::class, 'store'])->name('markets.store');
+    Route::get('/pasar/{market}/edit', [\App\Http\Controllers\Staff\SuperAdminMarketController::class, 'edit'])
+        ->whereNumber('market')->name('markets.edit');
+    Route::put('/pasar/{market}', [\App\Http\Controllers\Staff\SuperAdminMarketController::class, 'update'])
+        ->whereNumber('market')->name('markets.update');
+    Route::patch('/pasar/{market}/status', [\App\Http\Controllers\Staff\SuperAdminMarketController::class, 'toggleActive'])
+        ->whereNumber('market')->name('markets.toggle');
+    Route::delete('/pasar/{market}', [\App\Http\Controllers\Staff\SuperAdminMarketController::class, 'destroy'])
+        ->whereNumber('market')->name('markets.destroy');
+
+    // Item categories (barang pokok / subsidi / penting).
+    Route::get('/kategori-barang', [\App\Http\Controllers\Staff\SuperAdminMarketItemCategoryController::class, 'index'])->name('market-categories.index');
+    Route::get('/kategori-barang/create', [\App\Http\Controllers\Staff\SuperAdminMarketItemCategoryController::class, 'create'])->name('market-categories.create');
+    Route::post('/kategori-barang', [\App\Http\Controllers\Staff\SuperAdminMarketItemCategoryController::class, 'store'])->name('market-categories.store');
+    Route::get('/kategori-barang/{category}/edit', [\App\Http\Controllers\Staff\SuperAdminMarketItemCategoryController::class, 'edit'])
+        ->whereNumber('category')->name('market-categories.edit');
+    Route::put('/kategori-barang/{category}', [\App\Http\Controllers\Staff\SuperAdminMarketItemCategoryController::class, 'update'])
+        ->whereNumber('category')->name('market-categories.update');
+    Route::delete('/kategori-barang/{category}', [\App\Http\Controllers\Staff\SuperAdminMarketItemCategoryController::class, 'destroy'])
+        ->whereNumber('category')->name('market-categories.destroy');
+
+    // Items (barang). Staff-entered list; no hard-delete once priced.
+    Route::get('/barang', [\App\Http\Controllers\Staff\SuperAdminMarketItemController::class, 'index'])->name('market-items.index');
+    Route::get('/barang/create', [\App\Http\Controllers\Staff\SuperAdminMarketItemController::class, 'create'])->name('market-items.create');
+    Route::post('/barang', [\App\Http\Controllers\Staff\SuperAdminMarketItemController::class, 'store'])->name('market-items.store');
+    Route::get('/barang/{item}/edit', [\App\Http\Controllers\Staff\SuperAdminMarketItemController::class, 'edit'])
+        ->whereNumber('item')->name('market-items.edit');
+    Route::put('/barang/{item}', [\App\Http\Controllers\Staff\SuperAdminMarketItemController::class, 'update'])
+        ->whereNumber('item')->name('market-items.update');
+    Route::delete('/barang/{item}', [\App\Http\Controllers\Staff\SuperAdminMarketItemController::class, 'destroy'])
+        ->whereNumber('item')->name('market-items.destroy');
+
+    // Manual price entry (bulk per market × date; D-S6 unique slot).
+    Route::get('/harga-pasar', [\App\Http\Controllers\Staff\SuperAdminMarketPriceController::class, 'index'])->name('market-prices.index');
+    Route::get('/harga-pasar/{market}/catat', [\App\Http\Controllers\Staff\SuperAdminMarketPriceController::class, 'catat'])
+        ->whereNumber('market')->name('market-prices.catat');
+    Route::post('/harga-pasar/{market}', [\App\Http\Controllers\Staff\SuperAdminMarketPriceController::class, 'store'])
+        ->whereNumber('market')->name('market-prices.store');
+    Route::delete('/harga-pasar/{price}', [\App\Http\Controllers\Staff\SuperAdminMarketPriceController::class, 'destroy'])
+        ->whereNumber('price')->name('market-prices.destroy');
+
+    // Retail stores (toko) + their PUBLIC photos (D-S7).
+    Route::get('/toko-retail', [\App\Http\Controllers\Staff\SuperAdminMarketStoreController::class, 'index'])->name('market-stores.index');
+    Route::get('/toko-retail/create', [\App\Http\Controllers\Staff\SuperAdminMarketStoreController::class, 'create'])->name('market-stores.create');
+    Route::post('/toko-retail', [\App\Http\Controllers\Staff\SuperAdminMarketStoreController::class, 'store'])->name('market-stores.store');
+    Route::get('/toko-retail/{store}/edit', [\App\Http\Controllers\Staff\SuperAdminMarketStoreController::class, 'edit'])
+        ->whereNumber('store')->name('market-stores.edit');
+    Route::put('/toko-retail/{store}', [\App\Http\Controllers\Staff\SuperAdminMarketStoreController::class, 'update'])
+        ->whereNumber('store')->name('market-stores.update');
+    Route::delete('/toko-retail/{store}', [\App\Http\Controllers\Staff\SuperAdminMarketStoreController::class, 'destroy'])
+        ->whereNumber('store')->name('market-stores.destroy');
 });

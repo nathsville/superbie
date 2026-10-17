@@ -9,9 +9,9 @@
     @if ($title)
         <div class="flex items-start justify-between gap-3 px-5 sm:px-6 py-4">
             <div class="min-w-0">
-                <h2 class="text-base font-semibold text-ink">{{ $title }}</h2>
+                <h2 class="text-[17px] font-semibold text-ink">{{ $title }}</h2>
                 @if ($subtitle)
-                    <p class="text-xs text-ink-soft mt-0.5">{{ $subtitle }}</p>
+                    <p class="text-[13px] text-ink-soft mt-0.5">{{ $subtitle }}</p>
                 @endif
             </div>
             @isset($actions)

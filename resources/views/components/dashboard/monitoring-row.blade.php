@@ -8,6 +8,15 @@
     $umur = $item->submitted_at ? (int) $item->submitted_at->diffInDays(now()) : null;
     $umurLabel = is_null($umur) ? '—' : ($umur === 0 ? 'Hari ini' : $umur.' hari');
     $tag = $href ? 'a' : 'div';
+
+    // Age severity chip — quiet until day 3, amber 3–7, red beyond. The chip
+    // carries the reading itself; no redundant "Umur" caption.
+    $chip = match (true) {
+        $umur === null => 'bg-surface-sunken text-ink-body',
+        $umur <= 2     => 'bg-surface-sunken text-ink-body',
+        $umur <= 7     => 'bg-accent-100 text-accent-800',
+        default        => 'bg-error-soft text-error',
+    };
 @endphp
 
 {{-- Compact monitoring row: ID, kategori & lokasi, Dinas/Unit tujuan, umur, status. --}}
@@ -35,7 +44,8 @@
         </p>
     </div>
     <div class="text-right shrink-0">
-        <p class="text-[10px] uppercase tracking-wide text-ink-faint">Umur</p>
-        <p class="text-sm font-bold text-ink whitespace-nowrap">{{ $umurLabel }}</p>
+        <span class="inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums {{ $chip }}">
+            {{ $umurLabel }}
+        </span>
     </div>
 </{{ $tag }}>

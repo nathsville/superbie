@@ -15,7 +15,7 @@
 
 **Lapor Pak Wali** adalah modul pengaduan masyarakat berbasis web yang memungkinkan masyarakat menyampaikan laporan/keluhan, memperoleh nomor referensi, dan melihat perkembangan penanganan **setelah login** (data laporan hanya dapat diakses oleh pemiliknya; tidak ada pelacakan publik). **Super Admin** melakukan validasi awal, mengoreksi kategori bila perlu, dan mengarahkan laporan ke Dinas/Unit. Operator berwenang menggunakan panel internal untuk meninjau, memperbarui status, menambah catatan internal, memberi tanggapan publik, dan mengajukan penyelesaian pada Dinas/Unit miliknya.
 
-Modul ini merupakan bagian dari portal SuperBie yang direncanakan menghubungkan empat layanan: SIPHP, Parepare Weather Intelligence Dashboard (**WINDY**), JDIH Kota Parepare, dan Command Center – Lapor Pak Wali. **Perubahan lingkup disetujui (Phase 3, O-1):** selain Lapor Pak Wali, **WINDY — dashboard cuaca publik (baca-saja, tanpa login) pada landing page** kini termasuk dalam lingkup yang disetujui. **SIPHP dan JDIH tetap tidak dibangun** (hanya label navigasi). Implementasi WINDY tunduk pada gerbang rilis pada `_superbie_audit/WINDY_MIGRATION_PLAN.md`; **tidak ada** GIS/peta batas wilayah, dan **tetap empat role** (konfigurasi WINDY & sinkronisasi manual internal hanya Super Admin; sinkronisasi terjadwal bergantung host scheduler yang belum terverifikasi; Admin monitoring-only). **Keputusan pemilik Phase 4E (D-11…D-17):** horizon prakiraan **3 hari** dari **BMKG gratis** (tanpa penyedia berbayar); tampilan **WITA**; ambang lama = **nilai awal**; **tanpa impor historis Google Sheets**; sinkronisasi **terjadwal + manual**; patuhi **atribusi** penyedia.
+Modul ini merupakan bagian dari portal SuperBie yang direncanakan menghubungkan empat layanan: SIPHP, Parepare Weather Intelligence Dashboard (**WINDY**), JDIH Kota Parepare, dan Command Center – Lapor Pak Wali. **Perubahan lingkup disetujui (Phase 3, O-1):** selain Lapor Pak Wali, **WINDY — dashboard cuaca publik (baca-saja, tanpa login) pada landing page** kini termasuk dalam lingkup yang disetujui. **SIPHP dan JDIH tetap tidak dibangun** (hanya label navigasi). Implementasi WINDY tunduk pada gerbang rilis pada `_superbie_audit/WINDY_MIGRATION_PLAN.md`; **tidak ada** GIS/peta batas wilayah, dan **tetap empat role** (konfigurasi WINDY & sinkronisasi manual internal hanya Super Admin; sinkronisasi terjadwal bergantung host scheduler yang belum terverifikasi; Admin monitoring-only). **Keputusan pemilik Phase 4E (D-11…D-17):** horizon prakiraan **3 hari** dari **BMKG gratis** (tanpa penyedia berbayar); tampilan **WITA**; ambang lama = **nilai awal**; **tanpa impor historis Google Sheets**; sinkronisasi **terjadwal + manual**; patuhi **atribusi** penyedia. **Perubahan lingkup berikutnya (PHASE S — SIPHP, 2026-10-17, D-S1…D-S7):** modul **SIPHP** (informasi harga pasar + direktori retail) disetujui sebagai **rebuild native** di SuperBie dengan **input manual** oleh Super Admin dan halaman **publik `/siphp`**; JDIH tetap tidak dibangun; ikuti gerbang rilis `SIPHP_INTEGRATION_PLAN.md`.
 
 ### Tujuan utama
 1. Menyediakan satu alur digital yang mudah diakses untuk pengiriman pengaduan masyarakat.
@@ -71,7 +71,7 @@ Masyarakat membutuhkan kanal pengaduan yang jelas dan mudah digunakan, sementara
 - Responsive layout, aksesibilitas keyboard, empty/loading/error/success states.
 
 ### Out of scope pada MVP
-- SIPHP/informasi harga pasar.
+- ~~SIPHP/informasi harga pasar.~~ **(PHASE S, 2026-10-17): DISETUJUI** — rebuild native, input manual, publik `/siphp` (D-S1…D-S7; gerbang di `SIPHP_INTEGRATION_PLAN.md`). *Modul ini dipindahkan dari daftar out-of-scope.*
 - JDIH/dokumen hukum.
 - **WINDY — dashboard cuaca publik (baca-saja, tanpa login):** **termasuk lingkup yang disetujui (Phase 3, O-1)**, tetapi **implementasinya hanya boleh dimulai setelah gerbang rilis terpenuhi** (lihat `_superbie_audit/WINDY_MIGRATION_PLAN.md`). Tanpa GIS/peta batas wilayah, tanpa role baru, tanpa `XFrameOptions ALLOWALL`, tanpa nilai sintetis/hardcode sebagai data aktual. **Keputusan pemilik Phase 4E (D-11…D-17):** prakiraan **3 hari** dari **BMKG gratis** (tanpa penyedia berbayar); tampilan **WITA**; ambang lama hanya **nilai awal** (satuan/periode hujan & data gelombang harus diperjelas); **tanpa impor historis Google Sheets**; sinkronisasi **terjadwal + manual** (manual oleh Super Admin; terjadwal bergantung host scheduler yang **belum terverifikasi**; Admin monitoring-only); patuhi **atribusi** BMKG/OWM; **tanpa** teknologi/Docker baru.
 - Aplikasi native Android/iOS.
@@ -124,7 +124,7 @@ Masyarakat membutuhkan kanal pengaduan yang jelas dan mudah digunakan, sementara
 | F-016 | Ulasan tertulis pada rating kepuasan (opsional, immutable, terlihat pelapor + staff) | Should | F-007 |
 | F-017 | Help Desk / Pusat Bantuan (tiket bantuan + percakapan, ditangani Super Admin) | Should | F-005, F-006 |
 | F-018 | Balasan resmi Super Admin terhadap ulasan masyarakat (create-once, immutable) | Should | F-016 |
-| F-015 | Modul SIPHP/JDIH | Won't Have (MVP) | Fase berikutnya |
+| F-015 | Modul SIPHP/JDIH | **SIPHP: Should (PHASE S — disetujui 2026-10-17); JDIH: Won't Have (MVP)** | Rebuild native SuperBie; input manual Super Admin; publik `/siphp` + pintu landing; tanpa role/teknologi baru; gerbang `SIPHP_INTEGRATION_PLAN.md` |
 | F-019 | **WINDY — dashboard cuaca publik (baca-saja, tanpa login) + konfigurasi/sinkronisasi manual Super Admin** | **Should (lingkup disetujui Phase 3, O-1; keputusan pemilik Phase 4E D-11…D-17; tunduk pada gerbang rilis)** | Prakiraan **3 hari** dari **BMKG gratis** (D-11); bentuk respons API (O-3); host scheduler (O-7, D-16); penyimpanan waktu (O-15); satuan/periode hujan & data gelombang (O-14); keputusan kebijakan (O-2/O-8/O-9/O-10/O-12/O-16). **Tanpa impor historis Sheets (D-15).** |
 
 ## 6. User journeys
@@ -400,6 +400,14 @@ Tujuh nilai enum/DB tetap ada demi kompatibilitas histori dan audit; hanya **emp
 - **Tanpa ekspor:** tidak ada CSV/Excel/PDF/tombol/endpoint ekspor.
 - **Cache:** TTL 60s mengikuti konvensi dashboard. Pembuatan rating memicu invalidasi cache analitik rating (observer); tidak mengandalkan TTL saja.
 - **Host:** ditampilkan pada dashboard Admin, Super Admin, dan Operator yang sudah ada — tanpa route baru, tanpa halaman baru, tanpa migration.
+
+### F-020 — Modul SIPHP: informasi harga pasar + direktori retail (PHASE S)
+- **Tujuan:** menyajikan **informasi harga barang per pasar** dan **direktori retail** Kota Parepare di dalam portal SuperBie; menggantikan fungsi situs SIPHP lama di dalam portal.
+- **Keputusan owner (D-S1…D-S7):** rebuild **native** (D-S1); **input manual** oleh **Super Admin** (D-S2/D-S5); tampilan **publik baca-saja** di `/siphp` tanpa login + pintu masuk di landing (D-S3); **direktori retail termasuk** (D-S4a); **tidak ada kanal pengaduan kedua** — keluhan pasar lewat Lapor Pak Wali (D-S4c); harga disimpan **per tanggal** (riwayat) dan halaman publik menampilkan harga terbaru + tanggalnya (D-S6).
+- **Cakupan data:** pasar (Lakessi, Senggol, Labukkang, Sumpang Minangae, Wekke'e), kategori barang (pokok/subsidi/penting), barang (diinput staf), harga, retail.
+- **Non-goals:** tanpa scraping/iframe/sinkronisasi dengan `siphp-parepare.com`; tanpa role/teknologi baru; tanpa GIS; JDIH tetap tidak dibangun.
+- **Aturan tampilan:** jangan tampilkan angka default/sintetis; keadaan kosong = "Data harga belum tersedia"; tampilkan tanggal pembaruan harga.
+- **Acceptance criteria:** publik dapat membaca harga/retail tanpa login; hanya Super Admin yang dapat menulis (server-side `role:super_admin` + Form Request `authorize()`); harga tersimpan sebagai riwayat unik per (pasar × barang × tanggal); audit tercatat; tanpa data sintetis; gerbang rilis `SIPHP_INTEGRATION_PLAN.md` diikuti.
 
 ## 9. Non-functional requirements
 

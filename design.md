@@ -6,7 +6,7 @@
 Create a civic-service interface that feels clear, trustworthy, calm, modern, and approachable. The primary user task is submitting a complaint or reviewing the status of one's own complaint after login; decoration must never compete with that task. Use Indonesian copy, plain language, strong visual hierarchy, and generous whitespace.
 
 - **Brand context:** part of SuperBie, a planned integrated portal for public services.
-- **MVP scope:** Lapor Pak Wali **plus the approved WINDY public weather dashboard** (read-only public weather information on the landing page; Phase 3, O-1). Do not design active screens for **SIPHP** or **JDIH** — they remain disabled/future navigation placeholders only. WINDY must not include a GIS/wilayah boundary map, must respect `prefers-reduced-motion`, and must never present synthetic/hardcoded/default values as real measurements. **Phase 4E (D-11…D-17):** show a **3-day** forecast; display times in **`Asia/Makassar` (WITA)**; when a value is unavailable show **"Data tidak tersedia"** (never a default/synthetic value); the Windy.com embed stays as a separate interactive map and is **conditional** on the CSP/privacy decision (O-8); include required **BMKG/OpenWeatherMap attribution**.
+- **MVP scope:** Lapor Pak Wali **plus the approved WINDY public weather dashboard** (read-only public weather information on the landing page; Phase 3, O-1). Do not design active screens for **JDIH** — it remains a disabled/future navigation placeholder only. **PHASE S (D-S1…D-S7):** **SIPHP is approved** — design the public read-only market pages (`/siphp`) and the Super Admin market/data panels per `SIPHP_INTEGRATION_PLAN.md`; keep the design tokens and reduced-motion support, use honest empty states ("Data harga belum tersedia"), and never present synthetic/default values as real measurements. WINDY must not include a GIS/wilayah boundary map, must respect `prefers-reduced-motion`, and must never present synthetic/hardcoded/default values as real measurements. **Phase 4E (D-11…D-17):** show a **3-day** forecast; display times in **`Asia/Makassar` (WITA)**; when a value is unavailable show **"Data tidak tersedia"** (never a default/synthetic value); the Windy.com embed stays as a separate interactive map and is **conditional** on the CSP/privacy decision (O-8); include required **BMKG/OpenWeatherMap attribution**.
 - **Density:** low-to-medium; forms and case details must be easy to scan.
 - **Responsive:** mobile-first; form controls full-width on mobile.
 - **Tone:** respectful, neutral, non-partisan, public-service oriented.
@@ -282,3 +282,122 @@ Do not globally force every element to animate on every rerender. Use reusable c
 - [ ] Mobile layouts do not overflow horizontally.
 - [ ] Color is not the only indicator of status.
 - [ ] Forms retain accessible labels and server-side error mapping.
+- [ ] Public sheets separate surfaces by tone steps and space only — no hairlines, outlined boxes, or resting shadows.
+- [ ] Section entrances (`data-reveal`) cover each section's parts; no-JS and reduced motion leave everything visible.
+
+## 9. Editorial sheet system — public pages (landing & cuaca)
+
+The two public pages (landing, `/cuaca`) are composed as one editorial sheet,
+not as cards on a canvas. The rules below bind both pages and any future public
+page; the internal panel keeps §4's component language.
+
+### One type ladder
+- **13px** — labels, fine print, chart axis text.
+- **16px** — disclosure and attribution running text (the body floor for prose).
+- **17px** — reading text, values, navigation.
+- **22px** — section headings (h2/h3).
+- **`clamp(26px, 2.8vw, 40px)`** — the page title and the EWS status word.
+- **`clamp(56px, 7vw, 88px)`** — the one display reading per page (temperature).
+
+No size between these steps: a new size must replace one above.
+
+### Tone fields instead of rules
+- Surfaces step by tone: `bg-surface` (white) → `bg-surface-sunken` (#F1F5F9) →
+  `bg-primary-900` (closing band). No hairlines, no outlined boxes, no shadows
+  at rest.
+- A section is separated by space and — when it must read as a different field —
+  by a full-bleed tone band (`-mx-5 sm:-mx-8 px-5 sm:px-8 bg-surface-sunken`).
+- Indicators are filled shapes (the EWS step bars), never bordered cells.
+  Charts and embedded maps are `data-ui` fragments: the heading sits outside the
+  frame, the drawing inside it.
+- The warm `--color-canvas` stays off public pages; the ground is `bg-page` with
+  white/sunken fields.
+
+### Entrances (`data-reveal`)
+- Motion is one-shot, small and factual: `rise` (a block), `rows` (the children
+  arriving in reading order), `shutter` (a photograph opening from a mask).
+  The styles live in `app.css`; the observer lives in the layout.
+- The hidden state exists only while `html.js` is set **and** the script has
+  written `data-anim` — no script, no observer, no hidden content.
+- Feedback on controls: `wx-press` / `ui-animated` (colour plus a 0.98 active
+  press). No hover lift, glow, pulse or idle loop anywhere.
+- Reduced motion is already handled globally (§5 guard).
+
+### Photographs and voice
+- Real, credited photographs only — greyscale, with the credit line
+  (photographer · licence · source) at 13px beside or below the image. A
+  photograph must carry its subject; the weather page's marine block owns one
+  (the harbour the sea forecast is drawn for).
+- The EWS status word is the only uppercase text on a public sheet (the agency's
+  own vocabulary); everything else is sentence case without letter-spacing.
+
+## 10. Instrument panel — internal dashboards (super-admin rebuilt; bold pass)
+
+`/super-admin/dashboard` is the reference internal page: rebuilt on the §9
+discipline (no uppercase micro-labels, flat fills, one meaning per hue), then a
+bold poster pass — brand bands, asymmetric rhythm, interactive charts. The
+rules below extend §4 for internal dashboards; §4 still governs forms, tables,
+badges and the shell. Other internal pages (admin, operator, pelapor) keep the
+§4 KPI cards until their own pass — shared dashboard components accept
+`variant="bold"` (super-admin) and default to the quiet `standard` surface.
+
+### Fields and elevation
+- White fields (`soft-card`, radius 24px) float on the warm `--color-canvas`;
+  the soft resting shadow is part of the internal elevation language (unlike
+  public sheets, §9).
+- Brand bands are flat, shadowless fields with radius 24px: the command band is
+  `bg-primary-600` with white text (label 13px `white/75`, headline 56–68px
+  `tabular-nums`); the attention band is `bg-accent-500` with `text-ink` /
+  `text-ink-body`. No gradients, no glow, no nested bordered boxes.
+
+### Readouts, not stat cards
+- A group of headline figures is ONE field with cells — label (13px
+  `text-ink-soft`), value (26px, 30px from `sm`, semibold, `tabular-nums`,
+  tracking `-0.01em`), hint (13px `text-ink-faint`). 2 columns on mobile, 4
+  from `lg`. No icon chips, no per-figure cards.
+- The super-admin command band replaces the strip: one hero reading (Laporan
+  Aktif, 56–68px) plus three secondary readings; no hint copy.
+- Satisfaction is drawn as an SVG ring gauge (radius 52, stroke 12,
+  `primary-100` track, `primary-600` arc); `.ring-draw` animates
+  `--ring-circumference → --ring-offset` once on load.
+
+### One meaning per hue
+- `primary-600` = volume/inflow · `--color-success` = resolved/satisfied/
+  positive · `accent-500/700` = mid or warning · `--color-error` = bad/oldest
+  bucket · `ink-ghost` = neutral.
+- The super-admin trend chart uses the brand pair — Laporan Masuk
+  `primary-600`, Laporan Selesai `accent-500`; the aging card is a heat ramp
+  `primary-600 → accent-500 → warning → error`.
+- Solid hues for stacked shares: status `primary-600 / purple-500 / success /
+  error`; users `primary-600 / teal-500 / accent-500 / purple-500 / ink-ghost`.
+  These two cards use dot row legends instead of `status-badge` pills.
+- Status elsewhere stays `status-badge` pills; long lists (monitoring, audit)
+  keep 1px `divide-line` separators and `table-row-hover`.
+
+### Charts
+- Flat fills, no gradients, pills or shadows. Sentence-case only.
+- Trend chart (bold): grouped bars `max-w-[22px]`, `rounded-t-[4px]`, a column
+  hover band + dark tooltip (label / Masuk · Selesai / Backlog), and legend
+  buttons in the header — click to focus one series (Alpine
+  `x-data="{ focus: null }"`) while the other fades to 20%. `role="img"` +
+  `aria-label` on the plot, `tabindex="0"` per column with a focus-visible
+  ring; edge-column tooltips anchor left/right so they never clip.
+- Distributions: `stacked-share` component — one rounded share bar (zero
+  counts render no slice) + dot legend rows; star histogram for rating 1–5
+  (semantic red/amber/green, count above, `★ n` below).
+- Entrances: `.chart-bar-x` grows from the left, `.chart-bar-y` grows from the
+  baseline — one-shot, staggered ≈40ms per bar, defined in `app.css`; the
+  global reduced-motion guard neutralises them. The ring draws once.
+- Honesty rules are visual rules: a zero month renders NO bar (`height: 0%`),
+  never a stub; wide charts cap single bars (72–88px) so one month never
+  becomes a full-width block.
+
+### Type and meta
+- Section titles 17px semibold, subtitles 13px `text-ink-soft` and kept only
+  where they carry policy or method (e.g. the rating privacy note); the bold
+  pass drops filler subtitles, hints and axis captions in favour of tooltips.
+- Monitoring rows carry age as a severity chip (neutral ≤2 days, `accent-100`
+  3–7, `error-soft`/`error` beyond); no "Umur" caption.
+- Mono is reserved for identifiers (reference codes, audit action names);
+  relative times and role names are plain 12–13px text.
+

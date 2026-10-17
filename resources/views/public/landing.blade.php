@@ -105,9 +105,9 @@
     :title="$title"
     description="Kanal resmi pengaduan warga Kota Parepare. Kirim laporan tentang layanan publik, lalu pantau penanganannya sampai selesai."
 >
-    {{-- The `.js` gate keeps every revealed element visible when scripting is
-         off or slow (motion.md: the hidden state exists only under `html.js`). --}}
-    <script>document.documentElement.classList.add('js');</script>
+    {{-- The `.js` gate and the `data-reveal` entrance machinery live in the
+         layout (components/layouts/app.blade.php) so every public page shares
+         one copy; this page only marks its sections below. --}}
 
     <style>
         /* ── Landing composition (design-taste-frontend · direction:
@@ -186,52 +186,9 @@
 
         @keyframes lp-line-up { to { transform: none; } }
 
-        /* Section entrances, choreographed per section — never one preset
-           stamped everywhere. Each block owns its manner: the stages arrive in
-           order, the photograph row opens module by module, the closing strip
-           opens from a mask.
-
-           The hidden state is written by the script (`data-anim`), never by the
-           markup: if that script never runs — inside the app's progressive
-           navigation, say — the content is simply already on the page. */
-        @media (prefers-reduced-motion: no-preference) {
-            .js [data-anim='rise'] {
-                opacity: 0;
-                transform: translateY(22px);
-                transition:
-                    opacity 700ms cubic-bezier(0.22, 1, 0.36, 1),
-                    transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
-            }
-            .js [data-anim='rise'].is-in { opacity: 1; transform: none; }
-
-            .js [data-anim='rows'] > * {
-                opacity: 0;
-                transform: translateY(16px);
-                transition:
-                    opacity 600ms cubic-bezier(0.22, 1, 0.36, 1),
-                    transform 800ms cubic-bezier(0.22, 1, 0.36, 1);
-            }
-            .js [data-anim='rows'].is-in > * { opacity: 1; transform: none; }
-            .js [data-anim='rows'].is-in > *:nth-child(1) { transition-delay: 0ms; }
-            .js [data-anim='rows'].is-in > *:nth-child(2) { transition-delay: 70ms; }
-            .js [data-anim='rows'].is-in > *:nth-child(3) { transition-delay: 140ms; }
-            .js [data-anim='rows'].is-in > *:nth-child(4) { transition-delay: 210ms; }
-            .js [data-anim='rows'].is-in > *:nth-child(5) { transition-delay: 280ms; }
-            .js [data-anim='rows'].is-in > *:nth-child(6) { transition-delay: 350ms; }
-            .js [data-anim='rows'].is-in > *:nth-child(7) { transition-delay: 420ms; }
-            .js [data-anim='rows'].is-in > *:nth-child(8) { transition-delay: 490ms; }
-
-            .js [data-anim='shutter'] {
-                clip-path: inset(0 0 100% 0);
-                transition: clip-path 1100ms cubic-bezier(0.76, 0, 0.24, 1);
-            }
-            .js [data-anim='shutter'].is-in { clip-path: inset(0); }
-            .js [data-anim='shutter'] img {
-                transform: scale(1.12);
-                transition: transform 1500ms cubic-bezier(0.33, 1, 0.68, 1);
-            }
-            .js [data-anim='shutter'].is-in img { transform: none; }
-        }
+        /* Section entrances are marked per section below (`data-reveal`); the
+           mechanism itself — the `.js` gate, the hidden state and the observer
+           that writes `data-anim` — is shared from the layout and app.css. */
 
         /* Footer doors, set on the heading step. */
         .lp-door { font-size: clamp(26px, 2.8vw, 40px); }
@@ -432,8 +389,11 @@
                     class="-mx-5 col-span-2 flex items-center gap-4 bg-accent-500 px-5 py-3 sm:-mx-8 sm:px-8 lg:mx-0 lg:col-span-3 lg:col-start-3 lg:gap-6 lg:px-5 lg:py-0"
                     aria-label="Navigasi publik"
                 >
-                    <a href="#tanya" class="whitespace-nowrap text-[17px] font-semibold text-ink transition-colors hover:text-primary-800">Tanya jawab</a>
+                    {{-- The tab holds three links only (one row at `lg`), so
+                         "Harga pasar" takes the middle seat; the FAQ anchor
+                         stays reachable on the page and from the footer. --}}
                     <a href="{{ route('weather.index') }}" class="whitespace-nowrap text-[17px] font-semibold text-ink transition-colors hover:text-primary-800">Cuaca</a>
+                    <a href="{{ route('siphp.index') }}" class="whitespace-nowrap text-[17px] font-semibold text-ink transition-colors hover:text-primary-800">Harga pasar</a>
                     @auth
                         <a href="{{ route('dashboard') }}" class="whitespace-nowrap text-[17px] font-semibold text-ink transition-colors hover:text-primary-800">Akun saya</a>
                     @else
@@ -692,6 +652,7 @@
             <div class="grid grid-cols-1 gap-12 pt-16 lg:grid-cols-12 lg:gap-8">
                 <nav class="lg:col-span-5" aria-label="Tautan utama">
                     <a href="{{ route('weather.index') }}" class="block lp-door font-semibold tracking-[-0.02em] text-accent-400 transition-colors hover:text-accent-300">Info cuaca</a>
+                    <a href="{{ route('siphp.index') }}" class="mt-2 block lp-door font-semibold tracking-[-0.02em] text-accent-400 transition-colors hover:text-accent-300">Harga pasar</a>
                     <a href="#tanya" class="mt-2 block lp-door font-semibold tracking-[-0.02em] text-accent-400 transition-colors hover:text-accent-300">Tanya jawab</a>
                     @auth
                         <a href="{{ route('dashboard') }}" class="mt-2 block lp-door font-semibold tracking-[-0.02em] text-accent-400 transition-colors hover:text-accent-300">Akun saya</a>
@@ -722,6 +683,7 @@
                             <li><a href="{{ route('citizen.complaint.create') }}" class="transition-colors hover:text-white">Kirim laporan</a></li>
                             <li><a href="{{ route('citizen.help.index') }}" class="transition-colors hover:text-white">Pusat bantuan</a></li>
                             <li><a href="{{ route('weather.index') }}" class="transition-colors hover:text-white">Cuaca kota</a></li>
+                            <li><a href="{{ route('siphp.index') }}" class="transition-colors hover:text-white">Harga pasar kota</a></li>
                         </ul>
                     </div>
 
@@ -729,6 +691,7 @@
                         <p class="font-semibold text-white">Sumber</p>
                         <ul class="mt-3 space-y-2 text-white/75">
                             <li>Data cuaca: BMKG</li>
+                            <li>Harga pasar: input manual petugas</li>
                             <li>Kategori &amp; unit: basis data kota</li>
                             <li>Peta wilayah: OpenStreetMap</li>
                         </ul>
@@ -788,67 +751,9 @@
                     }
                 });
 
-                // Section entrances: the parts of a section arrive in reading
-                // order, once. Two rules hold this together:
-                //   · the hidden state is written HERE, never by the markup, so
-                //     a section the script never reaches — or one injected after
-                //     a navigation swap — is simply already visible;
-                //   · a slow net looks again every half second while anything is
-                //     still hidden, so an environment that never delivers the
-                //     observer shows the sections instead of hiding them.
-                if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-                    return; // the CSS hides nothing here, so there is nothing to choreograph
-                }
-
-                var pengamat = null;
-                if ('IntersectionObserver' in window) {
-                    pengamat = new IntersectionObserver(function (catatan) {
-                        catatan.forEach(function (entri) {
-                            if (!entri.isIntersecting) { return; }
-                            entri.target.classList.add('is-in');
-                            pengamat.unobserve(entri.target);
-                        });
-                    }, { rootMargin: '0px 0px -10% 0px', threshold: 0.08 });
-                }
-
-                var tertunda = [];
-                var pemeriksa = null;
-
-                var periksa = function () {
-                    var tinggi = window.innerHeight || 800;
-                    tertunda = tertunda.filter(function (el) {
-                        if (el.getBoundingClientRect().top > tinggi * 0.85) { return true; }
-                        el.classList.add('is-in');
-                        if (pengamat) { pengamat.unobserve(el); }
-                        return false;
-                    });
-                };
-
-                var siapkan = function () {
-                    document.querySelectorAll('[data-reveal]:not([data-anim])').forEach(function (el) {
-                        el.setAttribute('data-anim', el.getAttribute('data-reveal'));
-                        if (pengamat) { pengamat.observe(el); tertunda.push(el); } else { el.classList.add('is-in'); }
-                    });
-
-                    if (!tertunda.length || pemeriksa) { return; }
-                    pemeriksa = window.setInterval(function () {
-                        periksa();
-                        if (tertunda.length) { return; }
-                        window.clearInterval(pemeriksa);
-                        pemeriksa = null;
-                    }, 500);
-                };
-
-                siapkan();
-
-                if ('MutationObserver' in window) {
-                    var menunggu = false;
-                    new MutationObserver(function () {
-                        if (menunggu) { return; }
-                        menunggu = true;
-                        requestAnimationFrame(function () { menunggu = false; siapkan(); });
-                    }).observe(document.body, { childList: true, subtree: true });
-                }
+                // The section entrances (`data-reveal` markers -> `data-anim`
+                // hidden state -> `is-in`) are set up once in the layout, shared
+                // by every public page.
 
                 // The masthead crossfade holds still while the tab is hidden.
                 document.addEventListener('visibilitychange', function () {

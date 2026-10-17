@@ -254,8 +254,11 @@ class DashboardShellSidebarTest extends TestCase
         $html = $this->actingAs($user)->get(route('admin.dashboard'))->assertOk()->getContent();
 
         // Pill-shaped search form with a circular black search badge.
+        // The badge ships as the `bg-ink` token (same #0F172A colour); the raw
+        // hex class must not come back.
         $this->assertStringContainsString('rounded-full', $html);
-        $this->assertStringContainsString('bg-[#0F172A]', $html);
+        $this->assertStringContainsString('bg-ink text-white', $html);
+        $this->assertStringNotContainsString('bg-[#0F172A]', $html);
 
         // PHASE N4 — the bell is now an ENABLED, accessible notification control
         // (no longer a disabled placeholder) wired to the notification centre.

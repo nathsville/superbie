@@ -257,6 +257,27 @@ class ProgressiveNavigationTest extends TestCase
         $this->assertStringContainsString('if (isWeatherPath(window.location.pathname)) return;', $js);
     }
 
+    /**
+     * The public market surface (`/siphp`; PHASE S) is the same kind of distinct
+     * full-page layout as the weather surface: its own header/footer and its own
+     * Alpine scope (the wall clock). This layer only swaps `#main-content`'s
+     * innerHTML, so intercepting `/siphp` would leave the previous page's chrome
+     * in place. It must always full-navigate.
+     */
+    public function test_navigation_excludes_the_public_market_surface(): void
+    {
+        $js = file_get_contents(resource_path('js/navigation.js'));
+
+        $this->assertStringContainsString('SIPHP_PATH', $js);
+        $this->assertStringContainsString('/^\\/siphp', $js);
+        $this->assertStringContainsString('isSiphpPath', $js);
+
+        // Excluded as a destination AND never intercepted while the current page
+        // is the market surface.
+        $this->assertStringContainsString('if (isSiphpPath(p)) return true;', $js);
+        $this->assertStringContainsString('if (isSiphpPath(window.location.pathname)) return;', $js);
+    }
+
     // ── Progressive enhancement: pages remain fully server-rendered ──────────
 
     public function test_pages_are_fully_server_rendered_without_javascript(): void
@@ -320,11 +341,45 @@ class ProgressiveNavigationTest extends TestCase
         //     PUT    /super-admin/cuaca/ambang/{setting}  (super-admin.weather.setting.update)
         // - Admin "Monitoring Audit Log" removal (owner-authorized) = -1:
         //     GET    /admin/audit-log                     (admin.audit-log) — page removed
+        // + PHASE S (Native SIPHP market module — owner decision D-S1) = +31:
+        //     SUPER ADMIN PANEL (D-S2/D-S5/D-S6/D-S7; role:super_admin only):
+        //     GET    /super-admin/pasar                                   (super-admin.markets.index)
+        //     GET    /super-admin/pasar/create                            (super-admin.markets.create)
+        //     POST   /super-admin/pasar                                   (super-admin.markets.store)
+        //     GET    /super-admin/pasar/{market}/edit                     (super-admin.markets.edit)
+        //     PUT    /super-admin/pasar/{market}                          (super-admin.markets.update)
+        //     PATCH  /super-admin/pasar/{market}/status                   (super-admin.markets.toggle)
+        //     DELETE /super-admin/pasar/{market}                          (super-admin.markets.destroy)
+        //     GET    /super-admin/kategori-barang                         (super-admin.market-categories.index)
+        //     GET    /super-admin/kategori-barang/create                  (super-admin.market-categories.create)
+        //     POST   /super-admin/kategori-barang                         (super-admin.market-categories.store)
+        //     GET    /super-admin/kategori-barang/{category}/edit         (super-admin.market-categories.edit)
+        //     PUT    /super-admin/kategori-barang/{category}              (super-admin.market-categories.update)
+        //     DELETE /super-admin/kategori-barang/{category}              (super-admin.market-categories.destroy)
+        //     GET    /super-admin/barang                                  (super-admin.market-items.index)
+        //     GET    /super-admin/barang/create                           (super-admin.market-items.create)
+        //     POST   /super-admin/barang                                  (super-admin.market-items.store)
+        //     GET    /super-admin/barang/{item}/edit                      (super-admin.market-items.edit)
+        //     PUT    /super-admin/barang/{item}                           (super-admin.market-items.update)
+        //     DELETE /super-admin/barang/{item}                           (super-admin.market-items.destroy)
+        //     GET    /super-admin/harga-pasar                             (super-admin.market-prices.index)
+        //     GET    /super-admin/harga-pasar/{market}/catat              (super-admin.market-prices.catat)
+        //     POST   /super-admin/harga-pasar/{market}                    (super-admin.market-prices.store)
+        //     DELETE /super-admin/harga-pasar/{price}                     (super-admin.market-prices.destroy)
+        //     GET    /super-admin/toko-retail                             (super-admin.market-stores.index)
+        //     GET    /super-admin/toko-retail/create                      (super-admin.market-stores.create)
+        //     POST   /super-admin/toko-retail                             (super-admin.market-stores.store)
+        //     GET    /super-admin/toko-retail/{store}/edit                (super-admin.market-stores.edit)
+        //     PUT    /super-admin/toko-retail/{store}                     (super-admin.market-stores.update)
+        //     DELETE /super-admin/toko-retail/{store}                     (super-admin.market-stores.destroy)
+        //     PUBLIC (D-S3; no login, read-only):
+        //     GET    /siphp                                               (siphp.index)
+        //     GET    /siphp/pasar/{market}                                (siphp.market)
         // No other route was added, renamed or removed.
         $this->assertSame(
-            105,
+            136,
             count(app('router')->getRoutes()->getRoutes()),
-            'Route inventory changed beyond the approved additions (location master data + operator location update + PHASE 2 validation - PHASE 2R removals + PHASE 3 completion submit + PHASE 3 completion validation + PHASE 3 citizen rating + PHASE N4 notifications + PROMPT TAHAP 2 help desk + STAGE 3 review response + WINDY weather - Admin audit-log removal).'
+            'Route inventory changed beyond the approved additions (location master data + operator location update + PHASE 2 validation - PHASE 2R removals + PHASE 3 completion submit + PHASE 3 completion validation + PHASE 3 citizen rating + PHASE N4 notifications + PROMPT TAHAP 2 help desk + STAGE 3 review response + WINDY weather - Admin audit-log removal + PHASE S native SIPHP market module).'
         );
     }
 }

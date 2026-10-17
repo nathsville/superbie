@@ -1,6 +1,7 @@
 @props([
     'belumDinasUnit' => 0,
     'laporanTertua'   => null,
+    'variant'         => 'flat',
 ])
 
 @php
@@ -9,55 +10,72 @@
     // PHASE 6C — Decision 3: the former "belum ditugaskan" (`assigned_to IS NULL`)
     // metric was REDEFINED to "Belum Ditentukan Dinas/Unit" (`dinas_unit_id IS
     // NULL`). The prop was renamed accordingly.
+    //
+    // Two surfaces, one component:
+    //  - `flat` (default) — the quiet amber field (operator dashboard).
+    //  - `bold`           — the saturated poster-yellow band (Super Admin).
     $total = (int) $belumDinasUnit + ($laporanTertua ? 1 : 0);
+
+    $umur = $laporanTertua?->submitted_at
+        ? (int) $laporanTertua->submitted_at->diffInDays(now())
+        : null;
+    $umurLabel = $umur === null ? '—' : ($umur === 0 ? 'Hari ini' : $umur.' hari');
 @endphp
 
 @if ($total > 0)
-    <section class="rounded-2xl border border-accent-200 bg-gradient-to-br from-accent-50 to-rose-50/60 p-5 sm:p-6 card-enter"
-             aria-label="Perlu perhatian">
-        <div class="flex items-start gap-3">
-            <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-accent-500 to-rose-500 text-white flex items-center justify-center shrink-0 shadow-sm">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                </svg>
-            </div>
-            <div class="flex-1 min-w-0">
-                <h2 class="text-base font-bold text-ink">Perlu Perhatian</h2>
-                <p class="text-xs text-ink-soft mt-0.5">Berdasarkan data laporan aktual.</p>
+    @if ($variant === 'bold')
+        {{-- Poster-yellow band: ink on flat #FFC14D, oversized readings, zero
+             filler copy. No gradient, no nested boxes. --}}
+        <section class="card-enter rounded-[1.5rem] bg-accent-500 px-6 py-6 sm:px-7 sm:py-7"
+                 aria-label="Perlu perhatian">
+            <h2 class="text-[17px] font-semibold text-ink">Perlu Perhatian</h2>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                    @if ($belumDinasUnit > 0)
-                        <div class="flex items-center gap-3 rounded-xl bg-white border border-accent-200 px-4 py-3 shadow-sm">
-                            <span class="w-2.5 h-2.5 rounded-full bg-accent-500 shrink-0"></span>
-                            <div class="min-w-0">
-                                <p class="text-sm font-bold text-ink">{{ $belumDinasUnit }} laporan belum ditentukan Dinas/Unit</p>
-                                <p class="text-[11px] text-ink-soft">Perlu penentuan tujuan Dinas/Unit</p>
-                            </div>
-                        </div>
-                    @endif
+            <div class="mt-6 grid gap-x-6 gap-y-6 {{ (int) $belumDinasUnit > 0 && $laporanTertua ? 'grid-cols-2' : 'grid-cols-1' }}">
+                @if ($belumDinasUnit > 0)
+                    <div class="min-w-0">
+                        <p class="text-[34px] font-semibold leading-none tracking-[-0.02em] text-ink tabular-nums sm:text-[40px]">{{ number_format($belumDinasUnit) }}</p>
+                        <p class="mt-2.5 text-[13px] font-semibold leading-snug text-ink-body">Belum ditentukan Dinas/Unit</p>
+                    </div>
+                @endif
 
-                    @if ($laporanTertua)
-                        @php
-                            $umur = $laporanTertua->submitted_at
-                                ? (int) $laporanTertua->submitted_at->diffInDays(now())
-                                : null;
-                        @endphp
-                        <div class="flex items-center gap-3 rounded-xl bg-white border border-accent-200 px-4 py-3 shadow-sm">
-                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0"></span>
-                            <div class="min-w-0">
-                                <p class="text-sm font-bold text-ink truncate">
-                                    Umur tertinggi:
-                                    {{ $umur === null ? '—' : ($umur === 0 ? 'hari ini' : $umur.' hari') }}
-                                </p>
-                                <p class="text-[11px] text-ink-soft truncate">
-                                    {{ $laporanTertua->reference_code }} • {{ $laporanTertua->category?->name ?? 'Tanpa Kategori' }}
-                                </p>
-                            </div>
-                        </div>
-                    @endif
-                </div>
+                @if ($laporanTertua)
+                    <div class="min-w-0">
+                        <p class="text-[34px] font-semibold leading-none tracking-[-0.02em] text-ink tabular-nums sm:text-[40px]">{{ $umurLabel }}</p>
+                        <p class="mt-2.5 text-[13px] font-semibold leading-snug text-ink-body">Umur tertinggi</p>
+                        <p class="mt-1 truncate text-xs text-ink-body">
+                            {{ $laporanTertua->reference_code }} • {{ $laporanTertua->category?->name ?? 'Tanpa Kategori' }}
+                        </p>
+                    </div>
+                @endif
             </div>
-        </div>
-    </section>
+        </section>
+    @else
+        {{-- Flat amber field — the page's one warm surface. No gradient, no nested
+             boxes: the reading rows carry the facts. --}}
+        <section class="card-enter rounded-[1.5rem] bg-accent-100 px-5 py-5 sm:px-6 sm:py-6"
+                 aria-label="Perlu perhatian">
+            <h2 class="text-[17px] font-semibold text-ink">Perlu Perhatian</h2>
+            <p class="mt-0.5 text-[13px] text-ink-soft">Berdasarkan data laporan aktual.</p>
+
+            <div class="mt-5 grid grid-cols-1 gap-x-10 gap-y-5 sm:grid-cols-2">
+                @if ($belumDinasUnit > 0)
+                    <div class="min-w-0">
+                        <p class="text-[13px] font-medium text-ink-soft">Laporan belum ditentukan Dinas/Unit</p>
+                        <p class="mt-1 text-[26px] font-semibold leading-none tracking-[-0.01em] text-ink tabular-nums sm:text-[30px]">{{ $belumDinasUnit }}</p>
+                        <p class="mt-1.5 text-[13px] text-ink-soft">Perlu penentuan tujuan Dinas/Unit</p>
+                    </div>
+                @endif
+
+                @if ($laporanTertua)
+                    <div class="min-w-0">
+                        <p class="text-[13px] font-medium text-ink-soft">Umur laporan tertinggi</p>
+                        <p class="mt-1 text-[26px] font-semibold leading-none tracking-[-0.01em] text-ink sm:text-[30px]">{{ $umurLabel }}</p>
+                        <p class="mt-1.5 text-[13px] text-ink-soft truncate">
+                            {{ $laporanTertua->reference_code }} • {{ $laporanTertua->category?->name ?? 'Tanpa Kategori' }}
+                        </p>
+                    </div>
+                @endif
+            </div>
+        </section>
+    @endif
 @endif

@@ -40,6 +40,13 @@ const NON_HTML_EXT = /\.(pdf|xlsx?|csv|zip|rar|docx?|pptx?|png|jpe?g|gif|webp|sv
 // navigation keeps the chrome and Alpine initialization correct.
 const WEATHER_PATH = /^\/cuaca(?:\/|$)/;
 
+// The public market surface (`/siphp`, `/siphp/pasar/{market}`; PHASE S) is the
+// same kind of DISTINCT full-page layout as the weather surface: its own
+// header/footer and its own Alpine scope (the wall clock). Never intercept
+// navigation to or from it — a normal browser navigation keeps the chrome and
+// Alpine initialization correct.
+const SIPHP_PATH = /^\/siphp(?:\/|$)/;
+
 const DEBUG = Boolean(import.meta && import.meta.env && import.meta.env.DEV);
 const log = (...args) => { if (DEBUG) console.debug('[nav]', ...args); };
 
@@ -78,11 +85,16 @@ function isWeatherPath(pathname) {
     return WEATHER_PATH.test(pathname);
 }
 
+function isSiphpPath(pathname) {
+    return SIPHP_PATH.test(pathname);
+}
+
 function isExcluded(url) {
     if (url.origin !== window.location.origin) return true;
     const p = url.pathname;
     if (isAuthPath(p)) return true;
     if (isWeatherPath(p)) return true;
+    if (isSiphpPath(p)) return true;
     if (p === '/logout') return true;
     if (p.includes('/lampiran/')) return true; // attachment downloads (binary)
     if (NON_HTML_EXT.test(p)) return true;
@@ -399,6 +411,7 @@ function onDocumentClick(event) {
     // `#main-content`, which would leave the weather page's own header/footer in
     // place around another page's content. Let the browser do a full navigation.
     if (isWeatherPath(window.location.pathname)) return;
+    if (isSiphpPath(window.location.pathname)) return;
 
     const anchor = event.target && event.target.closest ? event.target.closest('a[href]') : null;
     if (!anchor) return;

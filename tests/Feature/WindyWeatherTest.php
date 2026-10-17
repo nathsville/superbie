@@ -1346,7 +1346,11 @@ class WindyWeatherTest extends TestCase
 
         $html = $this->get(route('weather.index'))->assertOk()->getContent();
 
-        $this->assertStringContainsString('text-[#64748B]', $html);
+        // D6: secondary text is painted through the `ink-*` tokens from
+        // design.md §2 — `ink-faint` carries the old #64748B value. The check
+        // is on the token now: raw hex utility classes must not reappear.
+        $this->assertStringContainsString('text-ink-faint', $html);
+        $this->assertStringNotContainsString('text-[#', $html);
         $this->assertStringNotContainsString('text-[#94A3B8]', $html);
     }
 
@@ -1533,16 +1537,13 @@ class WindyWeatherTest extends TestCase
 
         $html = $this->get(route('weather.index'))->assertOk()->getContent();
 
+        // The hooks the flat editorial sheet actually uses: the steady live
+        // marker, tactile press and the one-shot panel fade. Hover-lift, glow
+        // and pulse hooks are gone by design (design.md §5, flat surfaces).
         foreach ([
-            'wx-header',    // sticky header scroll elevation
-            'wx-live-dot',  // pulsing WITA clock indicator
-            'wx-card',      // lift-on-hover surface
+            'wx-live-dot',  // steady WITA clock marker
             'wx-press',     // tactile press on chips/buttons
-            'wx-tab',       // selected-tab glow
-            'wx-panel',     // panel switch fade/slide
-            'wx-tile',      // stat-tile hover
-            'wx-sev-dot',   // early-warning step pulse
-            'wx-slot',      // per-3-hour row tint
+            'wx-panel',     // panel switch fade
         ] as $class) {
             $this->assertStringContainsString($class, $html, "expected motion hook: {$class}");
         }
@@ -1577,20 +1578,24 @@ class WindyWeatherTest extends TestCase
     {
         $css = file_get_contents(resource_path('css/app.css'));
 
+        // The flat inventory: one tactile press, one steady live marker, one
+        // panel fade and the four one-shot chart reveals. Hover-lift, glow and
+        // pulse hooks were removed when the sheet moved to the flat style.
         foreach ([
-            '.wx-card', '.wx-press', '.wx-tab', '.wx-panel', '.wx-tile',
-            '.wx-header', '.wx-live-dot', '.wx-sev-dot', '.wx-slot',
+            '.wx-press', '.wx-live-dot', '.wx-panel',
             '.wx-chart-area', '.wx-chart-line', '.wx-chart-bar', '.wx-chart-dot',
         ] as $selector) {
             $this->assertStringContainsString($selector, $css, "motion selector not defined: {$selector}");
         }
 
         $this->assertStringContainsString('prefers-reduced-motion: reduce', $css);
-        $this->assertStringContainsString('transition-duration:      0.01ms !important', $css);
-        $this->assertStringContainsString('animation-duration:       0.01ms !important', $css);
+        // Whitespace-tolerant: the guard block is indented, and only the
+        // neutralising values matter for the accessibility contract.
+        $this->assertMatchesRegularExpression('/transition-duration:\s+0\.01ms\s+!important/', $css);
+        $this->assertMatchesRegularExpression('/animation-duration:\s+0\.01ms\s+!important/', $css);
         // Delays must be neutralised too, otherwise the staggered chart dots
         // still pop in late for reduced-motion users.
-        $this->assertStringContainsString('animation-delay:          0ms    !important', $css);
-        $this->assertStringContainsString('transition-delay:         0ms    !important', $css);
+        $this->assertMatchesRegularExpression('/animation-delay:\s+0ms\s+!important/', $css);
+        $this->assertMatchesRegularExpression('/transition-delay:\s+0ms\s+!important/', $css);
     }
 }

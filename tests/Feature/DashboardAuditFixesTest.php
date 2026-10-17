@@ -95,11 +95,17 @@ class DashboardAuditFixesTest extends TestCase
         // slate-400 (~2.6:1) must not be used as a text colour anywhere on the
         // dashboard shell/components.
         $this->assertStringNotContainsString('text-[#94A3B8]', $html);
-        $this->assertStringContainsString('text-[#64748B]', $html);
+
+        // The slate-500 tone (#64748B) now ships as a token: the dashboard's
+        // secondary text uses `text-ink-soft`, and the raw hex literal must
+        // never come back.
+        $this->assertStringContainsString('text-ink-soft', $html);
+        $this->assertStringNotContainsString('text-[#64748B]', $html);
 
         // The super-admin dashboard is swept too.
         $superHtml = $this->actingAs($this->superAdmin())->get('/super-admin/dashboard')->assertOk()->getContent();
         $this->assertStringNotContainsString('text-[#94A3B8]', $superHtml);
+        $this->assertStringNotContainsString('text-[#64748B]', $superHtml);
     }
 
     // ── A3 — bell reachable on mobile ────────────────────────────────────────

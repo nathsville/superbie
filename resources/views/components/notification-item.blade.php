@@ -110,7 +110,7 @@
                 @method('DELETE')
                 <button
                     type="submit"
-                    class="inline-flex items-center justify-center w-8 h-8 rounded-full text-ink-ghost hover:text-red-600 hover:bg-red-50 ui-animated"
+                    class="-m-1.5 inline-flex items-center justify-center rounded-full p-3.5 text-ink-ghost hover:text-red-600 hover:bg-red-50 ui-animated"
                     aria-label="Hapus notifikasi"
                     title="Hapus notifikasi"
                 >

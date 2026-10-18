@@ -344,8 +344,23 @@ Perbaikan paket P0 (Lampiran B) dikerjakan pada basis kode yang sama dan diverif
 
 **Verifikasi ulang pasca-perbaikan P3:** suite penuh **1690/1690 hijau (8863 assertion)**; test terarah SIPHP publik + kontrak aksesibilitas 19/19; `npm run build` sukses (perubahan blade).
 
-**Sisa temuan:** T-02 rotasi kredensial (aksi owner), S-01 (keputusan owner), D-01 (keputusan owner), CSP/O-8 & retensi `market_prices`/`market_stores` dan audit-log non-pengaduan (keputusan owner), higiene sisanya (artefak ter-track/layout lama/duplikat js — keputusan owner; target sentuh <44px & nit chart/select — minor tersisa) — sesuai urutan prioritas Lampiran B.
+### C.6 — Paket P4 minor lanjutan (a11y target, nit tipe/kontrol, invalidasi wilayah, cache `/siphp`)
+
+| Temuan | Status | Perubahan & bukti |
+|---|---|---|
+| Target ikon <44px | ✅ Diperbaiki | `app.css`: `.sb-rail-expand` 2rem→2.75rem, `.sb-rail-logout` (collapsed) 2.25rem→2.75rem. `notification-item.blade.php`: tombol hapus → area sentuh 44px dengan pola repo (padding + margin negatif; footprint visual tetap) — pola sama dengan perbaikan toast S-11. `layouts/dashboard.blade.php`: lonceng notifikasi `w-10 h-10` → `w-11 h-11`. |
+| Label sumbu chart `font-size="17"` (tidak pada tangga tipe) | ✅ Diperbaiki | `design.md:296` menetapkan chart axis text = **13px**; 4 titik (`components/siphp/trend-chart.blade.php` dan `components/weather/trend-chart.blade.php`, ×2 masing-masing) → `font-size="13"`. |
+| Select hairline di public sheet | ✅ Diperbaiki | `public/siphp-market.blade.php` (select tren): `border border-line bg-surface` → `bg-surface-sunken` tanpa border — sesuai `design.md:285` ("public sheets … no hairlines") dan pola kontrol sheet publik lain (pemilih lokasi cuaca). |
+| CTA header landing 16px vs subpages 17px | ✅ Diperbaiki | `public/landing.blade.php`: dua CTA header `text-base` → `text-[17px]` (menyamai CTA subpage; 17px = reading text per `design.md`). |
+| Tautan hash lintas-halaman tidak dikecualikan (teoretis) | ✅ Diperbaiki | `navigation.js`: semua tautan ber-fragment kini diserahkan ke browser (navigasi penuh; scroll-to-fragment native selalu benar) — swap SPA hanya mengganti `#main-content`, sehingga target fragmen bisa berada di luar wilayah swap. Tautan tanpa hash tidak berubah; guard halaman cuaca/siphp/jdih tetap. |
+| Edit Kecamatan/Kelurahan tidak meng-invalidasi cache wilayah (nama basi ≤60 dtk) | ✅ Diperbaiki | Observer baru `KecamatanObserver` + `KelurahanObserver` (pola ComplaintCategory/DinasUnit → `DashboardCacheService::clearGlobalDashboardCaches()`), terdaftar di `AppServiceProvider`. Bukti: `DashboardCachingTest::test_admin_dashboard_cache_is_cleared_when_kecamatan_or_kelurahan_changes` (cache admin hilang pada tulis kecamatan **dan** kelurahan). |
+| `/siphp` menghitung agregat tiap request tanpa cache | ✅ Diperbaiki | `PublicMarketCacheService` (TTL 60 dtk — batas staleness yang sama dengan dashboard staf; pola version-key tanpa tag) + observer `MarketDataObserver` untuk 5 model (`Market`, `MarketItem`, `MarketItemCategory`, `MarketPrice`, `MarketStore`): setiap tulisan Eloquent membump versi = invalidasi semua entri dalam satu tulis. Controller meng-cache agregat per halaman; pemilihan tren (param `barang`) tetap dihitung live. Bukti: 2 test kontrak — version bump satu-tulis + hasil index ter-cache dan tetap segar setelah pencatatan baru. |
+| (Konsistensi a11y) label popup peta | ✅ Diperbaiki | `.sb-popup-label` `ink-ghost` → `ink-soft` (kontras AA; kelanjutan perbaikan kontras teks kecil di P3). |
+
+**Verifikasi ulang pasca-perbaikan P4:** suite penuh **1693/1693 hijau (8897 assertion)**; test terarah (caching dashboard + SIPHP publik + kontrak aksesibilitas) 28/28; `npm run build` sukses.
+
+**Sisa temuan:** T-02 rotasi kredensial (aksi owner), S-01 (keputusan owner), D-01 (keputusan owner), CSP/O-8 & retensi `market_prices`/`market_stores` + audit-log non-pengaduan (keputusan owner), higiene repo sisanya: artefak ter-track/layout lama/duplikat `resources/js/js` (keputusan owner), pint/CI (keputusan owner) — sesuai urutan prioritas Lampiran B.
 
 ---
 
-*Laporan ini disusun dari audit berbasis bukti: setiap klaim memuat rujukan berkas:baris yang dapat diverifikasi ulang pada basis kode yang diaudit. Temuan §3–§6 adalah snapshot saat audit (auditor tidak mengubah kode aplikasi); perbaikan di Lampiran C (C.1 paket P0, C.2 paket a11y, C.3 paket P1, C.4 paket dokumen P2, C.5 higiene P3) dikerjakan pasca-audit dan diverifikasi ulang.*
+*Laporan ini disusun dari audit berbasis bukti: setiap klaim memuat rujukan berkas:baris yang dapat diverifikasi ulang pada basis kode yang diaudit. Temuan §3–§6 adalah snapshot saat audit (auditor tidak mengubah kode aplikasi); perbaikan di Lampiran C (C.1 paket P0, C.2 paket a11y, C.3 paket P1, C.4 paket dokumen P2, C.5 higiene P3, C.6 minor P4) dikerjakan pasca-audit dan diverifikasi ulang.*

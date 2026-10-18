@@ -6,6 +6,7 @@ use App\Models\Market;
 use App\Models\MarketItem;
 use App\Models\MarketPrice;
 use App\Models\MarketStore;
+use App\Services\PublicMarketCacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +27,9 @@ use Illuminate\View\View;
  *     or forecasting;
  *   · an absent price is stated as "Data harga belum tersedia";
  *   · deactivated markets/items/stores disappear from this surface without
- *     touching their recorded history.
+ *     touching their recorded history;
+ *   · computed results are cached for 60 seconds and every market-data write
+ *     invalidates them (`PublicMarketCacheService` + `MarketDataObserver`).
  */
 class PublicMarketController extends Controller
 {
@@ -36,6 +39,10 @@ class PublicMarketController extends Controller
      */
     private const TREND_WINDOW = 30;
 
+    public function __construct(
+        protected PublicMarketCacheService $cache,
+    ) {}
+
     /**
      * `/siphp` — all active markets with their latest prices + retail directory.
      */
@@ -43,34 +50,42 @@ class PublicMarketController extends Controller
     {
         abort_unless((bool) config('siphp.enabled'), 404);
 
-        $markets = Market::query()
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get();
+        $data = $this->cache->remember('index', function (): array {
+            $markets = Market::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get();
 
-        $marketIds = $markets->pluck('id');
+            $marketIds = $markets->pluck('id');
 
-        $pricesByMarket = $this->latestPriceRows($marketIds)
-            ->groupBy('market_id');
+            return [
+                'markets' => $markets,
 
-        // Keyed "market_id|item_id" → the row before the latest one. A missing
-        // key means the item has a single recording; the view then prints "—".
-        $previousPrices = $this->previousPriceRows($marketIds);
+                // Latest per market × item, grouped for the per-market tables.
+                'pricesByMarket' => $this->latestPriceRows($marketIds)->groupBy('market_id'),
 
-        // Audit PROMPT_28 (Rendah): a store whose market is DEACTIVATED must
-        // not surface here — consistent with the active-only market list above.
-        // D-S4a: a store may be listed without a market; those stay visible.
-        $stores = MarketStore::query()
-            ->where('is_active', true)
-            ->where(function ($query) {
-                $query->whereNull('market_id')
-                    ->orWhereHas('market', fn ($market) => $market->where('is_active', true));
-            })
-            ->with('market')
-            ->orderBy('name')
-            ->get();
+                // Keyed "market_id|item_id" → the row before the latest one.
+                // A missing key means the item has a single recording; the
+                // view then prints "—".
+                'previousPrices' => $this->previousPriceRows($marketIds),
 
-        return view('public.siphp', compact('markets', 'pricesByMarket', 'previousPrices', 'stores'));
+                // Audit PROMPT_28 (Rendah): a store whose market is
+                // DEACTIVATED must not surface here — consistent with the
+                // active-only market list above. D-S4a: a store may be listed
+                // without a market; those stay visible.
+                'stores' => MarketStore::query()
+                    ->where('is_active', true)
+                    ->where(function ($query) {
+                        $query->whereNull('market_id')
+                            ->orWhereHas('market', fn ($market) => $market->where('is_active', true));
+                    })
+                    ->with('market')
+                    ->orderBy('name')
+                    ->get(),
+            ];
+        });
+
+        return view('public.siphp', $data);
     }
 
     /**
@@ -86,18 +101,29 @@ class PublicMarketController extends Controller
             ->where('is_active', true)
             ->firstOrFail();
 
-        $prices = $this->latestPriceRows(collect([$market->id]));
-        $previousPrices = $this->previousPriceRows(collect([$market->id]));
+        $cached = $this->cache->remember('market:' . $market->id, function () use ($market): array {
+            return [
+                'prices'         => $this->latestPriceRows(collect([$market->id])),
+                'previousPrices' => $this->previousPriceRows(collect([$market->id])),
+                'stores'         => MarketStore::query()
+                    ->where('is_active', true)
+                    ->where('market_id', $market->id)
+                    ->orderBy('name')
+                    ->get(),
+            ];
+        });
 
-        $stores = MarketStore::query()
-            ->where('is_active', true)
-            ->where('market_id', $market->id)
-            ->orderBy('name')
-            ->get();
-
+        // The trend selection depends on the request (`barang`), so it stays
+        // computed live — one bounded query.
         $trend = $this->trendData($request, $market);
 
-        return view('public.siphp-market', compact('market', 'prices', 'previousPrices', 'stores', 'trend'));
+        return view('public.siphp-market', [
+            'market'         => $market,
+            'prices'         => $cached['prices'],
+            'previousPrices' => $cached['previousPrices'],
+            'stores'         => $cached['stores'],
+            'trend'          => $trend,
+        ]);
     }
 
     /**

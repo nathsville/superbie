@@ -436,10 +436,15 @@ function onDocumentClick(event) {
     const url = toUrl(href);
     if (!url || isExcluded(url)) return;
 
-    // Same document, only a hash differs -> let the browser scroll.
+    // ANY fragment link goes to the browser: the in-page swap only replaces
+    // `#main-content`, so a cross-page fragment target may live outside the
+    // swapped region — the native scroll-to-fragment is always correct
+    // (audit PROMPT_28; same-document hash scrolling is preserved).
+    if (url.hash) return;
+
+    // Exact same URL -> no-op (no reload).
     if (url.pathname === window.location.pathname && url.search === window.location.search) {
-        if (url.hash) return;
-        event.preventDefault(); // exact same URL -> no-op (no reload)
+        event.preventDefault();
         return;
     }
 

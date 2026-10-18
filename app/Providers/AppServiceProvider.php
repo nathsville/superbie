@@ -27,6 +27,16 @@ class AppServiceProvider extends ServiceProvider
         \App\Models\ComplaintCategory::observe(\App\Observers\ComplaintCategoryObserver::class);
         \App\Models\DinasUnit::observe(\App\Observers\DinasUnitObserver::class);
         \App\Models\ComplaintRating::observe(\App\Observers\ComplaintRatingObserver::class);
+        \App\Models\Kecamatan::observe(\App\Observers\KecamatanObserver::class);
+        \App\Models\Kelurahan::observe(\App\Observers\KelurahanObserver::class);
+
+        // Public market surface (`/siphp`): every record that feeds the pages
+        // bumps the cache version (audit PROMPT_28 — public aggregates cached).
+        \App\Models\Market::observe(\App\Observers\MarketDataObserver::class);
+        \App\Models\MarketItem::observe(\App\Observers\MarketDataObserver::class);
+        \App\Models\MarketItemCategory::observe(\App\Observers\MarketDataObserver::class);
+        \App\Models\MarketPrice::observe(\App\Observers\MarketDataObserver::class);
+        \App\Models\MarketStore::observe(\App\Observers\MarketDataObserver::class);
 
         $this->configureRateLimiting();
     }

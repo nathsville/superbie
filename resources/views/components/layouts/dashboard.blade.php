@@ -338,7 +338,7 @@
                 >
                     <button
                         type="button"
-                        class="relative inline-flex w-10 h-10 items-center justify-center rounded-full bg-white text-ink-soft hover:text-primary-700 hover:bg-surface-sunken ui-animated shadow-[0_1px_2px_rgba(16,24,40,0.04)]"
+                        class="relative inline-flex w-11 h-11 items-center justify-center rounded-full bg-white text-ink-soft hover:text-primary-700 hover:bg-surface-sunken ui-animated shadow-[0_1px_2px_rgba(16,24,40,0.04)]"
                         @click="notifOpen = !notifOpen"
                         :aria-expanded="notifOpen ? 'true' : 'false'"
                         aria-haspopup="true"

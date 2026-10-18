@@ -8,8 +8,10 @@ use App\Models\MarketItemCategory;
 use App\Models\MarketPrice;
 use App\Models\MarketStore;
 use App\Models\User;
+use App\Services\PublicMarketCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 /**
@@ -224,6 +226,55 @@ class SiphpPublicMarketTest extends TestCase
         $response->assertSee('Beras');
         $response->assertSee('Toko Sinar Jaya');
         $response->assertSee('Pasar Lakessi');
+    }
+
+    // =========================================================================
+    // PUBLIC CACHE (audit PROMPT_28 — cached aggregates + version invalidation)
+    // =========================================================================
+
+    public function test_public_cache_is_versioned_and_bumped_in_one_write(): void
+    {
+        $cache = app(PublicMarketCacheService::class);
+
+        $calls = 0;
+        $compute = function () use (&$calls) {
+            return ++$calls;
+        };
+
+        $this->assertSame(1, $cache->remember('probe', $compute));
+        $this->assertSame(1, $cache->remember('probe', $compute));
+        $this->assertSame(1, $calls, 'second read must be served from the cache');
+
+        $cache->bumpVersion();
+
+        $this->assertSame(2, $cache->remember('probe', $compute));
+        $this->assertSame(2, $calls, 'a version bump must invalidate every entry');
+    }
+
+    public function test_public_index_is_cached_and_follows_new_recordings(): void
+    {
+        $cache = app(PublicMarketCacheService::class);
+
+        $market   = $this->makeMarket(['name' => 'Lakessi']);
+        $category = $this->makeCategory();
+        $item     = $this->makeItem($category, ['name' => 'Beras Baru']);
+
+        // Warm the cache while no price exists yet.
+        $this->get(route('siphp.index'))
+            ->assertOk()
+            ->assertSee('Data harga belum tersedia.');
+
+        $this->assertTrue(
+            Cache::has($cache->key('index')),
+            'the public index result must be cached'
+        );
+
+        // An Eloquent write bumps the version -> the next view is fresh.
+        $this->makePrice($market, $item, '2026-10-16', 14000);
+
+        $this->get(route('siphp.index'))
+            ->assertOk()
+            ->assertSee('Beras Baru');
     }
 
     // =========================================================================

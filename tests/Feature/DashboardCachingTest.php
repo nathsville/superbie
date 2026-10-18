@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\Complaint;
 use App\Models\ComplaintCategory;
 use App\Models\DinasUnit;
+use App\Models\Kecamatan;
+use App\Models\Kelurahan;
 use App\Models\User;
 use App\Services\DashboardCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -142,6 +144,27 @@ class DashboardCachingTest extends TestCase
         $unit = DinasUnit::create(['name' => 'Dinas Observer Uji', 'code' => 'OBS-1', 'is_active' => true, 'sort_order' => 9]);
         $unit->update(['name' => 'Dinas Observer Uji (diperbarui)']);
 
+        $this->assertFalse(Cache::has($cacheKey));
+    }
+
+    public function test_admin_dashboard_cache_is_cleared_when_kecamatan_or_kelurahan_changes(): void
+    {
+        $cacheKey = 'dashboard:admin';
+        Cache::forget($cacheKey);
+
+        $this->actingAs($this->admin)->get('/admin/dashboard');
+        $this->assertTrue(Cache::has($cacheKey));
+
+        // Master Kecamatan change -> KecamatanObserver clears staff caches.
+        $kecamatan = Kecamatan::create(['name' => 'Kecamatan Observer Uji']);
+        $this->assertFalse(Cache::has($cacheKey));
+
+        // Re-warm, then a Kelurahan write must clear it again (PROMPT_28 fix:
+        // wilayah names are denormalised into the cached dashboards).
+        $this->actingAs($this->admin)->get('/admin/dashboard');
+        $this->assertTrue(Cache::has($cacheKey));
+
+        Kelurahan::create(['kecamatan_id' => $kecamatan->id, 'name' => 'Kelurahan Observer Uji']);
         $this->assertFalse(Cache::has($cacheKey));
     }
 }

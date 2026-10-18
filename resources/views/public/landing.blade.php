@@ -374,12 +374,12 @@
                     @auth
                         <a
                             href="{{ route('citizen.complaint.create') }}"
-                            class="ui-animated inline-flex min-h-12 items-center justify-center bg-primary-600 px-6 text-base font-semibold text-white hover:bg-primary-700 active:scale-[0.98]"
+                            class="ui-animated inline-flex min-h-12 items-center justify-center bg-primary-600 px-6 text-[17px] font-semibold text-white hover:bg-primary-700 active:scale-[0.98]"
                         >Kirim laporan</a>
                     @else
                         <a
                             href="{{ route('register') }}"
-                            class="ui-animated inline-flex min-h-12 items-center justify-center bg-primary-600 px-6 text-base font-semibold text-white hover:bg-primary-700 active:scale-[0.98]"
+                            class="ui-animated inline-flex min-h-12 items-center justify-center bg-primary-600 px-6 text-[17px] font-semibold text-white hover:bg-primary-700 active:scale-[0.98]"
                         >Kirim laporan</a>
                     @endauth
                 </div>

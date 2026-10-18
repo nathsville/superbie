@@ -511,15 +511,16 @@ body {
   background-color: var(--color-error-soft);
 }
 
-/* Small round expand/collapse toggle (16px chevron — standard menu-icon size).
-   Desktop-only affordance (mobile uses the off-canvas drawer). */
+/* Round expand/collapse toggle (16px chevron — standard menu-icon size).
+   44px target per audit PROMPT_28. Desktop-only affordance (mobile uses the
+   off-canvas drawer). */
 .sb-rail-expand {
   display: none;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 2rem;
-  height: 2rem;
+  width: 2.75rem;
+  height: 2.75rem;
   border-radius: 9999px;
   color: var(--color-ink-faint);
   background-color: var(--color-surface-sunken);
@@ -625,11 +626,11 @@ body {
   }
 
   /* Collapsed: icon-only circular Logout + circular toggle (labels clipped by
-     `.rail-label`), avatar centred below. */
+     `.rail-label`), avatar centred below. 44px targets per audit PROMPT_28. */
   .sb-rail-logout {
     justify-content: center;
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2.75rem;
+    height: 2.75rem;
     padding: 0;
     border-radius: 9999px;
   }
@@ -990,7 +991,7 @@ body {
 }
 
 .sb-popup-label {
-  color: var(--color-ink-ghost);
+  color: var(--color-ink-soft);
   font-weight: 500;
 }
 

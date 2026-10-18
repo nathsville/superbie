@@ -121,7 +121,7 @@
                     <line x1="{{ $padL }}" y1="{{ $line['y'] }}" x2="{{ $w - $padR }}" y2="{{ $line['y'] }}"
                           class="stroke-line" stroke-width="1"></line>
                     <text x="{{ $padL - 10 }}" y="{{ $line['y'] + 5 }}" text-anchor="end"
-                          class="fill-ink-soft" font-size="17">{{ number_format($line['value'], $decimals, ',', '.') }}</text>
+                          class="fill-ink-soft" font-size="13">{{ number_format($line['value'], $decimals, ',', '.') }}</text>
                 @endforeach
 
                 @if ($variant === 'bar')
@@ -153,7 +153,7 @@
                 {{-- X axis labels --}}
                 @foreach ($xLabels as $xl)
                     <text x="{{ $xl['x'] }}" y="{{ $padT + $plotH + 26 }}" text-anchor="middle"
-                          class="fill-ink-soft" font-size="17">{{ $xl['label'] }}</text>
+                          class="fill-ink-soft" font-size="13">{{ $xl['label'] }}</text>
                 @endforeach
                 </g>
             </svg>

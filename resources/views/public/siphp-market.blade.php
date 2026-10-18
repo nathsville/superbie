@@ -164,7 +164,7 @@
                             <select
                                 id="barang"
                                 name="barang"
-                                class="mt-1 min-h-11 border border-line bg-surface px-3 text-[17px] text-ink"
+                                class="mt-1 min-h-11 bg-surface-sunken px-3 text-[17px] text-ink"
                             >
                                 @foreach ($trendItems->groupBy(fn ($item) => $item->category?->name ?? 'Lainnya') as $categoryName => $categoryItems)
                                     <optgroup label="{{ $categoryName }}">

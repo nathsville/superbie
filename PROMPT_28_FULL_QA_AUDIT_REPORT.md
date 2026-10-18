@@ -314,8 +314,20 @@ Perbaikan paket P0 (Lampiran B) dikerjakan pada basis kode yang sama dan diverif
 
 **Verifikasi ulang pasca-perbaikan a11y:** suite penuh **1682/1682 hijau (8835 assertion)**; `npm run build` sukses; bukti tangkapan layar di `%TEMP%\opencode\shots` (`lpsim-320-before/after`, `tab-1024-after`, `authed-1024/1152/1280-after`, `jdih-1024`, `siphp-1024`).
 
-**Sisa temuan:** T-02, S-01…S-05, D-01…D-03, higiene (P2) — sesuai urutan prioritas Lampiran B. Paket JDIH (termasuk swap skip-link landing + lebar tab di landing/JDIH) tetap menunggu keputusan owner.
+**Paket JDIH (PHASE J) — selesai & ter-commit** (`13b462f`): halaman pemberitahuan `/jdih` + pintu landing, sekaligus melunasi S-08/S-09 di landing & JDIH (swap skip-link + lebar tab `lg`). Gerbang G5 browser lulus: `/jdih` live 1024 & 512 (notice, alamat tujuan, tombol lanjut/kembali, tanpa redirect otomatis) + pintu footer "Dokumen hukum" dan daftar Layanan "Dokumen hukum (JDIH)". Test: `JdihNoticePageTest` (5 test / 19 assertion).
+
+### C.3 — Paket P1 (S-02, S-04, S-05)
+
+| Temuan | Status | Perubahan & bukti |
+|---|---|---|
+| S-02 | ✅ Diperbaiki | Lima jalur tulis/hapus file dipisahkan dari transaksi DB. **Foto toko** (`SuperAdminMarketStoreController`): create — file ditulis sebelum transaksi, dihapus balik bila rollback; update — unggahan baru ditulis lebih dulu (kompensasi saat rollback), file lama/yang dilepas dihapus hanya setelah commit; destroy — file dihapus setelah commit. **Lampiran laporan** (`Citizen\ComplaintController`): create & resubmission — file baru dikompensasi saat rollback, file yang dilepas dihapus hanya setelah commit. Bukti: `tests/Feature/TransactionalFileOpsTest.php` (5 test injeksi kegagalan via model event / emit notifikasi) menegakkan dua invarian: rollback tidak meninggalkan file yatim, dan tidak pernah ada baris yang menunjuk file hilang. |
+| S-04 | ✅ Diperbaiki | `SuperAdminMarketPriceController::catat()`: `whereDate('effective_date', $date)` → `where('effective_date', $date)` — `DATE(kolom)` mematikan indeks `(market_id, effective_date)` dan memindai seluruh riwayat harga pasar. Bukti kontrak SQL: query log layar entri tidak boleh mengandung `DATE(\`effective_date\`)`. |
+| S-05 | ✅ Diperbaiki (kode + dokumen) | Migrasi `2026_10_18_100001_add_subject_index_to_audit_logs_table.php` menambah indeks `(subject_type, subject_id)` untuk purge retensi — **dijalankan juga di DB dev**. Drift dokumen diselaraskan: `schema.md` kini mencatat indeks tunggal `(action)`/`(created_at)` yang benar-benar dimigrasikan + baris indeks baru. Bukti kontrak: `Schema::hasIndex` (nama + kolom). |
+
+**Verifikasi ulang pasca-perbaikan P1:** suite penuh **1689/1689 hijau (8858 assertion)**; regresi fokus 76 test (panel SIPHP + alur validasi awal + pengalaman pelapor) hijau; migrasi dev DB sukses.
+
+**Sisa temuan:** T-02, S-01 (menunggu keputusan owner), D-01…D-03, higiene (P2) — sesuai urutan prioritas Lampiran B.
 
 ---
 
-*Laporan ini disusun dari audit berbasis bukti: setiap klaim memuat rujukan berkas:baris yang dapat diverifikasi ulang pada basis kode yang diaudit. Temuan §3–§6 adalah snapshot saat audit (auditor tidak mengubah kode aplikasi); perbaikan di Lampiran C (C.1 paket P0, C.2 paket a11y) dikerjakan pasca-audit dan diverifikasi ulang.*
+*Laporan ini disusun dari audit berbasis bukti: setiap klaim memuat rujukan berkas:baris yang dapat diverifikasi ulang pada basis kode yang diaudit. Temuan §3–§6 adalah snapshot saat audit (auditor tidak mengubah kode aplikasi); perbaikan di Lampiran C (C.1 paket P0, C.2 paket a11y, C.3 paket P1) dikerjakan pasca-audit dan diverifikasi ulang.*

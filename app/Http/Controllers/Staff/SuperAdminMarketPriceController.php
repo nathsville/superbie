@@ -62,9 +62,13 @@ class SuperAdminMarketPriceController extends Controller
 
         $categories = MarketItemCategory::orderBy('sort_order')->orderBy('name')->get();
 
+        // Audit PROMPT_28 (S-04): compare the plain column to the `Y-m-d`
+        // string — `whereDate()` wrapped the column in DATE(...) so the
+        // (market_id, effective_date) index could not be used and the market's
+        // full price history was scanned on every entry-screen load.
         $existing = MarketPrice::query()
             ->where('market_id', $market->id)
-            ->whereDate('effective_date', $date)
+            ->where('effective_date', $date)
             ->get()
             ->keyBy('item_id');
 

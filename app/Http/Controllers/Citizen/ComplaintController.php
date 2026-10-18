@@ -123,7 +123,12 @@ class ComplaintController extends Controller
         $user = $request->user();
         $validated = $request->validated();
 
-        $complaint = DB::transaction(function () use ($user, $validated, $request) {
+        // Audit PROMPT_28 (S-02): attachment files written inside the
+        // transaction are compensated when it rolls back, so a failed create
+        // never leaves orphaned files in private storage.
+        $storedAttachmentPaths = [];
+
+        $createComplaint = function () use ($user, $validated, $request, &$storedAttachmentPaths) {
             // Generate unique reference code: LPW-YYYYMMDD-XXXX
             $datePrefix = 'LPW-' . now()->format('Ymd') . '-';
             $uniqueCode = null;
@@ -174,6 +179,7 @@ class ComplaintController extends Controller
 
                     $filename = Str::random(40) . '.' . $file->getClientOriginalExtension();
                     $path = $file->storeAs('complaints/' . $complaint->id, $filename, 'private');
+                    $storedAttachmentPaths[] = $path;
                     $checksum = hash_file('sha256', $file->getRealPath());
 
                     ComplaintAttachment::create([
@@ -222,7 +228,14 @@ class ComplaintController extends Controller
             );
 
             return $complaint;
-        });
+        };
+
+        try {
+            $complaint = DB::transaction($createComplaint);
+        } catch (\Throwable $e) {
+            Storage::disk('private')->delete($storedAttachmentPaths);
+            throw $e;
+        }
 
         return redirect()->route('citizen.complaint.show', $complaint)->with(
             'success',
@@ -342,7 +355,13 @@ class ComplaintController extends Controller
         $user = $request->user();
         $validated = $request->validated();
 
-        DB::transaction(function () use ($request, $complaint, $user, $validated) {
+        // Audit PROMPT_28 (S-02): rows move inside the transaction; files are
+        // handled around the commit — new uploads are compensated if it rolls
+        // back, removed files are deleted only after the commit (see below).
+        $newAttachmentPaths = [];
+        $removedAttachmentFiles = [];
+
+        $applyCorrection = function () use ($request, $complaint, $user, $validated, &$newAttachmentPaths, &$removedAttachmentFiles) {
             $oldCategoryId = $complaint->category_id;
 
             // Only citizen-owned fields are written. dinas_unit_id / assigned_to /
@@ -375,7 +394,8 @@ class ComplaintController extends Controller
                     ->get();
 
                 foreach ($toRemove as $attachment) {
-                    Storage::disk($attachment->disk)->delete($attachment->path);
+                    // S-02: the row goes now, the file after the commit.
+                    $removedAttachmentFiles[] = ['disk' => $attachment->disk, 'path' => $attachment->path];
                     $attachment->delete();
                 }
             }
@@ -389,6 +409,7 @@ class ComplaintController extends Controller
 
                     $filename = Str::random(40) . '.' . $file->getClientOriginalExtension();
                     $path = $file->storeAs('complaints/' . $complaint->id, $filename, 'private');
+                    $newAttachmentPaths[] = $path;
                     $checksum = hash_file('sha256', $file->getRealPath());
 
                     ComplaintAttachment::create([
@@ -425,7 +446,21 @@ class ComplaintController extends Controller
                 $audit->id,
                 $user,
             );
-        });
+        };
+
+        try {
+            DB::transaction($applyCorrection);
+        } catch (\Throwable $e) {
+            Storage::disk('private')->delete($newAttachmentPaths);
+            throw $e;
+        }
+
+        // After the commit: delete the files whose rows are gone. A failure
+        // here can only leave an unreferenced file — never a row pointing at
+        // a missing one.
+        foreach ($removedAttachmentFiles as $file) {
+            Storage::disk($file['disk'])->delete($file['path']);
+        }
 
         return redirect()
             ->route('citizen.complaint.show', $complaint)

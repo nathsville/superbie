@@ -452,7 +452,8 @@ Purpose: retail store directory (D-S4a). Managed by Super Admin; publicly readab
 | complaint_status_histories | (complaint_id, created_at) | Timeline |
 | complaint_notes | (complaint_id, created_at) | Complaint detail |
 | audit_logs | (actor_id, created_at) | Audit review |
-| audit_logs | (action, created_at) | Action review |
+| audit_logs | (action), (created_at) | Action & date review (single-column indexes) |
+| audit_logs | (subject_type, subject_id) | Subject-scoped retention purge (audit S-05) |
 | notifications | UNIQUE(recipient_user_id, complaint_id, type, source_event_id) | Idempotency (one business action × one recipient) |
 | notifications | (recipient_user_id, read_at) | Unread count / unread listing |
 | notifications | (recipient_user_id, created_at, id) | Newest-first listing / bell dropdown |

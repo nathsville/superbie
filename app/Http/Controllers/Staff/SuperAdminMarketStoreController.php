@@ -20,8 +20,10 @@ use Illuminate\View\View;
  *
  * Photos are PUBLIC by design (D-S7) and stored on the configured public disk
  * under a generated filename; the previous file is removed when a photo is
- * replaced or the store is deleted, so no orphaned images accumulate. The
- * original client filename is never used as a path.
+ * replaced or the store is deleted — AFTER the commit (audit PROMPT_28 / S-02),
+ * so no orphaned images accumulate and no committed row ever points at a file
+ * that a rolled-back transaction removed. The original client filename is
+ * never used as a path.
  */
 class SuperAdminMarketStoreController extends Controller
 {
@@ -70,24 +72,34 @@ class SuperAdminMarketStoreController extends Controller
     {
         $validated = $request->validated();
 
-        $store = DB::transaction(function () use ($request, $validated) {
-            $store = MarketStore::create([
-                'market_id'     => $validated['market_id'] ?? null,
-                'name'          => $validated['name'],
-                'type'          => $validated['type'] ?? null,
-                'address'       => $validated['address'] ?? null,
-                'phone'         => $validated['phone'] ?? null,
-                'opening_hours' => $validated['opening_hours'] ?? null,
-                'photo_path'    => $this->storePhoto($request->file('photo')),
-                'is_active'     => $validated['is_active'] ?? true,
-            ]);
+        // Audit PROMPT_28 (S-02): the photo is written BEFORE the transaction
+        // and removed again if it rolls back — a committed row never points at
+        // a missing file, and a failed create leaves no orphan on disk.
+        $photoPath = $this->storePhoto($request->file('photo'));
 
-            $this->audit($request, 'market_store.created', $store, [
-                'name' => $store->name,
-            ]);
+        try {
+            $store = DB::transaction(function () use ($request, $validated, $photoPath) {
+                $store = MarketStore::create([
+                    'market_id'     => $validated['market_id'] ?? null,
+                    'name'          => $validated['name'],
+                    'type'          => $validated['type'] ?? null,
+                    'address'       => $validated['address'] ?? null,
+                    'phone'         => $validated['phone'] ?? null,
+                    'opening_hours' => $validated['opening_hours'] ?? null,
+                    'photo_path'    => $photoPath,
+                    'is_active'     => $validated['is_active'] ?? true,
+                ]);
 
-            return $store;
-        });
+                $this->audit($request, 'market_store.created', $store, [
+                    'name' => $store->name,
+                ]);
+
+                return $store;
+            });
+        } catch (\Throwable $e) {
+            $this->deletePhoto($photoPath);
+            throw $e;
+        }
 
         return redirect()
             ->route('super-admin.market-stores.index')
@@ -105,38 +117,40 @@ class SuperAdminMarketStoreController extends Controller
     {
         $validated = $request->validated();
 
-        DB::transaction(function () use ($request, $validated, $store) {
-            $photoPath = $store->photo_path;
+        // Audit PROMPT_28 (S-02): file writes stay OUTSIDE the transaction. A
+        // fresh upload is written first and removed again if the transaction
+        // rolls back; the replaced/removed file is deleted only AFTER the
+        // commit — a committed row always points at a file that exists.
+        $newPhotoPath = $this->storePhoto($request->file('photo'));
 
-            // Explicit removal first; a newly uploaded file then replaces it.
-            if (($validated['remove_photo'] ?? false) && $photoPath !== null) {
-                $this->deletePhoto($photoPath);
-                $photoPath = null;
-            }
+        $finalPhotoPath = $newPhotoPath
+            ?? (($validated['remove_photo'] ?? false) ? null : $store->photo_path);
+        $replacedPhotoPath = $finalPhotoPath === $store->photo_path ? null : $store->photo_path;
 
-            if (($file = $request->file('photo')) !== null) {
-                if ($photoPath !== null) {
-                    $this->deletePhoto($photoPath);
-                }
+        try {
+            DB::transaction(function () use ($request, $validated, $store, $finalPhotoPath) {
+                $store->update([
+                    'market_id'     => $validated['market_id'] ?? null,
+                    'name'          => $validated['name'],
+                    'type'          => $validated['type'] ?? null,
+                    'address'       => $validated['address'] ?? null,
+                    'phone'         => $validated['phone'] ?? null,
+                    'opening_hours' => $validated['opening_hours'] ?? null,
+                    'photo_path'    => $finalPhotoPath,
+                    'is_active'     => $validated['is_active'] ?? $store->is_active,
+                ]);
 
-                $photoPath = $this->storePhoto($file);
-            }
+                $this->audit($request, 'market_store.updated', $store, [
+                    'name' => $store->name,
+                ]);
+            });
+        } catch (\Throwable $e) {
+            $this->deletePhoto($newPhotoPath);
+            throw $e;
+        }
 
-            $store->update([
-                'market_id'     => $validated['market_id'] ?? null,
-                'name'          => $validated['name'],
-                'type'          => $validated['type'] ?? null,
-                'address'       => $validated['address'] ?? null,
-                'phone'         => $validated['phone'] ?? null,
-                'opening_hours' => $validated['opening_hours'] ?? null,
-                'photo_path'    => $photoPath,
-                'is_active'     => $validated['is_active'] ?? $store->is_active,
-            ]);
-
-            $this->audit($request, 'market_store.updated', $store, [
-                'name' => $store->name,
-            ]);
-        });
+        // The replaced/removed file goes away only once the row actually moved.
+        $this->deletePhoto($replacedPhotoPath);
 
         return redirect()
             ->route('super-admin.market-stores.index')
@@ -146,14 +160,18 @@ class SuperAdminMarketStoreController extends Controller
     public function destroy(Request $request, MarketStore $store): RedirectResponse
     {
         $name = $store->name;
+        $photoPath = $store->photo_path;
 
         DB::transaction(function () use ($request, $store, $name) {
             $this->audit($request, 'market_store.deleted', $store, ['name' => $name]);
 
-            $this->deletePhoto($store->photo_path);
-
             $store->delete();
         });
+
+        // Audit PROMPT_28 (S-02): the photo is removed only after the commit
+        // (retention-service pattern) — a rolled-back delete never leaves the
+        // surviving row without its file.
+        $this->deletePhoto($photoPath);
 
         return redirect()
             ->route('super-admin.market-stores.index')

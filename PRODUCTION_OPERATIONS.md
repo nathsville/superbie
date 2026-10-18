@@ -99,14 +99,19 @@ php artisan down --retry=60   # then: php artisan up
 
 ## 3. Scheduler
 
-**IMPLEMENTED.** One scheduled task is defined:
+**IMPLEMENTED.** Two scheduled tasks are defined:
 
 | Command | Frequency | Purpose |
 |---|---|---|
-| `complaints:purge-expired` | daily at 02:00 (app timezone `Asia/Makassar`) | Permanent deletion of complaints 5 years after `submitted_at` (retention rule). |
+| `complaints:purge-expired --force` | daily at 02:00 (app timezone `Asia/Makassar`) | Permanent deletion of complaints 5 years after `submitted_at` (retention rule). |
+| `weather:sync --force` | every 3 hours (`withoutOverlapping`) | BMKG forecast sync for the public weather page (D-16; the scheduled and manual paths share one service and lock). |
 
-The command supports `--dry-run` (report only) and `--force` (required to run
-outside non-production environments).
+Both commands refuse to run in production without `--force`, and the
+scheduler passes the flag so the automated runs are intentional; a manual
+production run must still opt in explicitly. `complaints:purge-expired`
+additionally supports `--dry-run` (report only). If the purge ever fails, the
+schedule log shows a non-zero exit code — re-run it manually (`--dry-run`
+first); it is idempotent (section 10).
 
 **REQUIRED.** Laravel's scheduler does **not** run by itself. The host must invoke
 it once per minute:
@@ -232,6 +237,7 @@ automatic today.
 |---|---|---|
 | MySQL database | `DB_DATABASE` | Complaints, users, audit logs, settings. Primary asset. |
 | Complaint attachments | Laravel `local` disk (`storage/app/private`) | Files are deleted by retention; a DB-only backup would orphan or lose them. |
+| Market store photos (SIPHP) | Laravel `public` disk (`storage/app/public`), served via the `public/storage` symlink | Public `/siphp` images. A DB-only backup loses them permanently — archive this directory too, and re-run `php artisan storage:link` after a restore or redeploy. |
 | Application `.env` | server only | Contains `APP_KEY`; without it encrypted data/sessions are unrecoverable. Store in a secret manager, not in the DB backup. |
 | Built assets | `public/build` | Reproducible from source via `npm run build`; no backup needed. |
 
@@ -246,7 +252,9 @@ mysqldump --single-transaction --routines --triggers \
 ```
 
 Attachments must be archived separately (e.g. an archive of
-`storage/app/private`) so a restore is complete.
+`storage/app/private`) and the public-disk photos (an archive of
+`storage/app/public` — SIPHP market store photos) must be archived too, so a
+restore is complete.
 
 ### 7.3 DECISION REQUIRED - backup policy
 
@@ -349,6 +357,7 @@ must be configured **at deploy time** based on the actual proxy addresses.
 - [ ] `npm run build` executed; `public/build` present.
 - [ ] `php artisan config:cache route:cache view:cache` executed.
 - [ ] `storage` and `bootstrap/cache` writable.
+- [ ] `php artisan storage:link` executed (required for `/siphp` market store photos; verify one photo loads).
 - [ ] HTTPS enforced; `SESSION_SECURE_COOKIE=true`.
 - [ ] `GET /up` returns `200`.
 - [ ] Super Admin account provisioned securely (never a default password).
@@ -366,6 +375,7 @@ must be configured **at deploy time** based on the actual proxy addresses.
 |---|---|
 | `GET /up` returns 500 | Check `storage/logs/laravel.log`; check MySQL reachability; check `bootstrap/cache` writability; roll back the last deploy if it correlates. |
 | Site unreachable | Check web server + PHP-FPM/host health; check DB; check disk space; use `php artisan down`/`up` if a controlled window is needed. |
+| `/siphp` store photos return 404 | Check the `public/storage` symlink exists (`php artisan storage:link`); check the file exists under `storage/app/public/`; restore it from the public-disk archive if missing. |
 | Data corruption / bad migration | Stop writes (`php artisan down`); restore from the most recent backup into a **non-production** target first, validate, then follow the owner-approved restore procedure. |
 | Retention purge failed | Inspect the command output/log; it is idempotent and safe to re-run; `--dry-run` first. It never rolls back committed DB deletions over a file error. |
 | Suspected credential leak | Rotate the credential; rotate `APP_KEY` only with a planned session reset (it invalidates encrypted sessions). |

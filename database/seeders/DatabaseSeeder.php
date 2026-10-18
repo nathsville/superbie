@@ -11,6 +11,7 @@ use App\Models\AuditLog;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class DatabaseSeeder extends Seeder
 {
@@ -20,6 +21,16 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Guard (Prompt 28 / audit T-01): this seeder provisions development
+        // accounts with a publicly known password ("password123"). Running it
+        // in production would create an active Super Admin with a public
+        // password — refuse, mirroring MarketDemoSeeder's production guard.
+        if (app()->environment('production')) {
+            throw new RuntimeException(
+                'DatabaseSeeder berisi akun pengembangan berkredensial publik — menolak berjalan di production.'
+            );
+        }
+
         // ─── 1. Users for each required role ─────────────────────────────────
 
         $superAdmin = User::firstOrCreate(

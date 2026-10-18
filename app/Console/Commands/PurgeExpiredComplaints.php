@@ -14,7 +14,8 @@ use Illuminate\Console\Command;
  *
  * Safety:
  *   --dry-run : report only, no deletion
- *   --force   : required to run outside non-production environments
+ *   --force   : required in production; the scheduler passes it for the
+ *               automated run, manual production runs must opt in explicitly
  */
 class PurgeExpiredComplaints extends Command
 {

@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 
 /**
@@ -16,6 +18,8 @@ use Tests\TestCase;
  */
 class ProductionOperationsTest extends TestCase
 {
+    use RefreshDatabase;
+
     /**
      * The framework health endpoint must be reachable and report success.
      * It is the only liveness/readiness probe this application exposes.
@@ -76,9 +80,44 @@ class ProductionOperationsTest extends TestCase
         $this->assertNotNull($purge, 'The retention purge must remain scheduled.');
         $this->assertSame('0 2 * * *', $purge->expression);
 
+        // Prompt 28 / audit K-01: the scheduler MUST pass --force, otherwise
+        // the command refuses to run in production and retention never happens.
+        $this->assertStringContainsString(
+            '--force',
+            (string) $purge->command,
+            'The scheduled retention purge must pass --force.'
+        );
+
         $weather = $byCommand->first(fn ($event, $command) => str_contains($command, 'weather:sync'));
         $this->assertNotNull($weather, 'The WINDY weather sync must be scheduled (D-16).');
         $this->assertSame('0 */3 * * *', $weather->expression);
+        $this->assertStringContainsString('--force', (string) $weather->command);
+    }
+
+    /**
+     * Prompt 28 / audit K-01 — production safety contract for the retention
+     * purge: without --force it must refuse to run (manual runs opt in), and
+     * with --force it must proceed. Exercised with --dry-run so that this test
+     * never deletes anything.
+     */
+    public function test_retention_purge_requires_force_in_production(): void
+    {
+        $this->app['env'] = 'production';
+
+        $refused = Artisan::call('complaints:purge-expired');
+
+        $this->assertSame(1, $refused, 'A production run without --force must fail.');
+        $this->assertStringContainsString('--force', Artisan::output());
+
+        $accepted = Artisan::call('complaints:purge-expired', [
+            '--force' => true,
+            '--dry-run' => true,
+        ]);
+
+        $this->assertSame(0, $accepted, 'A production run with --force must proceed.');
+        $this->assertStringContainsString('DRY-RUN', Artisan::output());
+
+        $this->app['env'] = 'testing';
     }
 
     /**

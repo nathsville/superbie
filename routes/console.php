@@ -17,12 +17,16 @@ Artisan::command('inspire', function () {
 | permanently delete complaints 5 years after complaints.submitted_at.
 | The scheduler only triggers the command; it does not change retention rules.
 |
+| In production the command refuses to run without `--force`; the scheduler
+| passes it so the automated run is intentional (the same pattern as the
+| weather sync below). Manual production runs must still opt in explicitly.
+|
 | Production note: `schedule:run` must be driven by the Laravel scheduler
 | (e.g. a single cron entry: `* * * * * php artisan schedule:run`). Merely
 | having this schedule defined does NOT make it run on its own.
 |
 */
-Schedule::command('complaints:purge-expired')->dailyAt('02:00');
+Schedule::command('complaints:purge-expired --force')->dailyAt('02:00');
 
 /*
 |--------------------------------------------------------------------------

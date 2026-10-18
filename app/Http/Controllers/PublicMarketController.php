@@ -57,8 +57,15 @@ class PublicMarketController extends Controller
         // key means the item has a single recording; the view then prints "—".
         $previousPrices = $this->previousPriceRows($marketIds);
 
+        // Audit PROMPT_28 (Rendah): a store whose market is DEACTIVATED must
+        // not surface here — consistent with the active-only market list above.
+        // D-S4a: a store may be listed without a market; those stay visible.
         $stores = MarketStore::query()
             ->where('is_active', true)
+            ->where(function ($query) {
+                $query->whereNull('market_id')
+                    ->orWhereHas('market', fn ($market) => $market->where('is_active', true));
+            })
             ->with('market')
             ->orderBy('name')
             ->get();

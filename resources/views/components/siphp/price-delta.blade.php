@@ -12,7 +12,7 @@
 @endphp
 
 @if ($previousValue === null)
-    <span class="text-ink-ghost" title="Belum ada pencatatan sebelumnya">—<span class="sr-only"> Belum ada pencatatan sebelumnya.</span></span>
+    <span class="text-ink-soft" title="Belum ada pencatatan sebelumnya">—<span class="sr-only"> Belum ada pencatatan sebelumnya.</span></span>
 @elseif ($currentValue > $previousValue)
     @php
         $diff = $currentValue - $previousValue;

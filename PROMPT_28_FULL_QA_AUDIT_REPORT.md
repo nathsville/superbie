@@ -334,8 +334,18 @@ Perbaikan paket P0 (Lampiran B) dikerjakan pada basis kode yang sama dan diverif
 | D-03 | ✅ Diperbaiki (dokumen) | `PROGRESS.md`: angka terkini **30 migrasi / 137 route / 1689 test / 8858 assertion** (dua tempat) + catatan "Belum ada kode/database WINDY" diganti fakta implementasi. `SIPHP_INTEGRATION_PLAN.md`: status "uncommitted" → ter-commit `720c5cd` (2 tempat). `prd.md`: klausa lama "SIPHP dan JDIH tetap tidak dibangun" diberi penanda **→ DIPERBARUI** ke catatan PHASE S/J. Celah katalog `PROMPT_*` (Info) tidak diubah. |
 | T-02 | ⚠️ Parsial — redaksi ✅, rotasi pending (owner) | Literal kredensial dev/test DB di laporan lama diganti placeholder: `PROMPT_18_SECURITY_ARCHITECTURE_AUDIT.md` (3 tempat) + `PROMPT_19_HARDENING_REPORT.md`; verifikasi grep: **nol kemunculan** di seluruh file ter-track. `phpunit.xml` **sudah bersih** (kredensialnya telah dipindah keluar pada prompt lanjutan — diverifikasi ulang). **Sisa aksi owner:** rotasi kredensial DB + keputusan rewrite riwayat git; repo tetap private. |
 
-**Sisa temuan:** T-02 rotasi kredensial (aksi owner), S-01 (keputusan owner), D-01 (keputusan owner), higiene (P2) — sesuai urutan prioritas Lampiran B.
+### C.5 — Paket P3 higiene minor (non-destruktif)
+
+| Temuan | Status | Perubahan & bukti |
+|---|---|---|
+| `/siphp` menampilkan toko dari pasar nonaktif | ✅ Diperbaiki | `PublicMarketController::index()` — direktori toko kini hanya memuat toko aktif **dan** (tanpa pasar, D-S4a **atau** pasarnya aktif), konsisten dengan daftar pasar aktif + halaman detail pasar. Bukti: `SiphpPublicMarketTest::test_active_store_of_a_deactivated_market_is_hidden` (toko pasar nonaktif tersembunyi; toko pasar aktif & toko tanpa pasar tetap tampil). |
+| `.env.example` kehilangan kunci tuning timeout WINDY | ✅ Diperbaiki | Ditambahkan `WINDY_HTTP_TIMEOUT=10` (land) dan `WINDY_MARINE_HTTP_TIMEOUT=10` (marine) — nilai default sesuai `config/weather.php:166,249`; sebelumnya kunci tak ditemukan di mana pun. |
+| Kontras `ink-ghost` pada teks 11px (2.56:1 — gagal AA) | ✅ Diperbaiki | Empat pemakaian **teks**: `notification-item.blade.php:90,99`, `profile/field.blade.php:77`, `siphp/price-delta.blade.php:15` → `ink-soft` (#475569 ≈ 7.5:1 di atas putih). `ink-ghost` tetap untuk elemen non-teks (ikon/aksen). |
+
+**Verifikasi ulang pasca-perbaikan P3:** suite penuh **1690/1690 hijau (8863 assertion)**; test terarah SIPHP publik + kontrak aksesibilitas 19/19; `npm run build` sukses (perubahan blade).
+
+**Sisa temuan:** T-02 rotasi kredensial (aksi owner), S-01 (keputusan owner), D-01 (keputusan owner), CSP/O-8 & retensi `market_prices`/`market_stores` dan audit-log non-pengaduan (keputusan owner), higiene sisanya (artefak ter-track/layout lama/duplikat js — keputusan owner; target sentuh <44px & nit chart/select — minor tersisa) — sesuai urutan prioritas Lampiran B.
 
 ---
 
-*Laporan ini disusun dari audit berbasis bukti: setiap klaim memuat rujukan berkas:baris yang dapat diverifikasi ulang pada basis kode yang diaudit. Temuan §3–§6 adalah snapshot saat audit (auditor tidak mengubah kode aplikasi); perbaikan di Lampiran C (C.1 paket P0, C.2 paket a11y, C.3 paket P1, C.4 paket dokumen P2) dikerjakan pasca-audit dan diverifikasi ulang.*
+*Laporan ini disusun dari audit berbasis bukti: setiap klaim memuat rujukan berkas:baris yang dapat diverifikasi ulang pada basis kode yang diaudit. Temuan §3–§6 adalah snapshot saat audit (auditor tidak mengubah kode aplikasi); perbaikan di Lampiran C (C.1 paket P0, C.2 paket a11y, C.3 paket P1, C.4 paket dokumen P2, C.5 higiene P3) dikerjakan pasca-audit dan diverifikasi ulang.*

@@ -74,6 +74,6 @@
     @endif
 
     @if ($hint)
-        <p class="text-[11px] text-ink-ghost mt-1.5">{{ $hint }}</p>
+        <p class="text-[11px] text-ink-soft mt-1.5">{{ $hint }}</p>
     @endif
 </div>

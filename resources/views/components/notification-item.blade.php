@@ -87,7 +87,7 @@
             ])>{{ $notification->body }}</span>
 
             @if ($compact && $when)
-                <span class="mt-1.5 block text-[11px] text-ink-ghost">{{ $when }}</span>
+                <span class="mt-1.5 block text-[11px] text-ink-soft">{{ $when }}</span>
             @endif
         </span>
     </a>
@@ -96,7 +96,7 @@
         <div class="shrink-0 self-center flex items-center gap-2 pl-1">
             {{-- Muted timestamp — low emphasis so the title stays the focus. --}}
             @if ($when)
-                <span class="hidden sm:inline text-[11px] text-ink-ghost whitespace-nowrap tabular-nums">{{ $when }}</span>
+                <span class="hidden sm:inline text-[11px] text-ink-soft whitespace-nowrap tabular-nums">{{ $when }}</span>
             @endif
 
             {{-- Delete: always visible on touch, reveals on hover/focus on pointer devices. --}}

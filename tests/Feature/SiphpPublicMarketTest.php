@@ -191,6 +191,24 @@ class SiphpPublicMarketTest extends TestCase
         $this->assertDatabaseHas('market_stores', ['id' => $hiddenStore->id]);
     }
 
+    public function test_active_store_of_a_deactivated_market_is_hidden(): void
+    {
+        $inactiveMarket = $this->makeMarket(['name' => 'Pasar Nonaktif', 'is_active' => false]);
+        $activeMarket = $this->makeMarket(['name' => 'Pasar Aktif']);
+
+        $this->makeStore(['name' => 'Toko Pasar Nonaktif', 'market_id' => $inactiveMarket->id]);
+        $this->makeStore(['name' => 'Toko Pasar Aktif', 'market_id' => $activeMarket->id]);
+        $this->makeStore(['name' => 'Toko Tanpa Pasar', 'market_id' => null]);
+
+        $response = $this->get(route('siphp.index'));
+
+        $response->assertOk();
+        $response->assertSee('Toko Pasar Aktif');
+        $response->assertSee('Toko Tanpa Pasar');
+        $response->assertDontSee('Toko Pasar Nonaktif');
+        $response->assertDontSee('Pasar Nonaktif');
+    }
+
     public function test_active_store_is_listed_with_its_market(): void
     {
         $market = $this->makeMarket(['name' => 'Lakessi']);

@@ -6,7 +6,7 @@
 Create a civic-service interface that feels clear, trustworthy, calm, modern, and approachable. The primary user task is submitting a complaint or reviewing the status of one's own complaint after login; decoration must never compete with that task. Use Indonesian copy, plain language, strong visual hierarchy, and generous whitespace.
 
 - **Brand context:** part of SuperBie, a planned integrated portal for public services.
-- **MVP scope:** Lapor Pak Wali **plus the approved WINDY public weather dashboard** (read-only public weather information on the landing page; Phase 3, O-1). Do not design active screens for **JDIH** — it remains a disabled/future navigation placeholder only. **PHASE S (D-S1…D-S7):** **SIPHP is approved** — design the public read-only market pages (`/siphp`) and the Super Admin market/data panels per `SIPHP_INTEGRATION_PLAN.md`; keep the design tokens and reduced-motion support, use honest empty states ("Data harga belum tersedia"), and never present synthetic/default values as real measurements. WINDY must not include a GIS/wilayah boundary map, must respect `prefers-reduced-motion`, and must never present synthetic/hardcoded/default values as real measurements. **Phase 4E (D-11…D-17):** show a **3-day** forecast; display times in **`Asia/Makassar` (WITA)**; when a value is unavailable show **"Data tidak tersedia"** (never a default/synthetic value); the Windy.com embed stays as a separate interactive map and is **conditional** on the CSP/privacy decision (O-8); include required **BMKG/OpenWeatherMap attribution**.
+- **MVP scope:** Lapor Pak Wali **plus the approved WINDY public weather dashboard** (read-only public weather information on the landing page; Phase 3, O-1). **PHASE J (D-J1…D-J5):** JDIH gets **one** designed screen — the outbound **notice page** `/jdih` (destination stated, one explicit action, never an auto-redirect) per `JDIH_INTEGRATION_PLAN.md`; it is **not** a rebuilt module. **PHASE S (D-S1…D-S7):** **SIPHP is approved** — design the public read-only market pages (`/siphp`) and the Super Admin market/data panels per `SIPHP_INTEGRATION_PLAN.md`; keep the design tokens and reduced-motion support, use honest empty states ("Data harga belum tersedia"), and never present synthetic/default values as real measurements. WINDY must not include a GIS/wilayah boundary map, must respect `prefers-reduced-motion`, and must never present synthetic/hardcoded/default values as real measurements. **Phase 4E (D-11…D-17):** show a **3-day** forecast; display times in **`Asia/Makassar` (WITA)**; when a value is unavailable show **"Data tidak tersedia"** (never a default/synthetic value); the Windy.com embed stays as a separate interactive map and is **conditional** on the CSP/privacy decision (O-8); include required **BMKG/OpenWeatherMap attribution**.
 - **Density:** low-to-medium; forms and case details must be easy to scan.
 - **Responsive:** mobile-first; form controls full-width on mobile.
 - **Tone:** respectful, neutral, non-partisan, public-service oriented.
@@ -284,6 +284,7 @@ Do not globally force every element to animate on every rerender. Use reusable c
 - [ ] Forms retain accessible labels and server-side error mapping.
 - [ ] Public sheets separate surfaces by tone steps and space only — no hairlines, outlined boxes, or resting shadows.
 - [ ] Section entrances (`data-reveal`) cover each section's parts; no-JS and reduced motion leave everything visible.
+- [ ] Outbound links pass through the notice page first; the destination is stated and nothing auto-redirects.
 
 ## 9. Editorial sheet system — public pages (landing & cuaca)
 
@@ -330,6 +331,13 @@ No size between these steps: a new size must replace one above.
   (the harbour the sea forecast is drawn for).
 - The EWS status word is the only uppercase text on a public sheet (the agency's
   own vocabulary); everything else is sentence case without letter-spacing.
+
+### Outbound doors
+- A door that leaves the portal passes through the notice sheet first (`/jdih`):
+  the destination stated in full, the exit only from an explicit action — never
+  an automatic redirect.
+- The outbound action opens in a new tab (`rel="noopener noreferrer"`) and
+  carries a screen-reader note; the address is displayed as plain text.
 
 ## 10. Instrument panel — internal dashboards (super-admin rebuilt; bold pass)
 

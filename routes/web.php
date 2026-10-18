@@ -41,6 +41,15 @@ Route::get('/siphp', [\App\Http\Controllers\PublicMarketController::class, 'inde
 Route::get('/siphp/pasar/{market}', [\App\Http\Controllers\PublicMarketController::class, 'show'])
     ->name('siphp.market');
 
+// ─── Public JDIH notice (PHASE J) — READ-ONLY, no login ─────────────────────
+//
+// JDIH is NOT rebuilt here and nothing is scraped, embedded or synced (D-J1).
+// This page is the notice step before the OUTBOUND hyperlink to the official
+// JDIH site: the destination opens only from an explicit user action — never an
+// automatic redirect (D-J2). See JDIH_INTEGRATION_PLAN.md (D-J1…D-J5).
+Route::get('/jdih', \App\Http\Controllers\PublicJdihController::class)
+    ->name('jdih.index');
+
 // ─── Auth routes ──────────────────────────────────────────────────────────────
 
 Route::middleware('guest')->group(function () {

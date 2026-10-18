@@ -278,6 +278,25 @@ class ProgressiveNavigationTest extends TestCase
         $this->assertStringContainsString('if (isSiphpPath(window.location.pathname)) return;', $js);
     }
 
+    /**
+     * The JDIH notice surface (`/jdih`; PHASE J) is the same kind of distinct
+     * full-page layout: its own header/footer and no dashboard shell. It must
+     * always full-navigate, and its one outbound link is external anyway.
+     */
+    public function test_navigation_excludes_the_jdih_notice_surface(): void
+    {
+        $js = file_get_contents(resource_path('js/navigation.js'));
+
+        $this->assertStringContainsString('JDIH_PATH', $js);
+        $this->assertStringContainsString('/^\\/jdih', $js);
+        $this->assertStringContainsString('isJdihPath', $js);
+
+        // Excluded as a destination AND never intercepted while the current page
+        // is the notice surface.
+        $this->assertStringContainsString('if (isJdihPath(p)) return true;', $js);
+        $this->assertStringContainsString('if (isJdihPath(window.location.pathname)) return;', $js);
+    }
+
     // ── Progressive enhancement: pages remain fully server-rendered ──────────
 
     public function test_pages_are_fully_server_rendered_without_javascript(): void
@@ -375,11 +394,13 @@ class ProgressiveNavigationTest extends TestCase
         //     PUBLIC (D-S3; no login, read-only):
         //     GET    /siphp                                               (siphp.index)
         //     GET    /siphp/pasar/{market}                                (siphp.market)
+        // + PHASE J (JDIH outbound link — owner requirement) = +1:
+        //     GET    /jdih                                               (jdih.index) — public notice before leaving
         // No other route was added, renamed or removed.
         $this->assertSame(
-            136,
+            137,
             count(app('router')->getRoutes()->getRoutes()),
-            'Route inventory changed beyond the approved additions (location master data + operator location update + PHASE 2 validation - PHASE 2R removals + PHASE 3 completion submit + PHASE 3 completion validation + PHASE 3 citizen rating + PHASE N4 notifications + PROMPT TAHAP 2 help desk + STAGE 3 review response + WINDY weather - Admin audit-log removal + PHASE S native SIPHP market module).'
+            'Route inventory changed beyond the approved additions (location master data + operator location update + PHASE 2 validation - PHASE 2R removals + PHASE 3 completion submit + PHASE 3 completion validation + PHASE 3 citizen rating + PHASE N4 notifications + PROMPT TAHAP 2 help desk + STAGE 3 review response + WINDY weather - Admin audit-log removal + PHASE S native SIPHP market module + PHASE J JDIH outbound notice page).'
         );
     }
 }

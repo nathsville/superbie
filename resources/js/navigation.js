@@ -47,6 +47,12 @@ const WEATHER_PATH = /^\/cuaca(?:\/|$)/;
 // Alpine initialization correct.
 const SIPHP_PATH = /^\/siphp(?:\/|$)/;
 
+// The JDIH notice surface (`/jdih`; PHASE J) is the same kind of DISTINCT
+// full-page layout: its own header/footer and no dashboard shell. It must load
+// whole — this layer only swaps `#main-content` — and its one outbound link is
+// external anyway. Never intercept navigation to or from it.
+const JDIH_PATH = /^\/jdih(?:\/|$)/;
+
 const DEBUG = Boolean(import.meta && import.meta.env && import.meta.env.DEV);
 const log = (...args) => { if (DEBUG) console.debug('[nav]', ...args); };
 
@@ -89,12 +95,17 @@ function isSiphpPath(pathname) {
     return SIPHP_PATH.test(pathname);
 }
 
+function isJdihPath(pathname) {
+    return JDIH_PATH.test(pathname);
+}
+
 function isExcluded(url) {
     if (url.origin !== window.location.origin) return true;
     const p = url.pathname;
     if (isAuthPath(p)) return true;
     if (isWeatherPath(p)) return true;
     if (isSiphpPath(p)) return true;
+    if (isJdihPath(p)) return true;
     if (p === '/logout') return true;
     if (p.includes('/lampiran/')) return true; // attachment downloads (binary)
     if (NON_HTML_EXT.test(p)) return true;
@@ -412,6 +423,7 @@ function onDocumentClick(event) {
     // place around another page's content. Let the browser do a full navigation.
     if (isWeatherPath(window.location.pathname)) return;
     if (isSiphpPath(window.location.pathname)) return;
+    if (isJdihPath(window.location.pathname)) return;
 
     const anchor = event.target && event.target.closest ? event.target.closest('a[href]') : null;
     if (!anchor) return;

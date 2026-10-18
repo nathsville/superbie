@@ -335,9 +335,11 @@
         }
 
         /* Footer: the name spans the full width and its bottom edge is sliced
-           by the field, so the page closes on the two words it is named after. */
+           by the field, so the page closes on the two words it is named after.
+           The 40px floor (measured: "Lapor Pak Wali" is 353px wide at 52px)
+           keeps the name inside a 320px viewport instead of scrolling it. */
         .lp-name {
-            font-size: clamp(52px, 13vw, 208px);
+            font-size: clamp(40px, 13vw, 208px);
             line-height: 0.8;
             letter-spacing: -0.055em;
             font-weight: 700;
@@ -345,19 +347,19 @@
         }
     </style>
 
-    <a
-        href="#main-content"
-        class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-primary-700 focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-white"
-    >
-        Lewati ke konten utama
-    </a>
+    <x-skip-link />
 
     <div class="bg-surface text-ink">
 
         {{-- ─── Header ─────────────────────────────────────────────────────────
              Flush on the band's upper edge: the wordmark at far left, a flat
-             accent tab of plain links running to the 42% axis, one action at
-             the right margin. No blur, no border, no shadow. --}}
+             accent tab of plain links, one action at the right margin. No blur,
+             no border, no shadow.
+
+             The tab ends on the 42% axis, where the title below begins. Three
+             labels cannot hold that 240px track at 1024px (measured in the
+             browser: the logged-in row is ~325px with its gaps), so lg–xl widens
+             the band to the 50% axis and 2xl returns it to the 42% axis. --}}
         <header class="px-5 sm:px-8">
             <div class="grid grid-cols-2 items-stretch lg:grid-cols-12">
                 <a
@@ -386,7 +388,7 @@
                      wordmark, so the three doors stay on screen instead of
                      hiding behind a menu word. --}}
                 <nav
-                    class="-mx-5 col-span-2 flex items-center gap-4 bg-accent-500 px-5 py-3 sm:-mx-8 sm:px-8 lg:mx-0 lg:col-span-3 lg:col-start-3 lg:gap-6 lg:px-5 lg:py-0"
+                    class="-mx-5 col-span-2 flex items-center gap-4 bg-accent-500 px-5 py-3 sm:-mx-8 sm:px-8 lg:mx-0 lg:col-span-4 lg:col-start-3 lg:gap-4 lg:px-5 lg:py-0 xl:gap-6 2xl:col-span-3"
                     aria-label="Navigasi publik"
                 >
                     {{-- The tab holds three links only (one row at `lg`), so
@@ -642,7 +644,7 @@
 
         {{-- ─── Footer ─────────────────────────────────────────────────────────
              The name opens the close instead of ending it, and the field slices
-             its bottom edge. Under it: the three doors, the small links, and
+             its bottom edge. Under it: the doors, the small links, and
              the picture credits this page is required to carry. --}}
         <footer class="bg-primary-900 px-5 pt-20 text-white sm:px-8 lg:pt-28">
             <div>
@@ -653,6 +655,7 @@
                 <nav class="lg:col-span-5" aria-label="Tautan utama">
                     <a href="{{ route('weather.index') }}" class="block lp-door font-semibold tracking-[-0.02em] text-accent-400 transition-colors hover:text-accent-300">Info cuaca</a>
                     <a href="{{ route('siphp.index') }}" class="mt-2 block lp-door font-semibold tracking-[-0.02em] text-accent-400 transition-colors hover:text-accent-300">Harga pasar</a>
+                    <a href="{{ route('jdih.index') }}" class="mt-2 block lp-door font-semibold tracking-[-0.02em] text-accent-400 transition-colors hover:text-accent-300">Dokumen hukum</a>
                     <a href="#tanya" class="mt-2 block lp-door font-semibold tracking-[-0.02em] text-accent-400 transition-colors hover:text-accent-300">Tanya jawab</a>
                     @auth
                         <a href="{{ route('dashboard') }}" class="mt-2 block lp-door font-semibold tracking-[-0.02em] text-accent-400 transition-colors hover:text-accent-300">Akun saya</a>
@@ -684,6 +687,7 @@
                             <li><a href="{{ route('citizen.help.index') }}" class="transition-colors hover:text-white">Pusat bantuan</a></li>
                             <li><a href="{{ route('weather.index') }}" class="transition-colors hover:text-white">Cuaca kota</a></li>
                             <li><a href="{{ route('siphp.index') }}" class="transition-colors hover:text-white">Harga pasar kota</a></li>
+                            <li><a href="{{ route('jdih.index') }}" class="transition-colors hover:text-white">Dokumen hukum (JDIH)</a></li>
                         </ul>
                     </div>
 

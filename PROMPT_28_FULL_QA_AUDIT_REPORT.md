@@ -281,9 +281,13 @@ Kabar baiknya: **seluruh temuan Kritis & Tinggi berbiaya perbaikan kecil** (tota
 
 ---
 
-## 11. Lampiran C — Status Perbaikan P0 (pasca-audit, 2026-10-18)
+## 11. Lampiran C — Status Perbaikan Pasca-Audit (2026-10-18)
 
-Bagian ini ditambahkan **setelah** laporan final; temuan §3–§6 tetap sebagaimana temuan saat audit. Perbaikan paket P0 (Lampiran B) sudah dikerjakan pada basis kode yang sama dan diverifikasi ulang:
+Bagian ini ditambahkan **setelah** laporan final; temuan §3–§6 tetap sebagaimana temuan saat audit.
+
+### C.1 — Paket P0
+
+Perbaikan paket P0 (Lampiran B) dikerjakan pada basis kode yang sama dan diverifikasi ulang:
 
 | Temuan | Status | Perubahan & bukti |
 |---|---|---|
@@ -293,8 +297,25 @@ Bagian ini ditambahkan **setelah** laporan final; temuan §3–§6 tetap sebagai
 | S-12 | ✅ Diperbaiki | `npm audit fix`: `concurrently` 10.0.5→10.0.6 & `shell-quote` 1.9.0→1.12.0 (keduanya dev-only); `npm audit` → **0 vulnerabilities**. |
 | Kontrak regresi | ✅ | `ProductionOperationsTest` mengunci: purge `0 2 * * *` + `--force`, weather `0 */3 * * *` + `--force`, serta kontrak produksi command (tolak tanpa flag / lanjut dengan flag, `--dry-run`). |
 
-**Verifikasi ulang pasca-perbaikan:** suite penuh **1675/1675 hijau (8800 assertion)**; `npm run build` sukses. Sisa temuan (T-02, T-04, S-01…S-11, D-01…D-03, higiene) masih terbuka sesuai urutan prioritas Lampiran B.
+**Verifikasi ulang pasca-perbaikan P0:** suite penuh **1675/1675 hijau (8800 assertion)**; `npm run build` sukses.
+
+### C.2 — Paket aksesibilitas (T-04 + S-06…S-11)
+
+| Temuan | Status | Perubahan & bukti |
+|---|---|---|
+| T-04 | ✅ Diperbaiki | `profile/edit-button.blade.php` + `profile/avatar.blade.php`: isian `accent-500` → `accent-600 hover:accent-700` (putih di atas #996300 ≈ 5.1:1; `accent-500` tetap token isian-saja). Docblock tombol mencatat alasan kontras. |
+| S-06 | ✅ Diperbaiki | Komponen baru `components/skip-link.blade.php`; terpasang di cuaca, siphp, halaman pasar, dan shell dashboard (landing & JDIH menyusul di paket JDIH). Test kontrak: teks skip-link + `href="#main-content"` pada 5 jalur + `id="main-content"` di dashboard. |
+| S-07 | ✅ Diperbaiki | Label unit + baris tanggal pada baris zebra SIPHP (indeks & detail pasar): `text-ink-faint` → `text-ink-soft` (AA di atas `surface-sunken`). Header tren ber-latar terang sengaja tidak diubah — di luar cakupan temuan. |
+| S-08 | ✅ Diperbaiki + bukti browser | Footer landing `.lp-name`: `clamp(52px, 13vw, 208px)` → `clamp(40px, …)`. Chrome headless, kolom 320px: sebelum — glyph menembus tepi (terukur berhenti di x=319, terpotong); sesudah — glyph berhenti di x=302, padding kanan utuh. Ukur kanvas Poppins (letter-spacing −0.055em) mendukung: 353px @52px vs ±283px @41,6px. Catatan metode: Chrome Windows memaksa viewport ≥512px, jadi kasus 320px direproduksi via `html{width:320px}` + nilai clamp yang memang dihitung browser pada vw=320. |
+| S-09 | ✅ Diperbaiki + bukti browser | Track 3 kolom mustahil memuat tab 3 tautan pada `lg`: terukur 291px (tamu) / 325px (login) vs band 240px di 1024px — label “Masuk” keluar dari band (terlihat pada tangkapan live 1024). Perbaikan di lima lembar: `lg:col-span-4 lg:gap-4 xl:gap-6 2xl:col-span-3` (band kembali berakhir di sumbu 42% pada 2xl). Bukti: live 1024 (`/`, `/siphp`, `/jdih`) + static login 1024/1152/1280 — label ketiga duduk di dalam band. |
+| S-10 | ✅ Diperbaiki | Tombol lapisan peta cuaca: `:aria-pressed="overlay === …"` (5 tombol). Test kontrak mengunci 5 kemunculan; halaman live `/cuaca` juga 5. |
+| S-11 | ✅ Diperbaiki | Tombol tutup toast (sukses & galat): target 44px (`p-3.5` + `-my-3.5 -mr-3.5`) dan ikon `aria-hidden="true"`; `aria-label` tetap sumber nama. Test kontrak. |
+| Kontrak regresi | ✅ Baru | `tests/Feature/AccessibilityContractTest.php` — 7 test / 30 assertion mengunci T-04, S-06, S-07, S-10, S-11. (Perilaku viewport S-08/S-09 diverifikasi manual via Chrome headless — batas repo tanpa runner JS.) |
+
+**Verifikasi ulang pasca-perbaikan a11y:** suite penuh **1682/1682 hijau (8835 assertion)**; `npm run build` sukses; bukti tangkapan layar di `%TEMP%\opencode\shots` (`lpsim-320-before/after`, `tab-1024-after`, `authed-1024/1152/1280-after`, `jdih-1024`, `siphp-1024`).
+
+**Sisa temuan:** T-02, S-01…S-05, D-01…D-03, higiene (P2) — sesuai urutan prioritas Lampiran B. Paket JDIH (termasuk swap skip-link landing + lebar tab di landing/JDIH) tetap menunggu keputusan owner.
 
 ---
 
-*Laporan ini disusun dari audit berbasis bukti: setiap klaim memuat rujukan berkas:baris yang dapat diverifikasi ulang pada basis kode yang diaudit. Temuan §3–§6 adalah snapshot saat audit (auditor tidak mengubah kode aplikasi); perbaikan P0 di Lampiran C dikerjakan pasca-audit dan diverifikasi ulang.*
+*Laporan ini disusun dari audit berbasis bukti: setiap klaim memuat rujukan berkas:baris yang dapat diverifikasi ulang pada basis kode yang diaudit. Temuan §3–§6 adalah snapshot saat audit (auditor tidak mengubah kode aplikasi); perbaikan di Lampiran C (C.1 paket P0, C.2 paket a11y) dikerjakan pasca-audit dan diverifikasi ulang.*

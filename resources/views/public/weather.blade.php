@@ -51,6 +51,8 @@
 @endpush
 
 <x-layouts.app :title="$title">
+    <x-skip-link />
+
     <div class="min-h-full bg-surface text-ink">
 
         {{-- ─── Header ─────────────────────────────────────────────────────────
@@ -102,7 +104,7 @@
                      wordmark, so the three doors stay on screen instead of
                      hiding behind a menu word. --}}
                 <nav
-                    class="-mx-5 col-span-2 flex items-center gap-4 bg-accent-500 px-5 py-3 sm:-mx-8 sm:px-8 lg:mx-0 lg:col-span-3 lg:col-start-3 lg:gap-6 lg:px-5 lg:py-0"
+                    class="-mx-5 col-span-2 flex items-center gap-4 bg-accent-500 px-5 py-3 sm:-mx-8 sm:px-8 lg:mx-0 lg:col-span-4 lg:col-start-3 lg:gap-4 lg:px-5 lg:py-0 xl:gap-6 2xl:col-span-3"
                     aria-label="Navigasi publik"
                 >
                     <a href="{{ route('home') }}" class="whitespace-nowrap text-[17px] font-semibold text-ink transition-colors hover:text-primary-800">Beranda</a>
@@ -398,6 +400,7 @@
                                 <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Lapisan peta">
                                     @foreach (['wind' => 'Angin', 'rain' => 'Hujan', 'clouds' => 'Awan', 'temp' => 'Suhu', 'waves' => 'Gelombang'] as $ov => $ovLabel)
                                         <button type="button" @click="overlay = '{{ $ov }}'"
+                                                :aria-pressed="overlay === '{{ $ov }}' ? 'true' : 'false'"
                                                 :class="overlay === '{{ $ov }}' ? 'bg-ink text-white' : 'bg-surface text-ink-soft hover:bg-line hover:text-ink'"
                                                 class="wx-press inline-flex min-h-11 items-center px-4 text-[13px] font-semibold ui-animated">{{ $ovLabel }}</button>
                                     @endforeach

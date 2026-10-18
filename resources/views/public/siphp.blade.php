@@ -6,6 +6,8 @@
 @endphp
 
 <x-layouts.app :title="$title">
+    <x-skip-link />
+
     <div class="min-h-full bg-surface text-ink">
 
         {{-- ─── Header ─────────────────────────────────────────────────────────
@@ -50,7 +52,7 @@
                 </div>
 
                 <nav
-                    class="-mx-5 col-span-2 flex items-center gap-4 bg-accent-500 px-5 py-3 sm:-mx-8 sm:px-8 lg:mx-0 lg:col-span-3 lg:col-start-3 lg:gap-6 lg:px-5 lg:py-0"
+                    class="-mx-5 col-span-2 flex items-center gap-4 bg-accent-500 px-5 py-3 sm:-mx-8 sm:px-8 lg:mx-0 lg:col-span-4 lg:col-start-3 lg:gap-4 lg:px-5 lg:py-0 xl:gap-6 2xl:col-span-3"
                     aria-label="Navigasi publik"
                 >
                     <a href="{{ route('weather.index') }}" class="whitespace-nowrap text-[17px] font-semibold text-ink transition-colors hover:text-primary-800">Cuaca</a>
@@ -125,7 +127,7 @@
                                         <p class="min-w-0 text-[17px] font-medium text-ink">
                                             {{ $row->item->name }}
                                             @if ($row->item->unit)
-                                                <span class="ml-1 text-[13px] font-normal text-ink-faint">{{ $row->item->unit }}</span>
+                                                <span class="ml-1 text-[13px] font-normal text-ink-soft">{{ $row->item->unit }}</span>
                                             @endif
                                         </p>
                                         <p class="shrink-0 text-right text-[17px] font-semibold tabular-nums text-ink">
@@ -135,7 +137,7 @@
                                                     :current="$row->price"
                                                     :previous="$previousPrices->get($market->id . '|' . $row->item_id)" />
                                                 @if (! $row->effective_date->isSameDay($maxDate))
-                                                    <span class="block text-ink-faint">per {{ $row->effective_date->translatedFormat('d M Y') }}</span>
+                                                    <span class="block text-ink-soft">per {{ $row->effective_date->translatedFormat('d M Y') }}</span>
                                                 @endif
                                             </span>
                                         </p>

@@ -45,7 +45,7 @@
 
     @if ($editable)
         <label
-            class="absolute -bottom-1 -right-1 w-9 h-9 rounded-full bg-accent-500 hover:bg-accent-600 text-white flex items-center justify-center cursor-pointer ring-4 ring-white ui-animated shadow-sm"
+            class="absolute -bottom-1 -right-1 w-9 h-9 rounded-full bg-accent-600 hover:bg-accent-700 text-white flex items-center justify-center cursor-pointer ring-4 ring-white ui-animated shadow-sm"
             title="Ubah foto profil"
         >
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">

@@ -61,6 +61,8 @@
 @endphp
 
 <x-layouts.app :title="$title ?? 'Dashboard'">
+    <x-skip-link />
+
     <div
         class="sb-canvas min-h-screen lg:flex lg:items-start"
         x-data="{

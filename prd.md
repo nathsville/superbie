@@ -193,8 +193,8 @@ Masyarakat membutuhkan kanal pengaduan yang jelas dan mudah digunakan, sementara
 - Tolak file berbahaya, tipe tidak diizinkan, ukuran berlebih, dan input tidak valid.
 - Terapkan rate limit dan perlindungan spam yang dapat dikonfigurasi.
   - **Rate limit login (FINAL, Prompt 20):** kebijakan **TIDAK berubah** (D-5) — key `email|ip` (per akun, bukan IP saja), ambang 5 percobaan, jendela = decay default framework (60 detik), hit saat gagal / clear saat sukses, event `Lockout`. Prompt 20 hanya mengubah **semantik HTTP** kondisi terlampaui: kini **HTTP 429 (Too Many Requests)** dengan header `Retry-After` native, bukan lagi error validasi 422. Kredensial salah tetap error validasi (bukan 429).
-  - **Rate limit registrasi (DECISION REQUIRED):** tidak ada kebijakan (ambang, jendela, scope key, captcha/lockout) di repository → **tidak diimplementasikan**; dicatat sebagai `DECISION REQUIRED` (Prompt 20). Jangan mengarang nilai.
-  - **Rate limit lupa-password/reset (DECISION REQUIRED):** tidak ada kebijakan HTTP → **tidak diimplementasikan**; dicatat sebagai `DECISION REQUIRED` (Prompt 20). Hanya `throttle` broker per-email (60 detik, `config/auth.php`) yang berlaku. Jangan mengarang nilai.
+  - **Rate limit registrasi (DIPUTUSKAN, 2026-10-18 — audit PROMPT_28 S-01):** 5 permintaan / 60 detik / IP per route pada `POST /register` (`throttle:5,1`); pesan validasi unik identitas (email/NIK/nomor HP) dibuat **generik** (satu pesan identik untuk ketiga field) untuk mempersempit orakel enumerasi. Captcha/lockout tidak diadopsi pada tahap ini.
+  - **Rate limit lupa-password/reset (DIPUTUSKAN, 2026-10-18 — audit PROMPT_28 S-01):** 5 permintaan / 60 detik / IP per route pada `POST /forgot-password` dan `POST /reset-password`; broker per-email (60 detik, `config/auth.php`) tetap berlaku. Respons lupa-password tetap generik (sudah ada); kegagalan reset selain sukses/di-throttle dipetakan ke satu pesan generik (anti-enumerasi email).
   - **Rate limit pengiriman laporan (FINAL, Prompt 17):** 5 pengiriman / 10 menit / pengguna terautentikasi → HTTP 429 saat terlampaui. Diterapkan di server oleh named rate limiter Laravel `complaint-submission` (scope key = user id, bukan IP), pada route pengiriman laporan saja. Ini adalah proteksi keamanan/anti-abuse dan **terpisah** dari batas laporan harian; satu pengiriman dengan berapa pun lampiran tetap dihitung **satu** pengiriman. Nilai berada di `config/business_rules.php`.
 - Simpan pengaduan dan metadata lampiran secara konsisten.
 - Acceptance criteria:
@@ -232,7 +232,7 @@ Masyarakat membutuhkan kanal pengaduan yang jelas dan mudah digunakan, sementara
 - Gunakan Laravel authentication/session; password di-hash melalui mekanisme Laravel.
 - Login/logout harus dilindungi CSRF; rate limit login dan respons generik pada kredensial salah.
   - Rate limit login (FINAL, Prompt 20): key `email|ip`, ambang 5, jendela 60 detik (default framework), hit saat gagal / clear saat sukses; kondisi terlampaui → **HTTP 429** dengan `Retry-After` native. Kredensial salah tetap error validasi (bukan 429). Kebijakan tidak berubah (D-5).
-  - Rate limit registrasi dan lupa-password: `DECISION REQUIRED` (belum ada kebijakan; tidak diimplementasikan).
+  - Rate limit registrasi dan lupa-password: **diputuskan & diterapkan** (2026-10-18, audit PROMPT_28 S-01) — 5 permintaan/60 detik/IP per route (`throttle:5,1`) + pesan generik anti-enumerasi; lihat F-004.
 - Masyarakat/pelapor wajib login untuk membuat laporan dan mengakses dashboard/riwayat miliknya.
 - Akun internal Operator, Admin, dan Super Admin menggunakan session authentication.
 - Acceptance criteria: guest tidak dapat mengakses area terautentikasi; akun nonaktif tidak dapat login; logout menginvalidasi session.

@@ -62,6 +62,15 @@ class PasswordResetController extends Controller
                 ->with('status', 'Password berhasil direset. Silakan login.');
         }
 
-        return back()->withErrors(['email' => __($status)]);
+        // Audit PROMPT_28 (S-01): `__($status)` would surface `passwords.user`
+        // ("We can't find a user with that email address.") for unknown
+        // emails — an enumeration oracle. The throttled state is safe to
+        // state (rate limit, not identity); every other failure collapses
+        // into one generic message (decision recorded in prd.md, 2026-10-18).
+        if ($status === Password::RESET_THROTTLED) {
+            return back()->withErrors(['email' => 'Terlalu banyak percobaan. Coba lagi sebentar lagi.']);
+        }
+
+        return back()->withErrors(['email' => 'Tautan reset tidak valid atau sudah kedaluwarsa.']);
     }
 }

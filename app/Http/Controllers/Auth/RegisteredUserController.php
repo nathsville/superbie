@@ -33,10 +33,16 @@ class RegisteredUserController extends Controller
         ], [
             'nik.required'   => 'NIK wajib diisi.',
             'nik.digits'     => "NIK harus terdiri dari {$nikLength} digit angka.",
-            'nik.unique'     => 'NIK sudah terdaftar.',
+            // Audit PROMPT_28 (S-01): the three uniqueness messages are
+            // deliberately identical and generic — field-specific wording
+            // ("NIK sudah terdaftar.") turns the form into an account
+            // enumeration oracle. Route-level throttle (5/min/IP) is the
+            // primary mitigation; decision recorded in prd.md (2026-10-18).
+            'email.unique'        => 'Email, NIK, atau nomor HP sudah terdaftar. Masuk jika ini akun Anda.',
+            'nik.unique'          => 'Email, NIK, atau nomor HP sudah terdaftar. Masuk jika ini akun Anda.',
+            'phone_number.unique' => 'Email, NIK, atau nomor HP sudah terdaftar. Masuk jika ini akun Anda.',
             'phone_number.required' => 'Nomor HP wajib diisi.',
             'phone_number.regex'    => 'Format nomor HP tidak valid. Gunakan format Indonesia (contoh: 08xxxxxxxxxx atau +62xxxxxxxxxx).',
-            'phone_number.unique'   => 'Nomor HP sudah terdaftar.',
             'address.required'      => 'Alamat wajib diisi.',
         ]);
 

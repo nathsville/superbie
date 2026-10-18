@@ -91,18 +91,17 @@ class PasswordResetEnumerationTest extends TestCase
     }
 
     // =========================================================================
-    // CHARACTERIZATION — reset endpoint (`POST /reset-password`)
+    // RESET endpoint (`POST /reset-password`) — enumeration-safe contract
     //
-    // KNOWN GAP / DECISION REQUIRED (see Prompt 20 report, F-20-01):
-    // Laravel's password broker distinguishes an unknown account
-    // (`passwords.user`) from an invalid token (`passwords.token`), and the
-    // controller surfaces that status via `withErrors`. This is NOT changed in
-    // Prompt 20 because §8 forbids redesigning the reset flow without scope.
-    // The assertions below PIN the current behaviour so a future approved
-    // decision can be verified against a known baseline.
+    // Audit PROMPT_28 (S-01, decision 2026-10-18): Prompt 20 had PINNED the
+    // framework behaviour (`passwords.user` for an unknown account vs
+    // `passwords.token` for a bad token) as a known gap. The approved
+    // contract now is: every failure that is not "reset succeeded" or
+    // "throttled" returns ONE generic message — an unknown email and a bad
+    // token are indistinguishable.
     // =========================================================================
 
-    public function test_reset_endpoint_unknown_email_yields_the_invalid_user_message(): void
+    public function test_reset_endpoint_unknown_email_yields_the_generic_message(): void
     {
         $response = $this->from(route('password.reset', ['token' => 'dummy-token']))
             ->post(route('password.update'), [
@@ -114,13 +113,12 @@ class PasswordResetEnumerationTest extends TestCase
 
         $response->assertSessionHasErrors('email');
         $this->assertSame(
-            __('passwords.user'),
-            session('errors')->first('email'),
-            'Characterization: unknown-account reset currently returns the passwords.user message.'
+            'Tautan reset tidak valid atau sudah kedaluwarsa.',
+            session('errors')->first('email')
         );
     }
 
-    public function test_reset_endpoint_existing_email_with_bad_token_yields_the_invalid_token_message(): void
+    public function test_reset_endpoint_existing_email_with_bad_token_yields_the_same_generic_message(): void
     {
         $user = $this->user('ada@example.test');
 
@@ -134,9 +132,9 @@ class PasswordResetEnumerationTest extends TestCase
 
         $response->assertSessionHasErrors('email');
         $this->assertSame(
-            __('passwords.token'),
+            'Tautan reset tidak valid atau sudah kedaluwarsa.',
             session('errors')->first('email'),
-            'Characterization: existing-account reset with a bad token returns the passwords.token message.'
+            'Unknown email and invalid token must be indistinguishable.'
         );
     }
 }

@@ -126,6 +126,12 @@ git config --global user.email "email@anda"
 
 - Ikuti gaya Laravel yang sudah ada. **Jangan** melakukan reformat massal dengan Pint
   pada file yang tidak Anda ubah.
+- **Kebijakan Pint (diputuskan, audit PROMPT_28, 2026-10-18):** `vendor/bin/pint`
+  **tidak diadopsi** sebagai formatter repo dan **bukan** gerbang CI. Gaya repo
+  (array ber-alignment, blok komentar terstruktur) sengaja dipertahankan; preset
+  default Pint bertentangan dan menjalankannya menghasilkan diff kosmetik ±150
+  berkas. Jika kelak diadopsi: jalankan sekali dalam commit khusus (test penuh
+  hijau) lalu tambahkan `pint --test` ke CI.
 - **Migration baru = file baru.** Jangan pernah mengubah migration lama yang sudah ada.
 - Gunakan `composer install` dan `npm ci` (mengikuti lock file) — bukan
   `composer update` / `npm install` bebas — agar versi identik dengan CI.
@@ -174,8 +180,10 @@ konsistensi sistem dan membuat test gagal.
 
 Workflow `.github/workflows/ci.yml` berjalan pada **push ke `main`** dan pada
 **Pull Request**. Cakupannya: `composer install` → `npm ci` → `npm run build` →
-`php artisan migrate` → `php artisan test`, plus audit dependency (informatif).
-Workflow ini **secret-free** dan **tidak melakukan deployment**.
+`php artisan migrate` → `php artisan test`, plus audit dependensi dengan kebijakan
+yang diputuskan pada audit PROMPT_28 (2026-10-18): **`composer audit` dan
+`npm audit --omit=dev --audit-level=high` memblokir build**; advisory dev-only JS
+tetap informatif. Workflow ini **secret-free** dan **tidak melakukan deployment**.
 
 Nama status check yang harus lulus: **`Tests & asset build`**.
 

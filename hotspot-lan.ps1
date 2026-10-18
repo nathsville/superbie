@@ -22,7 +22,9 @@
     Nama hotspot. Default: SuperBie-Demo
 
 .PARAMETER Passphrase
-    Password hotspot (minimal 8 karakter). Default: superbie2026
+    Password hotspot (minimal 8 karakter). WAJIB: tidak ada default literal —
+    bila kosong, skrip meminta interaktif (audit PROMPT_28: jangan menyimpan
+    kredensial di repo).
 
 .PARAMETER NoBuild
     Lewati `npm run build`.
@@ -42,7 +44,7 @@
 param(
     [int]$Port = 8000,
     [string]$Ssid = 'SuperBie-Demo',
-    [string]$Passphrase = 'superbie2026',
+    [string]$Passphrase = '',
     [switch]$NoBuild,
     [switch]$NoServe,
     [switch]$Stop
@@ -122,6 +124,15 @@ if ($Stop) {
         Write-Ok "Hotspot dimatikan (state: $($mgr.TetheringOperationalState))."
     } catch { Write-Warn2 "Gagal: $($_.Exception.Message)" }
     return
+}
+
+# Audit PROMPT_28 (higiene): no literal credential in the repo. The passphrase
+# must be supplied explicitly (or typed interactively); Windows requires 8+ chars.
+if ([string]::IsNullOrWhiteSpace($Passphrase)) {
+    $Passphrase = Read-Host -Prompt 'Password hotspot (minimal 8 karakter)'
+}
+if ($Passphrase.Length -lt 8) {
+    throw 'Password hotspot minimal 8 karakter.'
 }
 
 # =========================== MAIN ========================================

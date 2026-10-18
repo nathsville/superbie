@@ -40,14 +40,14 @@ production. It deliberately separates three states so nothing is overstated:
 | Deployment automation | **DECISION REQUIRED** - no deploy target is known. | See section 9. |
 | Dependency advisories | **VERIFIED at Prompt 23** - none open. | `composer audit` and `npm audit` both clean. |
 
-### 1.1 Orphaned `docker/nginx/default.conf`
+### 1.1 Orphaned `docker/nginx/default.conf` — RESOLVED
 
-A tracked file `docker/nginx/default.conf` exists (committed in `bf75450`) but
+A tracked file `docker/nginx/default.conf` was committed in `bf75450`, while
 `SETUP_AND_DOCS.md` and `architecture.md` both state that **Docker is not the
-runtime for this project**. The file is a leftover; it is not used, not
-referenced by any compose file, and there is no `Dockerfile`/`docker-compose.yml`.
-It is recorded here as a documentation/cleanup inconsistency (not deleted in
-Prompt 23, to keep the change surgical). No Docker runtime was introduced.
+runtime for this project**. It was deleted in the higiene pass of the PROMPT_28
+audit remediation (2026-10-18): it was not used, not referenced by any compose
+file, and there is no `Dockerfile`/`docker-compose.yml`; the file survives in
+git history. No Docker runtime was introduced.
 
 ---
 

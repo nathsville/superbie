@@ -5,6 +5,7 @@
 
 > Status: **DISCOVERY ONLY**. No code changed. Awaiting approval before Phase 2.
 > Reference = `design.html` (+ user screenshot) = **VISUAL TRUTH ONLY**.
+> *(Berkas referensi dihapus pada paket higiene audit PROMPT_28, 2026-10-18; tersedia lewat riwayat git.)*
 > Repository / DB / security = **BUSINESS + DATA + AUTHORITY TRUTH**.
 
 ---
@@ -20,11 +21,11 @@
 | Migrations | `…100008` **Pending** in dev DB — will NOT be run |
 | Dashboard data layer | `app/Services/DashboardCacheService.php` |
 | Active layout tree | `resources/views/components/layouts/{app,dashboard}.blade.php` |
-| Dead/orphan layout tree | `resources/views/layouts/{app,dashboard}.blade.php` (F-18-37) — **must not be edited** |
+| Dead/orphan layout tree | `resources/views/layouts/{app,dashboard}.blade.php` (F-18-37) — **must not be edited**; *dihapus pada higiene audit PROMPT_28, 2026-10-18* |
 
 ---
 
-## 1. REFERENCE INVENTORY (`design.html`, 1536 lines)
+## 1. REFERENCE INVENTORY (`design.html`, 1536 lines — berkas dihapus di higiene 2026-10-18, isi kutipan di bawah tetap berlaku)
 
 Reference is a Tailwind-CDN standalone mockup ("Actionable Admin Monitoring & Decision Dashboard").
 Palette: `twilight #03045E`, `tealblue #0077B6`, `turquoise #00B4D8`, `frosted #90E0EF`, `cyanlight #CAF0F8`.

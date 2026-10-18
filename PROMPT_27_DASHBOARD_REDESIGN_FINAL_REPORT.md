@@ -4,6 +4,7 @@
 > **LC-2 CORRECTION NOTE (added by LC-2D, later than this document):** This is a dated implementation report. Several KPI/aggregation definitions below were written against the pre-LC-2 lifecycle and are **superseded** by the LC-2 lifecycle normalization (LC-2C). In particular: "active" = `submitted + in_progress` (legacy statuses `under_review` / `waiting_for_information` / `closed` are history-only); success = `resolved`; the `categoryBacklogDistribution` split is now `active` / `resolved` / `rejected` / `legacy` (the earlier `rejected_closed` bucket was retired); `statusFlow` and `categoryStatusMatrix` stages are the active statuses plus `resolved`; `dinasStatusBreakdown` groups only the active statuses. See `prd.md` §8 / F-014 and `schema.md` §6 for the current source of truth. The historical content below is retained unchanged for traceability.
 
 Reference = `design.html` + `screenshot-reference.png` (**visual truth**).
+*(Kedua berkas dihapus pada paket higiene audit PROMPT_28, 2026-10-18; riwayat git menyimpannya.)*
 Repository / DB / security = **business, data, authority truth**. No dummy data.
 
 ---
@@ -100,7 +101,7 @@ All migrations `Ran`. **No new migration.** `…100008` now `Ran` in dev (pre-ex
 
 ## ADDENDUM — SHARED SHELL RESTYLE (SIDEBAR ICON RAIL + NAVBAR)
 
-Reference = `Banking Dashboard UI – Modern Finance Web App Design.jpg` (**visual truth only**).
+Reference = `Banking Dashboard UI – Modern Finance Web App Design.jpg` (**visual truth only**; berkas dihapus pada higiene audit PROMPT_28, 2026-10-18).
 Shapes/layout cloned; colors stay the repository's blue/teal brand tokens.
 
 **Modified**

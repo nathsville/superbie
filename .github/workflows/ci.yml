@@ -101,9 +101,14 @@ jobs:
       - name: Run test suite
         run: php artisan test
 
-      # Informational only: surfaces advisories without blocking the build.
-      - name: Dependency audit (informational)
+      # Audit policy (PROMPT_28, S-12 — decided 2026-10-18): production
+      # dependencies block the build; dev-only JS advisories stay informational.
+      - name: Audit PHP dependencies (blocking)
+        run: composer audit
+
+      - name: Audit production JS dependencies (blocking)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Audit dev JS dependencies (informational)
         continue-on-error: true
-        run: |
-          composer audit || true
-          npm audit || true
+        run: npm audit

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     {{-- The `.js` gate keeps every [data-anim] entrance visible when scripting is
          off or slow (motion.md: the hidden state exists only under `html.js`). --}}
-    <script>document.documentElement.classList.add('js');</script>
+    <script nonce="{{ $cspNonce ?? '' }}">document.documentElement.classList.add('js');</script>
     <meta name="description" content="{{ $description ?? 'SuperBie — Lapor Pak Wali: Platform pengaduan masyarakat Kota Parepare' }}">
     @php
         // Page titles either OMIT the brand (this layout appends it) or already
@@ -96,7 +96,7 @@
            · a slow net looks again every half second while anything is still
              hidden, so an environment that never delivers the observer shows the
              sections instead of hiding them. --}}
-    <script>
+    <script nonce="{{ $cspNonce ?? '' }}">
         (function () {
             if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
                 return; // the CSS hides nothing here, so there is nothing to choreograph

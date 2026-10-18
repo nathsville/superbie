@@ -723,7 +723,7 @@
     </div>
 
     @push('scripts')
-        <script>
+        <script nonce="{{ $cspNonce ?? '' }}">
             (function () {
                 // The mapping this section is about: the app's own data
                 // (category_dinas_unit), server-rendered above as the plain list

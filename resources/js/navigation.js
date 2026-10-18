@@ -414,6 +414,24 @@ async function navigate(url, options) {
 
 /* ───────────────────────────── click interception ───────────────────────────── */
 
+/* Delegated confirm() for destructive forms that carry `data-confirm`.
+   Replaces inline `onsubmit` attributes so the CSP needs no 'unsafe-inline'
+   (audit PROMPT_28, O-8). Bound on `document` so it also covers markup
+   swapped in by progressive navigation. */
+function onDocumentSubmit(event) {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
+
+    const message = form.getAttribute('data-confirm');
+    if (!message) return;
+
+    if (!window.confirm(message)) {
+        event.preventDefault();
+    }
+}
+
+/* ───────────────────────────── click interception ───────────────────────────── */
+
 function onDocumentClick(event) {
     if (event.defaultPrevented || event.button !== 0) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -548,6 +566,7 @@ export function initNavigation() {
     }
 
     document.addEventListener('click', onDocumentClick, false);
+    document.addEventListener('submit', onDocumentSubmit, false);
     window.addEventListener('popstate', onPopState, false);
 
     document.addEventListener('mouseover', onPrefetchIntent, { passive: true });

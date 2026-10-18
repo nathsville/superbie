@@ -104,7 +104,7 @@
                 method="POST"
                 action="{{ route('notifications.destroy', $notification->id) }}"
                 class="transition-opacity duration-150 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
-                onsubmit="return confirm('Hapus notifikasi ini?');"
+                data-confirm="Hapus notifikasi ini?"
             >
                 @csrf
                 @method('DELETE')

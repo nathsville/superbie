@@ -167,12 +167,8 @@ konsistensi sistem dan membuat test gagal.
 
 - **Jangan pernah** commit `.env` (sudah masuk `.gitignore`). Gunakan `.env.example`
   sebagai template.
-- **Rotasi kredensial DB pengembangan** yang bocor: nilainya ada di commit lama
-  dan tertulis plaintext di `PROMPT_18_SECURITY_ARCHITECTURE_AUDIT.md`. Selama repo
-  private risikonya kecil, tetapi rotasi tetap langkah yang benar; setelah rotasi,
-  perbarui `.env` lokal Anda.
-- Jangan menaruh secret apa pun di kode, test, atau workflow CI.
-- Pastikan repo tetap **private** selama riwayat git masih memuat kredensial lama.
+- **Rotasi kredensial DB pengembangan sudah DIJALANKAN (audit PROMPT_28, T-02, 2026-10-18):** password akun dev `ruthless@localhost` (= pasangan kredensial yang bocor di commit lama/laporan) telah dirotasi; nilai **lama tidak valid lagi** (terverifikasi). Nilai baru hidup **hanya** di `.env` lokal yang git-ignored. Aturan tetap: **jangan pernah** menulis kredensial DB ke dokumen, laporan, test, atau commit (laporan lama sudah diredaksi ke placeholder).
+- **Riwayat git sengaja TIDAK di-rewrite (keputusan 2026-10-18):** nilai lama sudah mati, repo privat, dan rewrite merusak hash/PR/peninjauan tanpa manfaat sebanding. Repo tetap **private**.
 
 ---
 

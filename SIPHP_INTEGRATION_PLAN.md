@@ -1,6 +1,6 @@
 # Rencana Integrasi SIPHP di SuperBie — Modul Pasar (Native)
 
-**Status:** DISETUJUI — G1 ✅ (keputusan owner 2026-10-17) · **Implementasi S0–S4 ✅ (2026-10-17, uncommitted)** · **Tanggal:** 2026-10-17
+**Status:** DISETUJUI — G1 ✅ (keputusan owner 2026-10-17) · **Implementasi S0–S4 ✅ (2026-10-17; ter-commit `720c5cd`, belum di-push)** · **Tanggal:** 2026-10-17
 **Pengambil keputusan:** pemilik proyek (owner)
 
 Dokumen terkait:
@@ -158,7 +158,7 @@ Karena data diinput manual (D-S2):
 | **S3** | Halaman publik `/siphp` + pintu di landing (nav + footer) | S2 |
 | **S4** | Feature test (publik, panel, otorisasi negatif, validasi), audit UI/aksesibilitas, update `PROGRESS.md` | S3 |
 
-**Status implementasi (2026-10-17): S0–S4 selesai — uncommitted.** Penyimpangan kecil dari §5, dilaporkan apa adanya:
+**Status implementasi (2026-10-17): S0–S4 selesai — ter-commit `720c5cd` (belum di-push).** Penyimpangan kecil dari §5, dilaporkan apa adanya:
 
 - Controller publik bernama `App\Http\Controllers\PublicMarketController` (bukan `Market\PublicMarketController`) — mengikuti preseden `LandingController`; tidak ada `App\Services\Market` karena query tampilan cukup sebagai satu query "harga terbaru per barang" di controller tipis.
 - Audit memakai pola repo `AuditLog::create` langsung (tidak ada service audit baru); otorisasi lewat middleware `role:super_admin` + `authorize()` di 5 Form Request.

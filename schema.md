@@ -3,7 +3,7 @@
 
 This file is the single source of truth for database entities and application-level data contracts. Migrations must implement this document. If an operational rule has not been approved, mark it `TODO: Define requirement` rather than silently turning an assumption into a permanent rule.
 
-> **Scope note (Phase 3 O-1 / Phase 4E D-11…D-17).** This schema describes the **Lapor Pak Wali** MVP, which is now joined by the approved **WINDY public weather dashboard** (read-only public weather information on the landing page; **JDIH stays unbuilt — PHASE J links it out by hyperlink only (no tables); SIPHP is now approved — PHASE S, see the note at the end of this scope note**; **no GIS / wilayah boundary map**). The WINDY data model is **not defined here yet** and is **not part of the current migrations**; it is specified separately in `_superbie_audit/WINDY_DATA_MAPPING.md` (all table/column names there are **[USULAN]** pending design gate F3). WINDY tables must be added only after their release gates are met and this document is updated first, keeping exactly the **four existing roles**. **Phase 4E owner decisions:** 3-day forecast from free BMKG, WITA display, **no historical Sheets import** (no import-batch tables), legacy thresholds as initial values only. **PHASE S (2026-10-17, D-S1…D-S7):** the **SIPHP market module** (market prices + retail directory; public read-only at `/siphp`, no login; **manual entry by Super Admin only**) is now in scope; its tables are specified in **§4.12–§4.16 below** and must be written here **before** the corresponding migrations are created/run. No scraping/iframe/data sync with the legacy site; exactly the four existing roles; no new technology. **PHASE J (2026-10-18, D-J1…D-J5):** **JDIH is connected by outbound hyperlink only** (internal notice page `/jdih`; no scraping/iframe/sync/storage) — **this schema gains no tables or columns** for it.
+> **Scope note (Phase 3 O-1 / Phase 4E D-11…D-17).** This schema describes the **Lapor Pak Wali** MVP, which is now joined by the approved **WINDY public weather dashboard** (read-only public weather information on the landing page; **JDIH stays unbuilt — PHASE J links it out by hyperlink only (no tables); SIPHP is now approved — PHASE S, see the note at the end of this scope note**; **no GIS / wilayah boundary map**). The WINDY data model **is now documented in §4.17–§4.20 and has been migrated** (migrations `2026_10_15_100001`–`100003`; audit PROMPT_28 D-02 resolves the earlier status drift — the tables shipped on 2026-10-15, so these sections follow the code **as built**). The original proposal document is `_superbie_audit/WINDY_DATA_MAPPING.md` (external archive — see audit PROMPT_28 D-01). WINDY is read-only public + Super-Admin-managed config/sync, keeping exactly the **four existing roles**. **Phase 4E owner decisions:** 3-day forecast from free BMKG, WITA display, **no historical Sheets import** (no import-batch tables), legacy thresholds as initial values only. **PHASE S (2026-10-17, D-S1…D-S7):** the **SIPHP market module** (market prices + retail directory; public read-only at `/siphp`, no login; **manual entry by Super Admin only**) is now in scope; its tables are specified in **§4.12–§4.16 below** and must be written here **before** the corresponding migrations are created/run. No scraping/iframe/data sync with the legacy site; exactly the four existing roles; no new technology. **PHASE J (2026-10-18, D-J1…D-J5):** **JDIH is connected by outbound hyperlink only** (internal notice page `/jdih`; no scraping/iframe/sync/storage) — **this schema gains no tables or columns** for it.
 
 ## 1. Conventions
 
@@ -438,6 +438,90 @@ Purpose: retail store directory (D-S4a). Managed by Super Admin; publicly readab
 
 **PHASE S scope rules:** exactly the **four existing roles**; every write path is **Super Admin only** (server-side `role:super_admin` + Form Request `authorize()`); the legacy market complaint form is **not** rebuilt (D-S4c — market complaints go through Lapor Pak Wali); no scraping/iframe/data sync with the legacy site.
 
+### 4.17 `weather_sources` (WINDY — cuaca publik)
+
+Purpose: source metadata for the public weather dashboard (free BMKG sources; D-11).
+
+| Column | Type | Null | Default | Key/constraint | Notes |
+|---|---|---|---|---:|---|
+| id | BIGINT UNSIGNED | No | auto | PK | |
+| code | VARCHAR(50) | No | — | UNIQUE | Stable source key (e.g. `bmkg`) |
+| label | VARCHAR(150) | No | — | — | Display label |
+| is_enabled | BOOLEAN | No | true | — | Disabled sources are never synced |
+| attribution_text | VARCHAR(500) | Yes | NULL | — | Attribution shown with the data (provider requirement) |
+| created_at / updated_at | TIMESTAMP | Yes | NULL | — | |
+
+### 4.18 `weather_locations` (WINDY)
+
+Purpose: the monitored land location(s) and their BMKG adm4 code; only Kota Parepare is configured — the multi-location columns carry the capability, not new locations (migration `100003`).
+
+| Column | Type | Null | Default | Key/constraint | Notes |
+|---|---|---|---|---:|---|
+| id | BIGINT UNSIGNED | No | auto | PK | |
+| key | VARCHAR(60) | Yes | NULL | UNIQUE | Stable slug used in URLs (`/cuaca/{key}`), DB lookups and cache keys (`100003`; nullable for legacy rows) |
+| name | VARCHAR(150) | No | — | — | Display name |
+| adm4_code | VARCHAR(30) | Yes | NULL | INDEX | BMKG adm4 code |
+| marine_area_code | VARCHAR(30) | Yes | NULL | — | BMKG sea-area code for THIS location (`100003`); wave data is scoped per location and never shared |
+| province / city / district / village | VARCHAR(100) | Yes | NULL | — | Verified BMKG response fields (provinsi/kotkab/kecamatan/desa) |
+| latitude / longitude | DECIMAL(10,7) | Yes | NULL | — | |
+| is_active | BOOLEAN | No | true | — | Inactive locations are hidden publicly |
+| created_at / updated_at | TIMESTAMP | Yes | NULL | — | |
+
+### 4.19 `weather_forecasts` (WINDY)
+
+Purpose: one row per 3-hourly land forecast slot (D-11 — 3-day horizon). There is deliberately **no `weather_observations` table**: the chosen BMKG `prakiraan-cuaca` source returns a forecast series, not observations, and no synthetic observation is ever written — "current conditions" shown to users are the forecast slot nearest to now (labelled as such).
+
+| Column | Type | Null | Default | Key/constraint | Notes |
+|---|---|---|---|---:|---|
+| id | BIGINT UNSIGNED | No | auto | PK | |
+| weather_location_id | BIGINT UNSIGNED | No | — | FK → weather_locations.id, ON DELETE CASCADE | |
+| weather_source_id | BIGINT UNSIGNED | No | — | FK → weather_sources.id, ON DELETE CASCADE | |
+| issued_at | TIMESTAMP | Yes | NULL | — | When the source published the series (sync time) |
+| forecast_at | TIMESTAMP | No | — | UNIQUE part | Slot time, stored in WITA |
+| temperature_c | DECIMAL(5,2) | Yes | NULL | — | |
+| humidity_pct | TINYINT UNSIGNED | Yes | NULL | — | |
+| wind_speed_kmh | DECIMAL(6,2) | Yes | NULL | — | Land feed unit (km/jam) |
+| wind_dir / wind_dir_to | VARCHAR(30) | Yes | NULL | — | Cardinal direction |
+| wind_dir_deg | SMALLINT UNSIGNED | Yes | NULL | — | |
+| rain_mm | DECIMAL(6,2) | Yes | NULL | — | mm per 3 hours (O-14a). NULL when the source omits it — **NULL is never coerced to 0** |
+| cloud_cover_pct | TINYINT UNSIGNED | Yes | NULL | — | |
+| weather_code | SMALLINT UNSIGNED | Yes | NULL | — | BMKG numeric code |
+| weather_desc | VARCHAR(150) | Yes | NULL | — | |
+| visibility_text | VARCHAR(50) | Yes | NULL | — | |
+| analysis_date | TIMESTAMP | Yes | NULL | — | |
+| created_at / updated_at | TIMESTAMP | Yes | NULL | — | |
+
+**Idempotent sync:** UNIQUE `(weather_location_id, weather_source_id, forecast_at)` — one slot per location × source × time; re-sync updates the slot, never duplicates.
+
+### 4.20 `wave_forecasts` (WINDY)
+
+Purpose: one row per forecast slot per BMKG sea area (maritime feed). `wave_height_m` is the significant wave height in metres — the only wave figure the source publishes — stored verbatim. Marine-feed wind is in **knots** and kept in knots (no unit mixing with the land feed's km/jam). A sea area is a physical thing independent of which land location maps to it, so identical wave data is not duplicated per location.
+
+| Column | Type | Null | Default | Key/constraint | Notes |
+|---|---|---|---|---:|---|
+| id | BIGINT UNSIGNED | No | auto | PK | |
+| weather_source_id | BIGINT UNSIGNED | No | — | FK → weather_sources.id, ON DELETE CASCADE | |
+| area_code | VARCHAR(30) | No | — | INDEX, UNIQUE part | BMKG sea-area code (e.g. `P.AE.01`) |
+| area_name | VARCHAR(150) | Yes | NULL | — | |
+| issued_at | TIMESTAMP | Yes | NULL | — | |
+| valid_from / valid_to | TIMESTAMP | Yes | NULL | — | Validity window of the bulletin |
+| forecast_at | TIMESTAMP | No | — | UNIQUE part | Slot time, stored in WITA |
+| wave_height_m | DECIMAL(5,2) | Yes | NULL | — | Significant wave height, metres (stored verbatim) |
+| wave_cat | VARCHAR(50) | Yes | NULL | — | e.g. "Rendah" |
+| wind_from | VARCHAR(50) | Yes | NULL | — | |
+| wind_speed_kt / wind_gust_kt | DECIMAL(6,2) | Yes | NULL | — | Knots |
+| current_to | VARCHAR(50) | Yes | NULL | — | |
+| current_speed_kt | DECIMAL(6,2) | Yes | NULL | — | Knots |
+| weather_desc | VARCHAR(150) | Yes | NULL | — | |
+| temp_avg_c | SMALLINT UNSIGNED | Yes | NULL | — | |
+| rh_avg_pct | TINYINT UNSIGNED | Yes | NULL | — | |
+| visibility_km | SMALLINT UNSIGNED | Yes | NULL | — | |
+| created_at / updated_at | TIMESTAMP | Yes | NULL | — | |
+
+**WINDY time policy (as built):** times are stored in **WITA (`Asia/Makassar`)**, the application timezone; source times (UTC in the maritime feed) are converted before storage (implementation notes in migrations `100001`–`100002`). This section documents the shipped behavior — the timestamp **storage convention** itself is still listed as an open technical clarification (**O-15**) in `architecture.md:216` (D-12/O-15) and is not re-decided here.
+
+**WINDY scope rules:** exactly the **four existing roles**; read-only public pages + Super-Admin-managed config/sync (scheduled + manual); **no GIS/wilayah boundary tables**; **no import-batch tables** — **no historical Google Sheets import (D-15)**.
+
 ## 5. Index strategy
 
 | Table | Index | Purpose |
@@ -468,6 +552,11 @@ Purpose: retail store directory (D-S4a). Managed by Super Admin; publicly readab
 | market_prices | UNIQUE(market_id, item_id, effective_date) | One price per market × item × day (idempotent manual entry) |
 | market_prices | (market_id, effective_date) | Public "latest per market" reads |
 | market_stores | (market_id) | Public directory per market |
+| weather_locations | UNIQUE(key) | Stable public slug (`/cuaca/{key}`) + DB/cache lookup |
+| weather_locations | (adm4_code) | BMKG adm4 code lookup during sync |
+| weather_forecasts | UNIQUE(weather_location_id, weather_source_id, forecast_at) | Idempotent 3-hourly sync (one slot per location × source) |
+| wave_forecasts | UNIQUE(weather_source_id, area_code, forecast_at) | Idempotent marine sync per sea area |
+| wave_forecasts | (area_code) | Waves per sea area |
 
 Validate indexes against actual queries and `EXPLAIN`; do not add duplicate indexes if a unique constraint already creates one.
 
@@ -713,7 +802,7 @@ Consequently, do not define, document, or return any "public projection" of a co
 - ~~Confirm the semantics of the "belum ditugaskan" (`assigned_to IS NULL`) KPI after PHASE 2R.~~ **DONE (PHASE 6B Decision 3 / PHASE 6C): REDEFINED to "Belum Ditentukan Dinas/Unit" (`dinas_unit_id IS NULL`, active scope). The legacy `assigned_to IS NULL` metric is removed.**
 - ~~Confirm the Operator assignment filter (mine/unassigned) semantics.~~ **DONE (PHASE 6B Decision 9 / PHASE 6C): REMOVED — an Operator is scoped by `dinas_unit_id`, so the assignment filter was meaningless.**
 - Confirm whether staff password reset by Super Admin is a business requirement (currently NOT implemented).
-- **WINDY weather data model (Phase 3 O-1/O-16 / Phase 4E D-11…D-17 — NOT yet in `schema.md`):** the approved WINDY feature needs its own tables (observations / historical aggregates / forecasts / alerts / source metadata) and a config-storage decision (`app_settings` vs a dedicated table). All are **[USULAN]** in `_superbie_audit/WINDY_DATA_MAPPING.md` and must be validated at design gate F3 and written into this document **before** any WINDY migration. **No import-batch tables** — **no historical Google Sheets import (D-15)**. **No GIS/wilayah boundary tables**; exactly **four roles**; WINDY is read-only public + Super-Admin-managed config/sync; **3-day forecast (D-11)**; **WITA display, timestamp storage convention still open (D-12/O-15)**.
+- ~~Confirm the WINDY weather data model.~~ **DONE (2026-10-18, audit PROMPT_28 D-02):** the shipped model — forecast slots + source metadata + locations + wave forecasts; **no observations table**, **no import-batch tables** (no historical Sheets import, D-15), **no GIS/wilayah boundary tables** — is documented **as built** in **§4.17–§4.20** (migrations `2026_10_15_100001`–`100003`). Original proposal source: `_superbie_audit/WINDY_DATA_MAPPING.md` (external archive — audit PROMPT_28 D-01). Exactly **four roles**; WINDY is read-only public + Super-Admin-managed config/sync; **3-day forecast (D-11)**; **WITA display/storage as built — convention O-15 still listed open in `architecture.md:216` (D-12/O-15)**.
 - **PROMPT TAHAP 2 — Help Desk open items:** (a) retention/deletion policy for `help_tickets` (currently **none** — tickets are not purged); (b) content moderation for tickets/messages (currently **none**); (c) ticket notifications (currently **none** — the existing `notifications` table is complaint-anchored with a NOT NULL `complaint_id`, so reuse would change scope/schema); (d) SLA/escalation (currently **none**); (e) ticket attachments (currently **none**).
 - **STAGE 3 — official review reply open items:** (a) notification for the reply (currently **none** — deliberately out of scope; the existing `notifications` table is complaint-anchored with a NOT NULL `complaint_id`); (b) threaded follow-up conversation (currently **none** — exactly one create-once reply, no thread); (c) moderation of reviews/replies (still `TODO: Define requirement`, `prd.md` §4); (d) dedicated retention for the reply (currently **none needed** — it is a column on `complaint_ratings` and is purged with the complaint).
 - **PHASE S — SIPHP open items:** (a) retention/cleanup policy for `market_prices` and `market_stores` (currently **none** — `TODO: Define requirement`; market data is **not** part of the 5-year complaint purge); (b) official barang list + satuan (staff-entered; not yet provided); (c) public landing label & source note ("data diinput manual oleh petugas") — decided at phase S3.

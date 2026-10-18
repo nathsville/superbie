@@ -326,8 +326,16 @@ Perbaikan paket P0 (Lampiran B) dikerjakan pada basis kode yang sama dan diverif
 
 **Verifikasi ulang pasca-perbaikan P1:** suite penuh **1689/1689 hijau (8858 assertion)**; regresi fokus 76 test (panel SIPHP + alur validasi awal + pengalaman pelapor) hijau; migrasi dev DB sukses.
 
-**Sisa temuan:** T-02, S-01 (menunggu keputusan owner), D-01…D-03, higiene (P2) — sesuai urutan prioritas Lampiran B.
+### C.4 — Paket P2 dokumen (D-02, D-03, T-02 parsial)
+
+| Temuan | Status | Perubahan & bukti |
+|---|---|---|
+| D-02 | ✅ Diperbaiki (dokumen) | `schema.md`: scope note diluruskan (model WINDY kini ada + sudah dimigrasikan); seksi baru **§4.17–§4.20** mendokumentasikan `weather_sources`, `weather_locations`, `weather_forecasts`, `wave_forecasts` **as built** (mengikuti migrasi `2026_10_15_100001`–`100003`): tanpa tabel observasi ("current" = slot prakiraan terdekat), hujan mm/3 jam (O-14a; NULL ≠ 0), laut dalam knot, UNIQUE idempotensi; catatan kebijakan waktu: tersimpan **WITA** sebagaimana implementasi — konvensi **O-15 tetap tercatat terbuka** di `architecture.md:216` (tidak diputus ulang di sini); §5 bertambah 5 baris indeks weather; TODO WINDY di §13 ditutup. |
+| D-03 | ✅ Diperbaiki (dokumen) | `PROGRESS.md`: angka terkini **30 migrasi / 137 route / 1689 test / 8858 assertion** (dua tempat) + catatan "Belum ada kode/database WINDY" diganti fakta implementasi. `SIPHP_INTEGRATION_PLAN.md`: status "uncommitted" → ter-commit `720c5cd` (2 tempat). `prd.md`: klausa lama "SIPHP dan JDIH tetap tidak dibangun" diberi penanda **→ DIPERBARUI** ke catatan PHASE S/J. Celah katalog `PROMPT_*` (Info) tidak diubah. |
+| T-02 | ⚠️ Parsial — redaksi ✅, rotasi pending (owner) | Literal kredensial dev/test DB di laporan lama diganti placeholder: `PROMPT_18_SECURITY_ARCHITECTURE_AUDIT.md` (3 tempat) + `PROMPT_19_HARDENING_REPORT.md`; verifikasi grep: **nol kemunculan** di seluruh file ter-track. `phpunit.xml` **sudah bersih** (kredensialnya telah dipindah keluar pada prompt lanjutan — diverifikasi ulang). **Sisa aksi owner:** rotasi kredensial DB + keputusan rewrite riwayat git; repo tetap private. |
+
+**Sisa temuan:** T-02 rotasi kredensial (aksi owner), S-01 (keputusan owner), D-01 (keputusan owner), higiene (P2) — sesuai urutan prioritas Lampiran B.
 
 ---
 
-*Laporan ini disusun dari audit berbasis bukti: setiap klaim memuat rujukan berkas:baris yang dapat diverifikasi ulang pada basis kode yang diaudit. Temuan §3–§6 adalah snapshot saat audit (auditor tidak mengubah kode aplikasi); perbaikan di Lampiran C (C.1 paket P0, C.2 paket a11y, C.3 paket P1) dikerjakan pasca-audit dan diverifikasi ulang.*
+*Laporan ini disusun dari audit berbasis bukti: setiap klaim memuat rujukan berkas:baris yang dapat diverifikasi ulang pada basis kode yang diaudit. Temuan §3–§6 adalah snapshot saat audit (auditor tidak mengubah kode aplikasi); perbaikan di Lampiran C (C.1 paket P0, C.2 paket a11y, C.3 paket P1, C.4 paket dokumen P2) dikerjakan pasca-audit dan diverifikasi ulang.*
